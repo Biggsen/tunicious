@@ -1,13 +1,12 @@
 import axios from 'axios'
 
-const url = 'http://localhost:5000/api/artists/'
+const url = 'api/artists/'
 
 class ArtistService {
     // Get Artists
     static getArtists() {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const res = await axios.get(url)
+        return new Promise((resolve, reject) => {
+            axios.get(url).then((res) => {
                 const data = res.data
                 resolve(
                     data.map(artist => ({
@@ -15,9 +14,11 @@ class ArtistService {
                         createdAt: new Date(artist.createdAt)
                     }))
                 )
-            } catch(err) {
+
+            })
+            .catch((err) => {
                 reject(err)
-            }
+            })
         })
     }
 
