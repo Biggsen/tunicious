@@ -1,13 +1,26 @@
 const express = require('express')
+const mongoose = require('mongoose')
 const bodyParser = require('body-parser')
 const cors = require('cors')
+require('dotenv').config()
 
 const app = express()
 
 // Middleware
 app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({
+    extended: false
+}))
 app.use(cors())
 
+// connect to db
+const uri = process.env.ATLAS_URI
+mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true })
+    .then(() => {
+        console.log('Database connection successful')
+    }).catch(err => {
+        console.log('Unable to connect to database')
+    })
 const artists = require('./routes/api/artists')
 
 app.use('/api/artists', artists)
