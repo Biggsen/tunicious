@@ -21,8 +21,12 @@ mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true })
     }).catch(err => {
         console.log('Unable to connect to database')
     })
+
+
+const users = require('./routes/api/users')
 const artists = require('./routes/api/artists')
 
+app.use('/api/users', users)
 app.use('/api/artists', artists)
 
 // Handle production
