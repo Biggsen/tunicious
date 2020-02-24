@@ -1,40 +1,32 @@
-const express = require('express')
-const mongodb = require('mongodb')
+const router = require('express').Router()
 const slugify = require('slugify')
-
-const router = express.Router()
+const Artist = require('../../models/artist')
 
 // Get Artists
-router.get('/', async (req, res) => {
-    const artists = await loadArtistsCollection()
-    res.send(await artists.find({}).toArray())
+router.get('/', (req, res) => {
+    Artist.find()
+        .then(artists => res.json(artists))
+        .catch(err => res.status(400).json('Error: ' + err))
 })
 
-// Add Artist
-router.post('/', async (req, res) => {
-    const artists = await loadArtistsCollection()
-    await artists.insertOne({
-        name: req.body.name,
-        slug: slugify(req.body.name),
-        createdAt: new Date()
-    })
-    res.status(201).send()
+// Create Artist
+router.post('/', (req, res) => {
+    const name = req.body.name
+    const slug = slugify(req.body.name)
+    const createdAt = new Date()
+
+    const newArtist = new Artist({ name, slug, createdAt })
+
+    newArtist.save()
+        .then(() => res.json('Artist added!'))
+        .catch(err => res.status(400).json('Error: ' + err))
 })
 
-
-// Delete Artist
-router.delete('/:id', async (req, res) => {
-    const artists = await loadArtistsCollection()
-    await artists.deleteOne({_id: new mongodb.ObjectID(req.params.id)})
-    res.status(200).send()
+// Delete (DELETE)
+router.delete('/:id', (req, res) => {
+    Artist.findByIdAndDelete(req.params.id)
+        .then(artist => res.json('Artist deleted.'))
+        .catch(err => res.status(400).json('Error: ' + err))
 })
-
-async function loadArtistsCollection() {
-    const client = await mongodb.MongoClient.connect('mongodb://biggs_admin:nkqeoDHG10a6ccOg@audiofoodiedb-shard-00-00-vpqgw.mongodb.net:27017,audiofoodiedb-shard-00-01-vpqgw.mongodb.net:27017,audiofoodiedb-shard-00-02-vpqgw.mongodb.net:27017/devilliondb?retryWrites=true&ssl=true&authSource=admin&replicaSet=audiofoodiedb-shard-0', {useNewUrlParser: true
-    })
-
-    return client.db('devilliondb').collection('artists')
-}
-
 
 module.exports = router
