@@ -1,7 +1,10 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const bodyParser = require('body-parser')
+const path = require('path')
 const cors = require('cors')
+const passport = require('passport')
+
 require('dotenv').config()
 
 const app = express()
@@ -12,6 +15,9 @@ app.use(bodyParser.urlencoded({
     extended: false
 }))
 app.use(cors())
+
+app.use(passport.initialize())
+require('./config/passport')(passport)
 
 // connect to db
 const uri = process.env.ATLAS_URI
