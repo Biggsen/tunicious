@@ -1,19 +1,22 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
+    <Navbar />
     <ArtistComponent />
   </div>
 </template>
 
 <script>
-import ArtistComponent from './components/ArtistComponent.vue'
+  import Navbar from './components/Navbar'
 
-export default {
-  name: 'App',
-  components: {
-    ArtistComponent
+  import ArtistComponent from './components/ArtistComponent.vue'
+
+  export default {
+    name: 'App',
+    components: {
+      Navbar,
+      ArtistComponent
+    }
   }
-}
 </script>
 
 <style>
