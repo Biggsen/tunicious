@@ -27,7 +27,7 @@
 </template>
 
 <script>
-import ArtistService from '../ArtistService'
+import ArtistService from '../services/ArtistService'
 
 export default {
   name: 'ArtistComponent',
