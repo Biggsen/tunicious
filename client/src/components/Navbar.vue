@@ -2,9 +2,9 @@
     <div class="flex">
         <router-link to="/" class="mr-4">Home</router-link>
         <router-link to="/about" class="mr-4">About</router-link>
-        <router-link to="/login" v-if="!loggedIn">Login</router-link>
-        <p v-if="loggedIn">Logged in</p>
-        <button v-on:click="logout()" v-if="loggedIn">Logout</button>
+        <router-link to="/artists" class="mr-4">Artists</router-link>
+        <router-link to="/login" class="mr-4" v-if="!auth">Login</router-link>
+        <button v-on:click="logout()" v-if="auth">Logout</button>
     </div>
 </template>
 
@@ -12,13 +12,14 @@
 export default {
 
   name: 'Navbar',
-  props: ['loggedIn'],
+  props: ['auth'],
   data () {
     return {}
   },
   methods: {
     logout: function() {
         localStorage.removeItem('user-token')
+        this.$parent.logout()
         this.$router.push('/login')
     }
   }
