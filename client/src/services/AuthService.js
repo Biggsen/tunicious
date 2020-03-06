@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const url = 'api/users/'
+const url = `${process.env.VUE_APP_SERVER_URL}/api/users/`
 
 class AuthService {
     // Login
@@ -13,6 +13,18 @@ class AuthService {
             })
             .catch((err) => {
                 localStorage.removeItem('user-token')
+                reject(err)
+            })
+        })
+    }
+
+    // Get Artists
+    static getUser() {
+        return new Promise((resolve, reject) => {
+            axios.get(`${url}profile`).then((res) => {
+                resolve(res.data)
+            })
+            .catch((err) => {
                 reject(err)
             })
         })

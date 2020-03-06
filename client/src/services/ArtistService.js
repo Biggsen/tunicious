@@ -1,8 +1,9 @@
 import axios from 'axios'
 
-const url = 'api/artists/'
+const url = `${process.env.VUE_APP_SERVER_URL}/api/artists/`
 
 class ArtistService {
+
     // Get Artists
     static getArtists() {
         return new Promise((resolve, reject) => {
