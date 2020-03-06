@@ -1,8 +1,8 @@
 <template>
   <div id="app">
-    <Navbar loggedIn="isUserLoggedIn" />
+    <Navbar :auth="authenticated" />
     <div class="p-6">
-      <router-view/>
+      <router-view @authenticated="setAuthenticated"/>
     </div>
   </div>
 </template>
@@ -12,11 +12,20 @@
   export default {
     data() {
       return {
+        authenticated: false,
         isUserLoggedIn: localStorage.getItem('user-token') ? true : false
       }
     },
     components: {
       Navbar
+    },
+    methods: {
+        setAuthenticated(status) {
+            this.authenticated = status;
+        },
+        logout() {
+            this.authenticated = false;
+        }
     }
   }
 </script>
