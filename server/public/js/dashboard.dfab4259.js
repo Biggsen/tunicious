@@ -1,0 +1,2 @@
+(window["webpackJsonp"]=window["webpackJsonp"]||[]).push([["dashboard"],{ec95:function(e,t,a){"use strict";a.r(t);var n=function(){var e=this,t=e.$createElement;e._self._c;return e._m(0)},s=[function(){var e=this,t=e.$createElement,a=e._self._c||t;return a("div",{staticClass:"about"},[a("h1",[e._v("This is the dashboard page")])])}],r=a("2877"),c={},i=Object(r["a"])(c,n,s,!1,null,null,null);t["default"]=i.exports}}]);
+//# sourceMappingURL=dashboard.dfab4259.js.map
