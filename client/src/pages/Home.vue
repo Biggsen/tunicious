@@ -1,17 +1,14 @@
 <template>
   <div class="home">
-    <ArtistComponent />
+    <h1>Home yo</h1>
   </div>
 </template>
 
 <script>
-// @ is an alias to /src
-import ArtistComponent from '@/components/ArtistComponent.vue'
-
 export default {
   name: 'Home',
-  components: {
-    ArtistComponent
+  data(){
+    return {}
   }
 }
 </script>
