@@ -38,11 +38,11 @@ app.use('/api/artists', artists)
 
 
 // Static folder
-app.use(express.static(path.resolve(__dirname, '/public')))
+app.use(express.static(path.resolve(__dirname, './public')))
 
 // Handle SPA
 app.get('*', function(request, response) {
-    response.sendFile(path.resolve(__dirname, '/public', 'index.html'))
+    response.sendFile(path.resolve(__dirname, './public', 'index.html'))
 })
 
 
