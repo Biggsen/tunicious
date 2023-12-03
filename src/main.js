@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import './style.css'
+import './style.scss'
 import { VueFire, VueFireAuth } from 'vuefire'
 import { firebaseApp } from './firebase'
 import App from './App.vue'
