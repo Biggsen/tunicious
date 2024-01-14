@@ -145,10 +145,10 @@ function promiseAllProps(arrayOfObjects) {
         </ul>
 		<h1 class="text-[36px] font-chivo font-bold">New - Curious</h1>
         <ul class="flex flex-wrap gap-4">
-            <li v-for="album in albumsCuriousData" class="bg-mindero rounded-xl p-2 pb-0">
+            <li v-for="album in albumsCuriousData" class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0">
                 <img :src="album.images[1].url" alt="" class="rounded-lg ">
                 <div class="p-3">
-                    <p class="font-chivo font-bold">{{ album.artists[0].name }}</p>
+                    <p class="font-chivo font-bold text-lg">{{ album.artists[0].name }}</p>
                     <p class="font-chivo">{{ album.name }}</p>
                 </div>
             </li>
