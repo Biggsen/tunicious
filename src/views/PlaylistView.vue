@@ -4,8 +4,8 @@ import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const client_id = '397d11c9d22349e7b543b88edc139613'; 
-const client_secret = '475940484e3243c9ae9762994a9705dc';
+const client_id = import.meta.env.VITE_SPOTIFY_CLIENT_ID 
+const client_secret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET
 
 async function getToken() {
   const response = await fetch('https://accounts.spotify.com/api/token', {
