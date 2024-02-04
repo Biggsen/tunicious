@@ -23,16 +23,26 @@ if (!token.value) {
 
 const playlistNewCurious = ref()
 const playlistNewInterested = ref()
+const playlistNewGreat = ref()
+const playlistNewExcellent = ref()
 
 getPlaylist({ token: token.value, playlistId: '67lIAfdpjpYSvruBVFuP9N'}).then(response => {
-  console.log(response);
   playlistNewCurious.value = response;
 })
 
 getPlaylist({ token: token.value, playlistId: '3BUpSXAvxd05UkBil8JYWe'}).then(response => {
-  console.log(response);
   playlistNewInterested.value = response;
 })
+
+getPlaylist({ token: token.value, playlistId: '2tmqzXyCSHUeFWSdPF6UuC'}).then(response => {
+  playlistNewGreat.value = response;
+})
+
+getPlaylist({ token: token.value, playlistId: '0JKPso7ACSmMc9NNWUzDQ6'}).then(response => {
+  playlistNewExcellent.value = response;
+})
+
+
 
 
 
@@ -155,6 +165,20 @@ const albumsCuriousData = ref({});
         <div>
           <h2 class="h4">{{ playlistNewInterested.name }}</h2>
           <p>{{ playlistNewInterested.tracks.total }} songs</p>
+        </div>
+      </li>
+      <li v-if="playlistNewGreat" class="flex">
+        <img :src="playlistNewGreat.images[2].url" alt="" class="mr-6">
+        <div>
+          <h2 class="h4">{{ playlistNewGreat.name }}</h2>
+          <p>{{ playlistNewGreat.tracks.total }} songs</p>
+        </div>
+      </li>
+      <li v-if="playlistNewExcellent" class="flex">
+        <img :src="playlistNewExcellent.images[2].url" alt="" class="mr-6">
+        <div>
+          <h2 class="h4">{{ playlistNewExcellent.name }}</h2>
+          <p>{{ playlistNewExcellent.tracks.total }} songs</p>
         </div>
       </li>
     </ul>
