@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router'
-import { client } from '../consts/envVars'
+import { Client } from '../constants'
 
 const route = useRoute()
 
@@ -13,7 +13,7 @@ async function getToken() {
     }),
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + (btoa(`${client.id}:${client.secret}`)),
+      'Authorization': 'Basic ' + (btoa(`${Client.ID}:${Client.SECRET}`)),
     },
   });
 
