@@ -12,9 +12,9 @@ if (!token.value) {
   console.log('token not been set');
   loading.value = true;
   getToken().then(response => {
-    localStorage.setItem('token', token.value)
+    localStorage.setItem('token', response.access_token)
     console.log('token is now set');
-    token.value = token.value
+    token.value = response.access_token
     loading.value = false;
   })
 } else {
