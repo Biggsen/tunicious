@@ -5,19 +5,19 @@ import { Client } from '../constants'
 
 const route = useRoute()
 
-async function getToken() {
-  const response = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    body: new URLSearchParams({
-      'grant_type': 'client_credentials',
-    }),
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + (btoa(`${Client.ID}:${Client.SECRET}`)),
-    },
-  });
-
-  return await response.json();
+const loading = ref(false)
+const token = ref(localStorage.getItem('token'))
+if (!token.value) {
+  console.log('token not been set');
+  loading.value = true;
+  getToken().then(response => {
+    localStorage.setItem('token', token.value)
+    console.log('token is now set');
+    token.value = token.value
+    loading.value = false;
+  })
+} else {
+  console.log('token was already set, good to go');
 }
 
 async function getTrackInfo(access_token) {
@@ -64,39 +64,39 @@ const albumsCuriousIds = ref();
 const album = ref();
 const albumsCuriousData = ref({});
 
-getToken().then(response => {
-	//getTrackInfo(response.access_token).then(profile => { console.log(profile) })
-  getPlaylist(response.access_token).then(profile => { console.log(profile) })
-  getPlaylistItems(response.access_token).then(profile => { 
-		//console.log(profile)
-		const albumIdArray = profile.items.map((elem) => {
-			return elem.track.album.id
-		})
-		//console.log(albumIdArray);
-		albumsCuriousIds.value = albumIdArray.filter(onlyUnique)
-		console.log(albumsCuriousIds.value);
-    const albumsCurios = [];
-    albumsCuriousIds.value.forEach(album => {
-      console.log(album);
-      albumsCurios.push(
-        getAlbum(response.access_token,album).then(data => {
-          return data;
-        })
-      )
-    })
-    Promise.all(albumsCurios).then(result => {
-      console.log(typeof result);
-      albumsCuriousData.value = result
-      console.log(albumsCuriousData.value);
-    });
-    
-    //console.log(albumsCuriousData.value);
-	})
-	getAlbum(response.access_token,"1x55Z0fYARLdeJVjG2UESs").then(data => {
-		album.value = data;
-		//console.log(album.href);
-	})
-});
+
+//getTrackInfo(token.value).then(profile => { console.log(profile) })
+getPlaylist(token.value).then(profile => { console.log(profile) })
+getPlaylistItems(token.value).then(profile => { 
+  //console.log(profile)
+  const albumIdArray = profile.items.map((elem) => {
+    return elem.track.album.id
+  })
+  //console.log(albumIdArray);
+  albumsCuriousIds.value = albumIdArray.filter(onlyUnique)
+  console.log(albumsCuriousIds.value);
+  const albumsCurios = [];
+  albumsCuriousIds.value.forEach(album => {
+    console.log(album);
+    albumsCurios.push(
+      getAlbum(token.value,album).then(data => {
+        return data;
+      })
+    )
+  })
+  Promise.all(albumsCurios).then(result => {
+    console.log(typeof result);
+    albumsCuriousData.value = result
+    console.log(albumsCuriousData.value);
+  });
+  
+  //console.log(albumsCuriousData.value);
+})
+getAlbum(token.value,"1x55Z0fYARLdeJVjG2UESs").then(data => {
+  album.value = data;
+  //console.log(album.href);
+})
+
 
 function promiseAllProps(arrayOfObjects) {
     let datum = [];
@@ -132,7 +132,8 @@ function promiseAllProps(arrayOfObjects) {
 </script>
 
 <template>
-	<main>
+  <p v-if="loading">Loading...</p>
+	<main v-else>
     <h1 class="text-[36px] font-chivo font-bold">New - Curious</h1>
         <ul>
             <li>
