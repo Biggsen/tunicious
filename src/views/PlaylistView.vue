@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router'
 import { Client } from '../constants'
+import { getToken, getPlaylist } from '../utils/api';
 
 const route = useRoute()
 
