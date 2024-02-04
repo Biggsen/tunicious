@@ -6,6 +6,26 @@
     max-width: 1280px;
     margin: 0 auto;
     padding: 2rem;
-
     font-weight: normal;
+    font-family: chivo;
+}
+
+.h1, .heading1 {
+  @apply text-[72px] leading-[92px] -tracking-[0.02em] italic font-black;
+}
+
+.h2, .heading2 {
+  @apply text-[48px] leading-[64px] -tracking-[0.01em] italic font-black;
+}
+
+.h3, .heading3 {
+  @apply text-[32px] leading-[40px];
+}
+
+.h4, .heading4 {
+  @apply text-[24px] leading-[36px];
+}
+
+.h5, .heading5 {
+  @apply text-[18px] leading-[28px] tracking-[0.04em] uppercase 
 }
