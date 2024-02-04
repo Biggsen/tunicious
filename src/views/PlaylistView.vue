@@ -135,6 +135,7 @@ function promiseAllProps(arrayOfObjects) {
 
 <template>
 	<main>
+    <h1 class="text-[36px] font-chivo font-bold">New - Curious</h1>
         <ul>
             <li>
                 <router-link to="/playlist/67lIAfdpjpYSvruBVFuP9N">New - Curious</router-link>
@@ -143,7 +144,6 @@ function promiseAllProps(arrayOfObjects) {
                 <router-link to="/playlist/0PLm8YxaKVhjqUaOhujKzk">Know - Great</router-link>
             </li>
         </ul>
-		<h1 class="text-[36px] font-chivo font-bold">New - Curious</h1>
         <ul class="flex flex-wrap gap-4">
             <li v-for="album in albumsCuriousData" class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0">
                 <img :src="album.images[1].url" alt="" class="rounded-lg ">
