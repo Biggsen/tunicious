@@ -22,6 +22,6 @@ if (!token.value) {
 <template>
   <p v-if="loading">Loading...</p>
 	<main v-else>
-		<h1 class="text-[36px] font-chivo font-bold">Homepage</h1>
+		<h1 class="h2">Homepage</h1>
 	</main>
 </template>

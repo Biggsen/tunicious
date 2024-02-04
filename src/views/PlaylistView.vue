@@ -135,7 +135,7 @@ function promiseAllProps(arrayOfObjects) {
 <template>
   <p v-if="loading">Loading...</p>
 	<main v-else>
-    <h1 class="text-[36px] font-chivo font-bold">New - Curious</h1>
+    <h1 class="h2 pb-10">Playlists</h1>
         <ul>
             <li>
                 <router-link to="/playlist/67lIAfdpjpYSvruBVFuP9N">New - Curious</router-link>
