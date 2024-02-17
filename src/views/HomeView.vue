@@ -1,22 +1,15 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router'
-import { getToken } from '../utils/api';
+import { getAuth } from '../utils/auth';
 
 const loading = ref(false)
-const token = ref(localStorage.getItem('token'))
-if (!token.value) {
-  console.log('token not been set');
-  loading.value = true;
-  getToken().then(response => {
-    localStorage.setItem('token', response.access_token)
-    console.log('token is now set');
-    token.value = response.access_token
-    loading.value = false;
-  })
-} else {
-  console.log('token was already set');
-}
+const token = ref()
+getAuth().then(response => {
+  console.log(response);
+  token.value = response
+})
+
 </script>
 
 <template>

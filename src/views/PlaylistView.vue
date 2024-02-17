@@ -1,30 +1,31 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router'
-import { Client } from '../constants'
-import { getToken, getPlaylist } from '../utils/api';
+import { getPlaylist } from '../utils/api';
+import { getAuth } from '../utils/auth';
 
 const route = useRoute()
 
 const loading = ref(false)
 const token = ref(localStorage.getItem('token'))
 if (!token.value) {
-  console.log('token not been set');
-  loading.value = true;
-  getToken().then(response => {
-    localStorage.setItem('token', response.access_token)
-    console.log('token is now set');
-    token.value = response.access_token
-    loading.value = false;
+  getAuth().then(response => {
+    console.log(response);
+    token.value = response
   })
-} else {
-  console.log('token was already set, good to go');
 }
 
+const route = useRoute()
+
+const playlistNewQueued = ref()
 const playlistNewCurious = ref()
 const playlistNewInterested = ref()
 const playlistNewGreat = ref()
 const playlistNewExcellent = ref()
+
+getPlaylist({ token: token.value, playlistId: '50mWTRVvyIC3lUjTJ3r5KV'}).then(response => {
+  playlistNewQueued.value = response;
+})
 
 getPlaylist({ token: token.value, playlistId: '67lIAfdpjpYSvruBVFuP9N'}).then(response => {
   playlistNewCurious.value = response;
