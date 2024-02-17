@@ -16,41 +16,85 @@ if (!token.value) {
 
 const route = useRoute();
 
+const playlistIds = {
+  new: {
+    queued: "50mWTRVvyIC3lUjTJ3r5KV",
+    curious: "67lIAfdpjpYSvruBVFuP9N",
+    interested: "3BUpSXAvxd05UkBil8JYWe",
+    great: "2tmqzXyCSHUeFWSdPF6UuC",
+    excellent: "0JKPso7ACSmMc9NNWUzDQ6",
+    wonderful: "6t7Ftpes0Wp2THxA4olWLC",
+  },
+  known: {
+    queued: "3et9otGGsiXslIlfNGsZvX",
+    curious: "6LPO8pVjeuK2PbhvXxmlHe",
+    interested: "2YuK0rgxUgVquocFMeeVXF",
+    great: "0PLm8YxaKVhjqUaOhujKzk",
+    excellent: "2kNmtSF2ndUsYCOSSvcnmj",
+    wonderful: "53VM2f4uc7yaGlDi1sEXYg",
+  },
+};
+
 const playlistNewQueued = ref();
 const playlistNewCurious = ref();
 const playlistNewInterested = ref();
 const playlistNewGreat = ref();
 const playlistNewExcellent = ref();
+const playlistNewWonderful = ref();
+const playlistKnownQueued = ref();
+const playlistKnownCurious = ref();
+const playlistKnownInterested = ref();
+const playlistKnownGreat = ref();
+const playlistKnownExcellent = ref();
+const playlistKnownWonderful = ref();
 
-getPlaylist({ token: token.value, playlistId: "50mWTRVvyIC3lUjTJ3r5KV" }).then(
-  (response) => {
-    playlistNewQueued.value = response;
-  }
-);
+getPlaylist(playlistIds.new.queued).then((response) => {
+  playlistNewQueued.value = response;
+});
 
-getPlaylist({ token: token.value, playlistId: "67lIAfdpjpYSvruBVFuP9N" }).then(
-  (response) => {
-    playlistNewCurious.value = response;
-  }
-);
+getPlaylist(playlistIds.new.curious).then((response) => {
+  playlistNewCurious.value = response;
+});
 
-getPlaylist({ token: token.value, playlistId: "3BUpSXAvxd05UkBil8JYWe" }).then(
-  (response) => {
-    playlistNewInterested.value = response;
-  }
-);
+getPlaylist(playlistIds.new.interested).then((response) => {
+  playlistNewInterested.value = response;
+});
 
-getPlaylist({ token: token.value, playlistId: "2tmqzXyCSHUeFWSdPF6UuC" }).then(
-  (response) => {
-    playlistNewGreat.value = response;
-  }
-);
+getPlaylist(playlistIds.new.great).then((response) => {
+  playlistNewGreat.value = response;
+});
 
-getPlaylist({ token: token.value, playlistId: "0JKPso7ACSmMc9NNWUzDQ6" }).then(
-  (response) => {
-    playlistNewExcellent.value = response;
-  }
-);
+getPlaylist(playlistIds.new.excellent).then((response) => {
+  playlistNewExcellent.value = response;
+});
+
+getPlaylist(playlistIds.new.wonderful).then((response) => {
+  playlistNewWonderful.value = response;
+});
+
+getPlaylist(playlistIds.known.queued).then((r) => {
+  playlistKnownQueued.value = r;
+});
+
+getPlaylist(playlistIds.known.curious).then((response) => {
+  playlistKnownCurious.value = response;
+});
+
+getPlaylist(playlistIds.known.interested).then((response) => {
+  playlistKnownInterested.value = response;
+});
+
+getPlaylist(playlistIds.known.great).then((response) => {
+  playlistKnownGreat.value = response;
+});
+
+getPlaylist(playlistIds.known.excellent).then((response) => {
+  playlistKnownExcellent.value = response;
+});
+
+getPlaylist(playlistIds.known.wonderful).then((response) => {
+  playlistKnownWonderful.value = response;
+});
 
 async function getTrackInfo(access_token) {
   const response = await fetch(
@@ -163,13 +207,24 @@ const albumsCuriousData = ref({});
   <p v-if="loading">Loading...</p>
   <main v-else>
     <h1 class="h2 pb-10">Playlists</h1>
-    <ul class="flex flex-col gap-4">
-      <PlaylistItem :playlist="playlistNewQueued" />
-      <PlaylistItem :playlist="playlistNewCurious" />
-      <PlaylistItem :playlist="playlistNewInterested" />
-      <PlaylistItem :playlist="playlistNewGreat" />
-      <PlaylistItem :playlist="playlistNewExcellent" />
-    </ul>
+    <div class="flex gap-40">
+      <ul class="flex flex-col gap-4">
+        <PlaylistItem :playlist="playlistNewQueued" />
+        <PlaylistItem :playlist="playlistNewCurious" />
+        <PlaylistItem :playlist="playlistNewInterested" />
+        <PlaylistItem :playlist="playlistNewGreat" />
+        <PlaylistItem :playlist="playlistNewExcellent" />
+        <PlaylistItem :playlist="playlistNewWonderful" />
+      </ul>
+      <ul class="flex flex-col gap-4">
+        <PlaylistItem :playlist="playlistKnownQueued" />
+        <PlaylistItem :playlist="playlistKnownCurious" />
+        <PlaylistItem :playlist="playlistKnownInterested" />
+        <PlaylistItem :playlist="playlistKnownGreat" />
+        <PlaylistItem :playlist="playlistKnownExcellent" />
+        <PlaylistItem :playlist="playlistKnownWonderful" />
+      </ul>
+    </div>
     <!-- <ul class="flex flex-wrap gap-4">
             <li v-for="album in albumsCuriousData" class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0">
                 <img :src="album.images[1].url" alt="" class="rounded-lg ">
