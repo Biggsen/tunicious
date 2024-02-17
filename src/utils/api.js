@@ -15,10 +15,10 @@ export async function getToken() {
   return await response.json();
 }
 
-export async function getPlaylist({ token, playlistId }) {
+export async function getPlaylist(playlistId) {
   const response = await fetch(`${ApiUrl.playlists}/${playlistId}`, {
     method: "GET",
-    headers: { Authorization: "Bearer " + token },
+    headers: { Authorization: "Bearer " + localStorage.getItem("token") },
   });
 
   return await response.json();
