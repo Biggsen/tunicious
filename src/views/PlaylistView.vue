@@ -1,10 +1,9 @@
 <script setup>
 import { ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { getPlaylist } from '../utils/api';
 import { getAuth } from '../utils/auth';
-
-const route = useRoute()
+import PlaylistItem from '../components/PlaylistItem.vue';
 
 const loading = ref(false)
 const token = ref(localStorage.getItem('token'))
@@ -154,34 +153,11 @@ const albumsCuriousData = ref({});
 	<main v-else>
     <h1 class="h2 pb-10">Playlists</h1>
     <ul class="flex flex-col gap-4">
-      <li v-if="playlistNewCurious" class="flex">
-        <img :src="playlistNewCurious.images[2].url" alt="" class="mr-6">
-        <div>
-          <h2 class="h4">{{ playlistNewCurious.name }}</h2>
-          <p>{{ playlistNewCurious.tracks.total }} songs</p>
-        </div>
-      </li>
-      <li v-if="playlistNewInterested" class="flex">
-        <img :src="playlistNewInterested.images[2].url" alt="" class="mr-6">
-        <div>
-          <h2 class="h4">{{ playlistNewInterested.name }}</h2>
-          <p>{{ playlistNewInterested.tracks.total }} songs</p>
-        </div>
-      </li>
-      <li v-if="playlistNewGreat" class="flex">
-        <img :src="playlistNewGreat.images[2].url" alt="" class="mr-6">
-        <div>
-          <h2 class="h4">{{ playlistNewGreat.name }}</h2>
-          <p>{{ playlistNewGreat.tracks.total }} songs</p>
-        </div>
-      </li>
-      <li v-if="playlistNewExcellent" class="flex">
-        <img :src="playlistNewExcellent.images[2].url" alt="" class="mr-6">
-        <div>
-          <h2 class="h4">{{ playlistNewExcellent.name }}</h2>
-          <p>{{ playlistNewExcellent.tracks.total }} songs</p>
-        </div>
-      </li>
+      <PlaylistItem :playlist="playlistNewQueued" />
+      <PlaylistItem :playlist="playlistNewCurious" />
+      <PlaylistItem :playlist="playlistNewInterested" />
+      <PlaylistItem :playlist="playlistNewGreat" />
+      <PlaylistItem :playlist="playlistNewExcellent" />
     </ul>
         <!-- <ul class="flex flex-wrap gap-4">
             <li v-for="album in albumsCuriousData" class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0">
