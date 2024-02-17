@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
 import PlaylistView from "../views/PlaylistView.vue";
+import PlaylistSingle from "../views/PlaylistSingle.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -11,14 +12,14 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: "/playlist",
-      name: "playlist",
+      path: "/playlists",
+      name: "playlists",
       component: PlaylistView,
     },
     {
       path: "/playlist/:id",
       name: "playlist-id",
-      component: PlaylistView,
+      component: PlaylistSingle,
     },
     {
       path: "/login",

@@ -10,7 +10,7 @@ const user = useCurrentUser();
       <RouterLink to="/">Home</RouterLink>
     </li>
     <li>
-      <RouterLink to="/playlist">Playlists</RouterLink>
+      <RouterLink to="/playlists">Playlists</RouterLink>
     </li>
   </ul>
   <RouterView />
