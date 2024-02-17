@@ -1,7 +1,7 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import { useCurrentUser } from 'vuefire'
-const user = useCurrentUser()
+import { RouterLink, RouterView } from "vue-router";
+import { useCurrentUser } from "vuefire";
+const user = useCurrentUser();
 </script>
 
 <template>
@@ -16,5 +16,4 @@ const user = useCurrentUser()
   <RouterView />
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

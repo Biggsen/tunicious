@@ -1,74 +1,89 @@
 <script setup>
-import { ref } from 'vue';
-import { useRoute } from 'vue-router'
-import { getPlaylist } from '../utils/api';
-import { getAuth } from '../utils/auth';
-import PlaylistItem from '../components/PlaylistItem.vue';
+import { ref } from "vue";
+import { useRoute } from "vue-router";
+import { getPlaylist } from "../utils/api";
+import { getAuth } from "../utils/auth";
+import PlaylistItem from "../components/PlaylistItem.vue";
 
-const loading = ref(false)
-const token = ref(localStorage.getItem('token'))
+const loading = ref(false);
+const token = ref(localStorage.getItem("token"));
 if (!token.value) {
-  getAuth().then(response => {
+  getAuth().then((response) => {
     console.log(response);
-    token.value = response
-  })
+    token.value = response;
+  });
 }
 
-const route = useRoute()
+const route = useRoute();
 
-const playlistNewQueued = ref()
-const playlistNewCurious = ref()
-const playlistNewInterested = ref()
-const playlistNewGreat = ref()
-const playlistNewExcellent = ref()
+const playlistNewQueued = ref();
+const playlistNewCurious = ref();
+const playlistNewInterested = ref();
+const playlistNewGreat = ref();
+const playlistNewExcellent = ref();
 
-getPlaylist({ token: token.value, playlistId: '50mWTRVvyIC3lUjTJ3r5KV'}).then(response => {
-  playlistNewQueued.value = response;
-})
+getPlaylist({ token: token.value, playlistId: "50mWTRVvyIC3lUjTJ3r5KV" }).then(
+  (response) => {
+    playlistNewQueued.value = response;
+  }
+);
 
-getPlaylist({ token: token.value, playlistId: '67lIAfdpjpYSvruBVFuP9N'}).then(response => {
-  playlistNewCurious.value = response;
-})
+getPlaylist({ token: token.value, playlistId: "67lIAfdpjpYSvruBVFuP9N" }).then(
+  (response) => {
+    playlistNewCurious.value = response;
+  }
+);
 
-getPlaylist({ token: token.value, playlistId: '3BUpSXAvxd05UkBil8JYWe'}).then(response => {
-  playlistNewInterested.value = response;
-})
+getPlaylist({ token: token.value, playlistId: "3BUpSXAvxd05UkBil8JYWe" }).then(
+  (response) => {
+    playlistNewInterested.value = response;
+  }
+);
 
-getPlaylist({ token: token.value, playlistId: '2tmqzXyCSHUeFWSdPF6UuC'}).then(response => {
-  playlistNewGreat.value = response;
-})
+getPlaylist({ token: token.value, playlistId: "2tmqzXyCSHUeFWSdPF6UuC" }).then(
+  (response) => {
+    playlistNewGreat.value = response;
+  }
+);
 
-getPlaylist({ token: token.value, playlistId: '0JKPso7ACSmMc9NNWUzDQ6'}).then(response => {
-  playlistNewExcellent.value = response;
-})
-
-
-
-
+getPlaylist({ token: token.value, playlistId: "0JKPso7ACSmMc9NNWUzDQ6" }).then(
+  (response) => {
+    playlistNewExcellent.value = response;
+  }
+);
 
 async function getTrackInfo(access_token) {
-  const response = await fetch("https://api.spotify.com/v1/tracks/4cOdK2wGLETKBW3PvgPWqT", {
-    method: 'GET',
-    headers: { 'Authorization': 'Bearer ' + access_token },
-  });
+  const response = await fetch(
+    "https://api.spotify.com/v1/tracks/4cOdK2wGLETKBW3PvgPWqT",
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + access_token },
+    }
+  );
 
   return await response.json();
 }
 
 async function getPlaylistItems(access_token) {
-  const response = await fetch(`https://api.spotify.com/v1/playlists/${route.params.id}/tracks`, {
-    method: 'GET',
-    headers: { 'Authorization': 'Bearer ' + access_token },
-  });
+  const response = await fetch(
+    `https://api.spotify.com/v1/playlists/${route.params.id}/tracks`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + access_token },
+    }
+  );
 
   return await response.json();
 }
 
-async function getAlbum(access_token,album_id) {
-	const response = await fetch(`https://api.spotify.com/v1/albums/${album_id}`, {
-    method: 'GET',
-    headers: { 'Authorization': 'Bearer ' + access_token },
-  });
+async function getAlbum(access_token, album_id) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/albums/${album_id}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + access_token },
+    }
+  );
 
   return await response.json();
 }
@@ -81,10 +96,9 @@ const albumsCuriousIds = ref();
 const album = ref();
 const albumsCuriousData = ref({});
 
-
 //getTrackInfo(token.value).then(profile => { console.log(profile) })
 // getPlaylist(token.value).then(profile => { console.log(profile) })
-// getPlaylistItems(token.value).then(profile => { 
+// getPlaylistItems(token.value).then(profile => {
 //   //console.log(profile)
 //   const albumIdArray = profile.items.map((elem) => {
 //     return elem.track.album.id
@@ -106,14 +120,13 @@ const albumsCuriousData = ref({});
 //     albumsCuriousData.value = result
 //     console.log(albumsCuriousData.value);
 //   });
-  
+
 //   //console.log(albumsCuriousData.value);
 // })
 // getAlbum(token.value,"1x55Z0fYARLdeJVjG2UESs").then(data => {
 //   album.value = data;
 //   //console.log(album.href);
 // })
-
 
 // function promiseAllProps(arrayOfObjects) {
 //     let datum = [];
@@ -144,13 +157,11 @@ const albumsCuriousData = ref({});
 //         return arrayOfObjects;
 //     });
 // }
-
-
 </script>
 
 <template>
   <p v-if="loading">Loading...</p>
-	<main v-else>
+  <main v-else>
     <h1 class="h2 pb-10">Playlists</h1>
     <ul class="flex flex-col gap-4">
       <PlaylistItem :playlist="playlistNewQueued" />
@@ -159,7 +170,7 @@ const albumsCuriousData = ref({});
       <PlaylistItem :playlist="playlistNewGreat" />
       <PlaylistItem :playlist="playlistNewExcellent" />
     </ul>
-        <!-- <ul class="flex flex-wrap gap-4">
+    <!-- <ul class="flex flex-wrap gap-4">
             <li v-for="album in albumsCuriousData" class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0">
                 <img :src="album.images[1].url" alt="" class="rounded-lg ">
                 <div class="p-3">
@@ -168,5 +179,5 @@ const albumsCuriousData = ref({});
                 </div>
             </li>
         </ul> -->
-	</main>
+  </main>
 </template>
