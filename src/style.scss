@@ -29,3 +29,11 @@
 .h5, .heading5 {
   @apply text-[18px] leading-[28px] tracking-[0.04em] uppercase 
 }
+
+p, .paragraph {
+  @apply text-[16px] leading-[24px] tracking-[0.02em]
+}
+
+small, .small-text {
+  @apply text-[14px] leading-[20px] tracking-[0.02em]
+}
