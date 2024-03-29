@@ -108,7 +108,7 @@ getPlaylistItems(token.value).then((profile) => {
         class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0"
       >
         <img :src="album.images[1].url" alt="" class="rounded-lg" />
-        <div class="p-3">
+        <div class="p-3 w-[300px]">
           <p class="font-chivo font-bold text-lg">
             {{ album.artists[0].name }}
           </p>
