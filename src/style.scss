@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  @apply bg-celadon;
+}
+
 #app {
   max-width: 1280px;
   margin: 0 auto;

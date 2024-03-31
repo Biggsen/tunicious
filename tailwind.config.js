@@ -9,6 +9,7 @@ export default {
       colors: {
         mindero: "#FFFD98",
         "delft-blue": "#23395B",
+        celadon: "#B9E3C6",
       },
     },
   },
