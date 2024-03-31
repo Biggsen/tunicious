@@ -96,6 +96,14 @@ getPlaylistItems(token.value).then((profile) => {
 //   album.value = data;
 //   //console.log(album.href);
 // })
+
+const lastFmLink = ({ artist, album }) => {
+  const lastfmRoot = "https://www.last.fm/user/biggzen/library/music";
+  const artistName = artist.replace(/ /g, "+");
+  const albumName = album.replace(/ /g, "+");
+  const link = `${lastfmRoot}/${artistName}/${albumName}`;
+  return link;
+};
 </script>
 
 <template>
@@ -105,7 +113,7 @@ getPlaylistItems(token.value).then((profile) => {
     <ul class="flex flex-wrap gap-4">
       <li
         v-for="album in albumData"
-        class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0"
+        class="bg-mindero border-2 border-delft-blue rounded-xl p-2 flex flex-col"
       >
         <img :src="album.images[1].url" alt="" class="rounded-lg" />
         <div class="p-3 w-[300px]">
@@ -113,6 +121,16 @@ getPlaylistItems(token.value).then((profile) => {
             {{ album.artists[0].name }}
           </p>
           <p class="font-chivo">{{ album.name }}</p>
+        </div>
+        <div class="bg-delft-blue p-3 mt-auto rounded-lg">
+          <a
+            :href="
+              lastFmLink({ artist: album.artists[0].name, album: album.name })
+            "
+            target="_blank"
+            class="text-white"
+            >LastFM</a
+          >
         </div>
       </li>
     </ul>
