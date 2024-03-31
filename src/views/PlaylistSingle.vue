@@ -60,7 +60,7 @@ function onlyUnique(value, index, array) {
 
 const albumsCuriousIds = ref();
 const album = ref();
-const albumsCuriousData = ref({});
+const albumData = ref({});
 const playlistName = ref();
 
 // getTrackInfo(token.value).then(profile => { console.log(profile) })
@@ -86,11 +86,11 @@ getPlaylistItems(token.value).then((profile) => {
   });
   Promise.all(albumsCurios).then((result) => {
     //console.log(typeof result);
-    albumsCuriousData.value = result;
-    //console.log(albumsCuriousData.value);
+    albumData.value = result;
+    //console.log(albumData.value);
   });
 
-  //console.log(albumsCuriousData.value);
+  //console.log(albumData.value);
 });
 // getAlbum(token.value,"1x55Z0fYARLdeJVjG2UESs").then(data => {
 //   album.value = data;
@@ -104,7 +104,7 @@ getPlaylistItems(token.value).then((profile) => {
     <h1 class="h2 pb-10">{{ playlistName }}</h1>
     <ul class="flex flex-wrap gap-4">
       <li
-        v-for="album in albumsCuriousData"
+        v-for="album in albumData"
         class="bg-mindero border-2 border-delft-blue rounded-xl p-2 pb-0"
       >
         <img :src="album.images[1].url" alt="" class="rounded-lg" />
