@@ -1,19 +1,15 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
 import { useCurrentUser } from "vuefire";
+import TheHeader from "./components/TheHeader.vue";
 const user = useCurrentUser();
 </script>
 
 <template>
-  <ul class="flex gap-4">
-    <li>
-      <RouterLink to="/">Home</RouterLink>
-    </li>
-    <li>
-      <RouterLink to="/playlists">Playlists</RouterLink>
-    </li>
-  </ul>
-  <RouterView />
+  <TheHeader></TheHeader>
+  <div class="container mx-auto">
+    <RouterView />
+  </div>
 </template>
 
 <style scoped></style>
