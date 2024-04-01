@@ -10,6 +10,8 @@ export default {
         mindero: "#FFFD98",
         "delft-blue": "#23395B",
         celadon: "#B9E3C6",
+        mint: "#59C9A5",
+        raspberry: "#D81E5B",
       },
     },
   },
