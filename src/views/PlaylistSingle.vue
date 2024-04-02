@@ -104,6 +104,10 @@ const lastFmLink = ({ artist, album }) => {
   const link = `${lastfmRoot}/${artistName}/${albumName}`;
   return link;
 };
+
+const displayYear = (date) => {
+  return date.substring(0, 4);
+};
 </script>
 
 <template>
@@ -117,10 +121,15 @@ const lastFmLink = ({ artist, album }) => {
       >
         <img :src="album.images[1].url" alt="" class="rounded-lg" />
         <div class="p-3 w-[300px]">
-          <p class="font-chivo font-bold text-lg">
+          <p class="small-text text-delft-blue">
+            {{ displayYear(album.release_date) }}
+          </p>
+          <p class="font-bold text-lg leading-5 mb-2 text-delft-blue">
+            {{ album.name }}
+          </p>
+          <p class="text-delft-blue">
             {{ album.artists[0].name }}
           </p>
-          <p class="font-chivo">{{ album.name }}</p>
         </div>
         <div class="bg-delft-blue p-3 mt-auto rounded-lg">
           <a
