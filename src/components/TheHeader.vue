@@ -6,7 +6,7 @@ console.log(user.value);
 </script>
 
 <template>
-  <header class="bg-mint h-[84px] flex border-b-4 border-delft-blue">
+  <header class="bg-mint h-[64px] flex border-b-4 border-delft-blue">
     <div class="container mx-auto grid grid-cols-12 gap-5">
       <div class="flex items-center justify-between col-span-10">
         <h1
