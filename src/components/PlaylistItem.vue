@@ -15,13 +15,13 @@ const navigateToPlaylist = (id) => {
 <template>
   <li
     v-if="playlist"
-    class="flex cursor-pointer hover:bg-mindero pr-6"
+    class="bg-delft-blue p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry pr-6"
     @click="navigateToPlaylist(playlist.id)"
   >
-    <img :src="playlist.images[2].url" alt="" class="mr-6" />
+    <img :src="playlist.images[2].url" alt="" class="mr-4 rounded-lg" />
     <div>
-      <h2 class="h4">{{ playlist.name }}</h2>
-      <p>{{ playlist.tracks.total }} songs</p>
+      <h2 class="text-mindero mb-1 text-[20px]">{{ playlist.name }}</h2>
+      <p class="text-mindero">{{ playlist.tracks.total }} songs</p>
     </div>
   </li>
 </template>
