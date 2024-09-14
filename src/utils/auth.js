@@ -8,29 +8,24 @@ export function useToken() {
   const error = ref(null);
 
   async function initializeToken() {
-    if (!tokenRef.value) {
-      loading.value = true;
-      error.value = null;
-      try {
-        const newToken = await getAuth();
-        if (newToken) {
-          tokenRef.value = newToken;
-          localStorage.setItem('token', newToken);
-        } else {
-          throw new Error('Failed to obtain token');
-        }
-      } catch (e) {
-        console.error('Error initializing token:', e);
-        error.value = e.message;
-      } finally {
-        loading.value = false;
-      }
+    loading.value = true;
+    error.value = null;
+    try {
+      const token = await getValidToken();
+      tokenRef.value = token;
+      localStorage.setItem('token', token);
+    } catch (e) {
+      console.error('Error initializing token:', e);
+      error.value = e.message;
+    } finally {
+      loading.value = false;
     }
   }
 
   function clearToken() {
     tokenRef.value = null;
     localStorage.removeItem('token');
+    localStorage.removeItem('tokenExpiryDate');
   }
 
   return {
@@ -42,11 +37,12 @@ export function useToken() {
   };
 }
 
-async function getAuth() {
-  // Check if token in localStorage is expired
+async function getValidToken() {
+  const currentToken = localStorage.getItem('token');
   const tokenExpiryDate = localStorage.getItem('tokenExpiryDate');
-  if (tokenExpiryDate && !isTokenExpired(tokenExpiryDate)) {
-    return localStorage.getItem('token');
+
+  if (currentToken && tokenExpiryDate && !isTokenExpired(tokenExpiryDate)) {
+    return currentToken;
   }
 
   // If no token or expired, get a new one
@@ -54,6 +50,7 @@ async function getAuth() {
     const response = await getToken();
     const newToken = response.access_token;
     const expiryDate = Date.now() + 3600000; // Current time + 1 hour
+    localStorage.setItem('token', newToken);
     localStorage.setItem('tokenExpiryDate', expiryDate.toString());
     return newToken;
   } catch (error) {
