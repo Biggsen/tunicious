@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToken } from "../utils/auth";
-import { getPlaylist, getPlaylistItems, getAlbum } from "../utils/api";
+import { getPlaylist, getUniqueAlbumIdsFromPlaylist, getAlbum } from "../utils/api";
 import AlbumItem from "../components/AlbumItem.vue";
 
 const route = useRoute();
@@ -20,8 +20,7 @@ async function fetchPlaylistData(playlistId, accessToken) {
   const playlistResponse = await getPlaylist(playlistId);
   playlistName.value = playlistResponse.name;
 
-  const profile = await getPlaylistItems(playlistId, accessToken);
-  const albumIds = [...new Set(profile.items.map(item => item.track.album.id))];
+  const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId, accessToken);
 
   const albumPromises = albumIds.map(id => getAlbum(accessToken, id));
   albumData.value = await Promise.all(albumPromises);

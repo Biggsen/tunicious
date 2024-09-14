@@ -47,3 +47,37 @@ export async function getAlbum(accessToken, album_id) {
 
   return await response.json();
 }
+
+export async function getUniqueAlbumIdsFromPlaylist(playlistId, accessToken) {
+  let albumIds = new Set();
+  let offset = 0;
+  const limit = 100; // Maximum allowed by Spotify
+  let total;
+
+  do {
+    const response = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(album(id))),total&limit=${limit}&offset=${offset}`,
+      {
+        method: "GET",
+        headers: { Authorization: "Bearer " + accessToken },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    data.items.forEach(item => {
+      if (item.track && item.track.album && item.track.album.id) {
+        albumIds.add(item.track.album.id);
+      }
+    });
+
+    total = data.total;
+    offset += limit;
+  } while (offset < total);
+
+  return Array.from(albumIds);
+}
