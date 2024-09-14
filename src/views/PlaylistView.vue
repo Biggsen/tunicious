@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
+import { setCache, getCache } from "../utils/cache";
 import PlaylistItem from "../components/PlaylistItem.vue";
 import { playlistIds } from "../constants";
 
@@ -23,6 +24,18 @@ const allPlaylistsLoaded = computed(() =>
 );
 
 async function loadPlaylists() {
+  loading.value = true;
+  error.value = null;
+
+  const cacheKey = 'all_playlists';
+  const cachedPlaylists = getCache(cacheKey);
+
+  if (cachedPlaylists) {
+    playlists.value = cachedPlaylists;
+    loading.value = false;
+    return;
+  }
+
   try {
     for (const category of playlistCategories) {
       const [newPlaylist, knownPlaylist] = await Promise.all([
@@ -32,6 +45,8 @@ async function loadPlaylists() {
       playlists.value.new[category] = newPlaylist;
       playlists.value.known[category] = knownPlaylist;
     }
+
+    setCache(cacheKey, playlists.value);
   } catch (e) {
     console.error("Error loading playlists:", e);
     error.value = "Failed to load playlists. Please try again.";
@@ -42,11 +57,13 @@ async function loadPlaylists() {
 
 onMounted(async () => {
   try {
+    loading.value = true;
     await initializeToken();
     await loadPlaylists();
   } catch (e) {
     console.error("Error in PlaylistView:", e);
     error.value = "An unexpected error occurred. Please try again.";
+  } finally {
     loading.value = false;
   }
 });
@@ -54,7 +71,17 @@ onMounted(async () => {
 
 <template>
   <main>
-    <h1 class="h2 pb-10">Playlists</h1>
+    <h1 class="h2 pb-4">Playlists</h1>
+    <div class="mb-6">
+      <a href="#" @click.prevent="handleClearCache" class="text-blue-500 hover:underline">
+        Clear cache and reload playlists
+      </a>
+    </div>
+
+    <p v-if="cacheCleared" class="mb-4 text-green-500">
+      Cache cleared! Reloading playlists...
+    </p>
+
     <p v-if="loading">Loading playlists...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <div v-else-if="allPlaylistsLoaded" class="flex gap-40">
