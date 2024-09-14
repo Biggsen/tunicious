@@ -1,149 +1,78 @@
 <script setup>
-import { ref } from "vue";
-import { useRoute } from "vue-router";
+import { ref, onMounted, computed } from "vue";
+import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
-import { getAuth } from "../utils/auth";
 import PlaylistItem from "../components/PlaylistItem.vue";
 import { playlistIds } from "../constants";
 
-const loading = ref(false);
-const token = ref(localStorage.getItem("token"));
-if (!token.value) {
-  getAuth().then((response) => {
-    console.log(response);
-    token.value = response;
-  });
-}
+const { token, initializeToken } = useToken();
+const loading = ref(true);
+const error = ref(null);
 
-const route = useRoute();
-
-const playlistNewQueued = ref();
-const playlistNewCurious = ref();
-const playlistNewInterested = ref();
-const playlistNewGreat = ref();
-const playlistNewExcellent = ref();
-const playlistNewWonderful = ref();
-const playlistKnownQueued = ref();
-const playlistKnownCurious = ref();
-const playlistKnownInterested = ref();
-const playlistKnownGreat = ref();
-const playlistKnownExcellent = ref();
-const playlistKnownWonderful = ref();
-
-getPlaylist(playlistIds.new.queued).then((response) => {
-  playlistNewQueued.value = response;
+const playlists = ref({
+  new: {},
+  known: {}
 });
 
-getPlaylist(playlistIds.new.curious).then((response) => {
-  playlistNewCurious.value = response;
-});
+const playlistCategories = ['queued', 'curious', 'interested', 'great', 'excellent', 'wonderful'];
 
-getPlaylist(playlistIds.new.interested).then((response) => {
-  playlistNewInterested.value = response;
-});
+const allPlaylistsLoaded = computed(() => 
+  playlistCategories.every(category => 
+    playlists.value.new[category] && playlists.value.known[category]
+  )
+);
 
-getPlaylist(playlistIds.new.great).then((response) => {
-  playlistNewGreat.value = response;
-});
-
-getPlaylist(playlistIds.new.excellent).then((response) => {
-  playlistNewExcellent.value = response;
-});
-
-getPlaylist(playlistIds.new.wonderful).then((response) => {
-  playlistNewWonderful.value = response;
-});
-
-getPlaylist(playlistIds.known.queued).then((r) => {
-  playlistKnownQueued.value = r;
-});
-
-getPlaylist(playlistIds.known.curious).then((response) => {
-  playlistKnownCurious.value = response;
-});
-
-getPlaylist(playlistIds.known.interested).then((response) => {
-  playlistKnownInterested.value = response;
-});
-
-getPlaylist(playlistIds.known.great).then((response) => {
-  playlistKnownGreat.value = response;
-});
-
-getPlaylist(playlistIds.known.excellent).then((response) => {
-  playlistKnownExcellent.value = response;
-});
-
-getPlaylist(playlistIds.known.wonderful).then((response) => {
-  playlistKnownWonderful.value = response;
-});
-
-async function getTrackInfo(access_token) {
-  const response = await fetch(
-    "https://api.spotify.com/v1/tracks/4cOdK2wGLETKBW3PvgPWqT",
-    {
-      method: "GET",
-      headers: { Authorization: "Bearer " + access_token },
+async function loadPlaylists() {
+  try {
+    for (const category of playlistCategories) {
+      const [newPlaylist, knownPlaylist] = await Promise.all([
+        getPlaylist(playlistIds.new[category]),
+        getPlaylist(playlistIds.known[category])
+      ]);
+      playlists.value.new[category] = newPlaylist;
+      playlists.value.known[category] = knownPlaylist;
     }
-  );
-
-  return await response.json();
+  } catch (e) {
+    console.error("Error loading playlists:", e);
+    error.value = "Failed to load playlists. Please try again.";
+  } finally {
+    loading.value = false;
+  }
 }
 
-async function getPlaylistItems(access_token) {
-  const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${route.params.id}/tracks`,
-    {
-      method: "GET",
-      headers: { Authorization: "Bearer " + access_token },
-    }
-  );
-
-  return await response.json();
-}
-
-async function getAlbum(access_token, album_id) {
-  const response = await fetch(
-    `https://api.spotify.com/v1/albums/${album_id}`,
-    {
-      method: "GET",
-      headers: { Authorization: "Bearer " + access_token },
-    }
-  );
-
-  return await response.json();
-}
-
-function onlyUnique(value, index, array) {
-  return array.indexOf(value) === index;
-}
-
-const albumsCuriousIds = ref();
-const album = ref();
-const albumsCuriousData = ref({});
+onMounted(async () => {
+  try {
+    await initializeToken();
+    await loadPlaylists();
+  } catch (e) {
+    console.error("Error in PlaylistView:", e);
+    error.value = "An unexpected error occurred. Please try again.";
+    loading.value = false;
+  }
+});
 </script>
 
 <template>
-  <p v-if="loading">Loading...</p>
-  <main v-else>
+  <main>
     <h1 class="h2 pb-10">Playlists</h1>
-    <div class="flex gap-40">
-      <ul class="flex flex-col gap-4">
-        <PlaylistItem :playlist="playlistNewQueued" />
-        <PlaylistItem :playlist="playlistNewCurious" />
-        <PlaylistItem :playlist="playlistNewInterested" />
-        <PlaylistItem :playlist="playlistNewGreat" />
-        <PlaylistItem :playlist="playlistNewExcellent" />
-        <PlaylistItem :playlist="playlistNewWonderful" />
-      </ul>
-      <ul class="flex flex-col gap-4">
-        <PlaylistItem :playlist="playlistKnownQueued" />
-        <PlaylistItem :playlist="playlistKnownCurious" />
-        <PlaylistItem :playlist="playlistKnownInterested" />
-        <PlaylistItem :playlist="playlistKnownGreat" />
-        <PlaylistItem :playlist="playlistKnownExcellent" />
-        <PlaylistItem :playlist="playlistKnownWonderful" />
+    <p v-if="loading">Loading playlists...</p>
+    <p v-else-if="error" class="error-message">{{ error }}</p>
+    <div v-else-if="allPlaylistsLoaded" class="flex gap-40">
+      <ul v-for="type in ['new', 'known']" :key="type" class="flex flex-col gap-4">
+        <PlaylistItem 
+          v-for="category in playlistCategories" 
+          :key="`${type}-${category}`"
+          :playlist="playlists[type][category]" 
+        />
       </ul>
     </div>
+    <p v-else>No playlists available.</p>
   </main>
 </template>
+
+<style scoped>
+.error-message {
+  color: red;
+  font-weight: bold;
+}
+</style>

@@ -1,38 +1,67 @@
 import { ref } from "vue";
 import { getToken } from "./api";
 
-export const getAuth = async () => {
-  // do we have token in LS?
-  const tokenInLocal = localStorage.getItem("token");
-  const tokenExpiryDate = localStorage.getItem("tokenExpiryDate");
-  if (tokenInLocal) {
-    console.log("yep we got token is LS");
-    console.log(isTokenExpired(tokenExpiryDate));
-    if (isTokenExpired(tokenExpiryDate)) {
-      console.log("yep it is expired");
-      setToken();
-      return localStorage.getItem("token");
-    } else {
-      console.log("nope, not expired");
-      return localStorage.getItem("token");
-    }
-    // is the token expired?
-  } else {
-    setToken();
-    return localStorage.getItem("token");
-  }
-};
+const tokenRef = ref(localStorage.getItem('token'));
 
-function setToken() {
-  localStorage.clear;
-  getToken().then((response) => {
-    localStorage.setItem("token", response.access_token);
-    const timeStamp = Date.now();
-    localStorage.setItem("tokenExpiryDate", +timeStamp + 3600000);
-  });
+export function useToken() {
+  const loading = ref(false);
+  const error = ref(null);
+
+  async function initializeToken() {
+    if (!tokenRef.value) {
+      loading.value = true;
+      error.value = null;
+      try {
+        const newToken = await getAuth();
+        if (newToken) {
+          tokenRef.value = newToken;
+          localStorage.setItem('token', newToken);
+        } else {
+          throw new Error('Failed to obtain token');
+        }
+      } catch (e) {
+        console.error('Error initializing token:', e);
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    }
+  }
+
+  function clearToken() {
+    tokenRef.value = null;
+    localStorage.removeItem('token');
+  }
+
+  return {
+    token: tokenRef,
+    loading,
+    error,
+    initializeToken,
+    clearToken
+  };
+}
+
+async function getAuth() {
+  // Check if token in localStorage is expired
+  const tokenExpiryDate = localStorage.getItem('tokenExpiryDate');
+  if (tokenExpiryDate && !isTokenExpired(tokenExpiryDate)) {
+    return localStorage.getItem('token');
+  }
+
+  // If no token or expired, get a new one
+  try {
+    const response = await getToken();
+    const newToken = response.access_token;
+    const expiryDate = Date.now() + 3600000; // Current time + 1 hour
+    localStorage.setItem('tokenExpiryDate', expiryDate.toString());
+    return newToken;
+  } catch (error) {
+    console.error('Error getting token:', error);
+    throw error;
+  }
 }
 
 function isTokenExpired(expiryDate) {
-  const currentTime = Date.now();
-  return expiryDate < currentTime;
+  return Date.now() > parseInt(expiryDate);
 }
