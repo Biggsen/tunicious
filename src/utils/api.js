@@ -23,3 +23,27 @@ export async function getPlaylist(playlistId) {
 
   return await response.json();
 }
+
+export async function getPlaylistItems(playlistId, accessToken) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + accessToken },
+    }
+  );
+
+  return await response.json();
+}
+
+export async function getAlbum(accessToken, album_id) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/albums/${album_id}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + accessToken },
+    }
+  );
+
+  return await response.json();
+}
