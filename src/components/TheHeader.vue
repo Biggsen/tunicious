@@ -28,7 +28,9 @@ console.log(user.value);
           <RouterLink to="/login">Login</RouterLink>
         </div>
         <div v-else>
-          <p class="text-delft-blue">{{ user.email }}</p>
+          <RouterLink to="/account" class="text-delft-blue hover:text-raspberry hover:underline">
+            {{ user.email }}
+          </RouterLink>
         </div>
       </div>
     </div>
