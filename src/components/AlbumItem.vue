@@ -17,28 +17,70 @@ const displayYear = (date) => {
 </script>
 
 <template>
-  <li
-    class="bg-mindero border-2 border-delft-blue rounded-xl p-2 flex flex-col"
-  >
-    <img :src="album.images[1].url" alt="" class="rounded-lg" />
-    <div class="p-3 w-[300px]">
-      <p class="small-text text-delft-blue">
+  <li class="album-item">
+    <img :src="album.images[1].url" alt="" class="album-image" />
+    <div class="album-info">
+      <p class="album-year text-xs lg:text-sm xl:text-base">
         {{ displayYear(album.release_date) }}
       </p>
-      <p class="font-bold text-lg leading-5 mb-2 text-delft-blue">
+      <p class="album-name text-sm lg:text-base xl:text-lg">
         {{ album.name }}
       </p>
-      <p class="text-delft-blue">
+      <p class="album-artist text-sm lg:text-base xl:text-lg">
         {{ album.artists[0].name }}
       </p>
     </div>
-    <div class="bg-delft-blue p-3 mt-auto rounded-lg">
+    <div class="album-link">
       <a
         :href="lastFmLink({ artist: album.artists[0].name, album: album.name })"
         target="_blank"
-        class="text-white"
+        class="lastfm-link text-sm lg:text-base xl:text-lg"
         >LastFM</a
       >
     </div>
   </li>
 </template>
+
+<style scoped>
+.album-item {
+  @apply bg-mindero border-2 border-delft-blue rounded-xl flex flex-col overflow-hidden;
+  height: 100%;
+}
+
+.album-image {
+  @apply w-full object-cover;
+  aspect-ratio: 1 / 1;
+}
+
+.album-info {
+  @apply p-3 flex-grow;
+}
+
+.album-year {
+  @apply text-delft-blue;
+}
+
+.album-name {
+  @apply font-bold leading-tight mb-1 text-delft-blue;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.album-artist {
+  @apply text-delft-blue;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.album-link {
+  @apply bg-delft-blue p-2 mt-auto;
+}
+
+.lastfm-link {
+  @apply text-white block text-center;
+}
+</style>

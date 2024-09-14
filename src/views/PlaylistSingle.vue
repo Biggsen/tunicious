@@ -116,7 +116,7 @@ onMounted(async () => {
     <p v-if="tokenLoading || loading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
-      <ul class="album-list">
+      <ul class="album-grid">
         <AlbumItem v-for="album in albumData" :key="album.id" :album="album" />
       </ul>
     </template>
@@ -133,7 +133,16 @@ onMounted(async () => {
 .error-message {
   @apply text-red-500;
 }
-.album-list {
-  @apply flex flex-wrap gap-4;
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 1rem;
+  justify-content: center;
+}
+
+@media (max-width: 639px) {
+  .album-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
 }
 </style>
