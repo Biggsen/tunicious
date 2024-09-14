@@ -2,13 +2,14 @@
 import { ref, onMounted, computed } from "vue";
 import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
-import { setCache, getCache } from "../utils/cache";
+import { setCache, getCache, clearCache } from "../utils/cache";
 import PlaylistItem from "../components/PlaylistItem.vue";
 import { playlistIds } from "../constants";
 
 const { token, initializeToken } = useToken();
 const loading = ref(true);
 const error = ref(null);
+const cacheCleared = ref(false);
 
 const playlists = ref({
   new: {},
@@ -23,12 +24,14 @@ const allPlaylistsLoaded = computed(() =>
   )
 );
 
+const cacheKey = 'playlist_summaries';
+
 async function loadPlaylists() {
   loading.value = true;
   error.value = null;
+  cacheCleared.value = false;
 
-  const cacheKey = 'all_playlists';
-  const cachedPlaylists = getCache(cacheKey);
+  const cachedPlaylists = await getCache(cacheKey);
 
   if (cachedPlaylists) {
     playlists.value = cachedPlaylists;
@@ -37,22 +40,41 @@ async function loadPlaylists() {
   }
 
   try {
+    const playlistSummaries = { new: {}, known: {} };
     for (const category of playlistCategories) {
       const [newPlaylist, knownPlaylist] = await Promise.all([
         getPlaylist(playlistIds.new[category]),
         getPlaylist(playlistIds.known[category])
       ]);
-      playlists.value.new[category] = newPlaylist;
-      playlists.value.known[category] = knownPlaylist;
+      playlistSummaries.new[category] = {
+        id: newPlaylist.id,
+        name: newPlaylist.name,
+        images: newPlaylist.images,
+        tracks: { total: newPlaylist.tracks.total }
+      };
+      playlistSummaries.known[category] = {
+        id: knownPlaylist.id,
+        name: knownPlaylist.name,
+        images: knownPlaylist.images,
+        tracks: { total: knownPlaylist.tracks.total }
+      };
     }
 
-    setCache(cacheKey, playlists.value);
+    playlists.value = playlistSummaries;
+    await setCache(cacheKey, playlistSummaries);
   } catch (e) {
     console.error("Error loading playlists:", e);
     error.value = "Failed to load playlists. Please try again.";
   } finally {
     loading.value = false;
   }
+}
+
+async function handleClearCache() {
+  await clearCache(cacheKey);
+  cacheCleared.value = true;
+  playlists.value = { new: {}, known: {} };
+  await loadPlaylists();
 }
 
 onMounted(async () => {

@@ -20,10 +20,10 @@ const playlistName = ref('');
 
 const totalAlbums = computed(() => albumData.value.length);
 
-const cacheKey = computed(() => `playlist_${id.value}`);
+const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
 async function fetchPlaylistData(playlistId, accessToken) {
-  const cachedData = getCache(cacheKey.value);
+  const cachedData = await getCache(cacheKey.value);
 
   if (cachedData) {
     playlistName.value = cachedData.playlistName;
@@ -36,13 +36,34 @@ async function fetchPlaylistData(playlistId, accessToken) {
 
   const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId, accessToken);
 
-  const albumPromises = albumIds.map(id => getAlbum(accessToken, id));
-  albumData.value = await Promise.all(albumPromises);
+  albumData.value = await loadAlbumData(albumIds, accessToken);
 
-  setCache(cacheKey.value, {
+  await setCache(cacheKey.value, {
     playlistName: playlistName.value,
     albumData: albumData.value
   });
+}
+
+async function loadAlbumData(albumIds, accessToken) {
+  const albumPromises = albumIds.map(async (id) => {
+    const fullAlbum = await getAlbum(accessToken, id);
+    return {
+      id: fullAlbum.id,
+      name: fullAlbum.name,
+      release_date: fullAlbum.release_date,
+      images: [null, { url: fullAlbum.images[1]?.url }],
+      artists: [{ name: fullAlbum.artists[0]?.name }]
+    };
+  });
+  return await Promise.all(albumPromises);
+}
+
+async function handleClearCache() {
+  await clearCache(cacheKey.value);
+  cacheCleared.value = true;
+  albumData.value = [];
+  playlistName.value = '';
+  await loadPlaylistData();
 }
 
 async function loadPlaylistData() {
@@ -57,14 +78,6 @@ async function loadPlaylistData() {
   } finally {
     loading.value = false;
   }
-}
-
-function handleClearCache() {
-  clearCache(cacheKey.value);
-  cacheCleared.value = true;
-  albumData.value = [];
-  playlistName.value = '';
-  loadPlaylistData();
 }
 
 onMounted(async () => {
@@ -83,7 +96,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main>
+  <main class="pt-6">
+    <div class="mb-6">
+      <RouterLink to="/playlists" class="text-blue-500 hover:underline">&larr; Back to Playlists</RouterLink>
+    </div>
+
     <h1 class="h2 pb-4">{{ playlistName }}</h1>
     <div class="mb-4">
       <a href="#" @click.prevent="handleClearCache" class="text-blue-500 hover:underline">
