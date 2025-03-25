@@ -1,6 +1,12 @@
 import { Client, ApiUrl } from "../constants";
 
 export async function getToken() {
+  console.log("Client ID being used:", Client.ID);
+  console.log(
+    "Client Secret length:",
+    Client.SECRET ? Client.SECRET.length : 0
+  );
+
   const response = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     body: new URLSearchParams({
@@ -12,7 +18,10 @@ export async function getToken() {
     },
   });
 
-  return await response.json();
+  const result = await response.json();
+  console.log("Token response status:", response.status);
+  console.log("Token response contains access_token:", !!result.access_token);
+  return result;
 }
 
 export async function getPlaylist(playlistId) {
@@ -68,8 +77,8 @@ export async function getUniqueAlbumIdsFromPlaylist(playlistId, accessToken) {
     }
 
     const data = await response.json();
-    
-    data.items.forEach(item => {
+
+    data.items.forEach((item) => {
       if (item.track && item.track.album && item.track.album.id) {
         albumIds.add(item.track.album.id);
       }
