@@ -12,44 +12,12 @@ alwaysApply: true
 interface User {
   displayName: string;
   email: string;
-  playlistOrder: {
-    known: PlaylistRating[];
-    new: PlaylistRating[];
-  }
-}
-
-// Playlist rating values from 0-5
-type PlaylistRating = {
-  0: "queued";
-  1: "curious";
-  2: "interested";
-  3: "great";
-  4: "excellent";
-  5: "wonderful";
 }
 
 // Example User Document
 {
   displayName: "Biggs",
-  email: "biggsy@pm.me",
-  playlistOrder: {
-    known: [
-      { 0: "queued" },
-      { 1: "curious" },
-      { 2: "interested" },
-      { 3: "great" },
-      { 4: "excellent" },
-      { 5: "wonderful" }
-    ],
-    new: [
-      { 0: "queued" },
-      { 1: "curious" },
-      { 2: "interested" },
-      { 3: "great" },
-      { 4: "excellent" },
-      { 5: "wonderful" }
-    ]
-  }
+  email: "biggsy@pm.me"
 }
 ```
 
@@ -57,27 +25,6 @@ type PlaylistRating = {
 
 - `displayName`: User's display name in the application
 - `email`: User's email address
-- `playlistOrder`: Contains two arrays of playlist ratings based on artist familiarity
-  - `known`: Rating system for playlists from familiar/previously listened artists
-  - `new`: Rating system for playlists from newly discovered artists
-
-### Rating Scale
-
-The rating scale is consistent across both known and new artists' playlists:
-
-| Value | Rating    | Description                        |
-|-------|-----------|-----------------------------------|
-| 0     | queued    | Added but not yet rated           |
-| 1     | curious   | Might be interesting              |
-| 2     | interested| Want to listen more               |
-| 3     | great     | Solidly good playlist             |
-| 4     | excellent | Highly recommended                |
-| 5     | wonderful | Top tier playlist                 |
-
-### Notes
-- Both `known` and `new` arrays maintain the same rating structure
-- Ratings are zero-indexed
-- Each rating level has a corresponding string descriptor
 
 ## Playlists Collection
 
@@ -86,7 +33,7 @@ interface Playlist {
   playlistId: string;          // Spotify playlist ID
   type: 'known' | 'new';
   category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
-  priority: number;    // Order within the category (0-5)
+  priority: number;    // Arbitrary number for flexible ordering (e.g. 10, 20, 25)
   userId: string;      // Reference to the user's document ID
   createdAt: timestamp;
   updatedAt: timestamp;
@@ -97,7 +44,7 @@ interface Playlist {
   playlistId: "spotify-playlist-id",
   type: "known",
   category: "wonderful",
-  priority: 5,
+  priority: 20,
   userId: "user123",
   createdAt: timestamp,
   updatedAt: timestamp
@@ -109,12 +56,12 @@ interface Playlist {
 - `playlistId`: The Spotify playlist ID
 - `type`: Indicates if the playlist is for known or new artists
 - `category`: The rating category of the playlist
-- `priority`: Numeric order within the category (0-5)
+- `priority`: Arbitrary number used for flexible ordering within categories
 - `userId`: Reference to the user who owns this playlist
 - `createdAt`: Timestamp when the playlist was created
 - `updatedAt`: Timestamp when the playlist was last updated
 
 ### Notes
-- The `priority` field matches the rating scale from the user's playlistOrder
+- The `priority` field can be any number, allowing for flexible ordering (e.g. 10, 20, 25)
 - Playlist metadata (name, images, etc.) is fetched from Spotify API on demand
 - Composite index required on `userId`, `type`, and `category` for efficient querying
