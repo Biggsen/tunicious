@@ -1,6 +1,9 @@
 <template>
-  <div class="add-playlist">
-    <h1>Add New Playlist</h1>
+  <main class="pt-6">
+    <div class="mb-6">
+      <RouterLink to="/playlists" class="text-blue-500 hover:underline">&larr; Back to Playlists</RouterLink>
+    </div>
+    <h1 class="h2 pb-4">Add New Playlist</h1>
     
     <form @submit.prevent="handleSubmit" class="playlist-form">
       <div class="form-group">
@@ -61,7 +64,7 @@
     <div v-if="success" class="success-message">
       Playlist added successfully!
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
@@ -116,20 +119,10 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.add-playlist {
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
-h1 {
-  margin-bottom: 2rem;
-  color: #333;
-}
-
 .playlist-form {
   display: flex;
   flex-direction: column;
+  max-width: 600px;
   gap: 1.5rem;
 }
 

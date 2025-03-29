@@ -153,9 +153,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main>
+  <main class="pt-6">
+    <div class="mb-6">
+      <RouterLink to="/" class="text-blue-500 hover:underline">&larr; Back to Home</RouterLink>
+    </div>
     <h1 class="h2 pb-4">Playlists</h1>
     <div class="mb-6">
+      <a href="/playlist/add" class="text-blue-500 hover:underline block mb-2">
+        Add playlists
+      </a>
       <a href="#" @click.prevent="handleClearCache" class="text-blue-500 hover:underline">
         Clear cache and reload playlists
       </a>
