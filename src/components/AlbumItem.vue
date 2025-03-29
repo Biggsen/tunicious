@@ -1,10 +1,11 @@
 <script setup>
 const props = defineProps({
   album: Object,
+  lastFmUserName: String,
 });
 
 const lastFmLink = ({ artist, album }) => {
-  const lastfmRoot = "https://www.last.fm/user/biggzen/library/music";
+  const lastfmRoot = `https://www.last.fm/user/${props.lastFmUserName}/library/music`;
   const artistName = artist.replace(/ /g, "+");
   const albumName = album.replace(/ /g, "+");
   const link = `${lastfmRoot}/${artistName}/${albumName}`;

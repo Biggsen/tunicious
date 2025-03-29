@@ -5,10 +5,12 @@ import { useToken } from "../utils/auth";
 import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
+import { useUserData } from "../composables/useUserData";
 
 const route = useRoute();
 const router = useRouter();
 const { token, loading: tokenLoading, initializeToken } = useToken();
+const { userData } = useUserData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -138,7 +140,12 @@ onMounted(async () => {
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">
-        <AlbumItem v-for="album in paginatedAlbums" :key="album.id" :album="album" />
+        <AlbumItem 
+          v-for="album in paginatedAlbums" 
+          :key="album.id" 
+          :album="album" 
+          :lastFmUserName="userData?.lastFmUserName" 
+        />
       </ul>
 
       <div class="pagination-controls">

@@ -12,12 +12,14 @@ alwaysApply: true
 interface User {
   displayName: string;
   email: string;
+  lastFmUserName: string;
 }
 
 // Example User Document
 {
   displayName: "Biggs",
   email: "biggsy@pm.me"
+  lastFmUserName: "biggzen"
 }
 ```
 
@@ -25,6 +27,7 @@ interface User {
 
 - `displayName`: User's display name in the application
 - `email`: User's email address
+- `lastFmUserName`: Last.FM username
 
 ## Playlists Collection
 
