@@ -35,6 +35,10 @@ const totalPages = computed(() =>
   Math.ceil(albumData.value.length / itemsPerPage.value)
 );
 
+const showPagination = computed(() => 
+  albumData.value.length > itemsPerPage.value
+);
+
 const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
 async function fetchPlaylistData(playlistId, accessToken) {
@@ -148,7 +152,7 @@ onMounted(async () => {
         />
       </ul>
 
-      <div class="pagination-controls">
+      <div v-if="showPagination" class="pagination-controls">
         <button 
           @click="previousPage" 
           :disabled="currentPage === 1"
