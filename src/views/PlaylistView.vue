@@ -18,13 +18,25 @@ const playlists = ref({
   known: {}
 });
 
-const playlistCategories = ['queued', 'curious', 'interested', 'great', 'excellent', 'wonderful'];
+const playlistCategories = computed(() => {
+  console.log('Computing playlistCategories, userData:', userData.value);
+  if (!userData.value?.playlistOrder?.known) {
+    console.log('No playlist order data available');
+    return [];
+  }
+  console.log('Returning categories:', userData.value.playlistOrder.known);
+  return userData.value.playlistOrder.known;
+});
 
-const allPlaylistsLoaded = computed(() => 
-  playlistCategories.every(category => 
+const allPlaylistsLoaded = computed(() => {
+  console.log('Computing allPlaylistsLoaded:', {
+    categories: playlistCategories.value,
+    playlists: playlists.value
+  });
+  return playlistCategories.value.every(category => 
     playlists.value.new[category] && playlists.value.known[category]
-  )
-);
+  );
+});
 
 const cacheKey = 'playlist_summaries';
 
@@ -52,7 +64,7 @@ async function loadPlaylists() {
 
   try {
     const playlistSummaries = { new: {}, known: {} };
-    for (const category of playlistCategories) {
+    for (const category of playlistCategories.value) {
       const [newPlaylist, knownPlaylist] = await Promise.all([
         getPlaylist(playlistIds.new[category]),
         getPlaylist(playlistIds.known[category])
