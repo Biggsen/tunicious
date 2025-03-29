@@ -5,6 +5,7 @@ import PlaylistView from '../views/PlaylistView.vue';
 import PlaylistSingle from '../views/PlaylistSingle.vue';
 import AccountView from '../views/AccountView.vue';
 import LoginView from '../views/LoginView.vue';  // Assuming you have a LoginView component
+import AddPlaylistView from '../views/AddPlaylistView.vue';
 
 const routes = [
   {
@@ -16,6 +17,12 @@ const routes = [
     path: '/playlists',
     name: 'playlists',
     component: PlaylistView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/playlist/add',
+    name: 'addPlaylist',
+    component: AddPlaylistView,
     meta: { requiresAuth: true }
   },
   {
