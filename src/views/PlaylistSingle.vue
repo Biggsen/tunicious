@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToken } from "../utils/auth";
-import { getPlaylist, getUniqueAlbumIdsFromPlaylist, getAlbum } from "../utils/api";
+import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
 
@@ -20,6 +20,19 @@ const playlistName = ref('');
 
 const totalAlbums = computed(() => albumData.value.length);
 
+const currentPage = ref(1);
+const itemsPerPage = ref(20);
+
+const paginatedAlbums = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return albumData.value.slice(start, end);
+});
+
+const totalPages = computed(() => 
+  Math.ceil(albumData.value.length / itemsPerPage.value)
+);
+
 const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
 async function fetchPlaylistData(playlistId, accessToken) {
@@ -35,27 +48,21 @@ async function fetchPlaylistData(playlistId, accessToken) {
   playlistName.value = playlistResponse.name;
 
   const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId, accessToken);
-
-  albumData.value = await loadAlbumData(albumIds, accessToken);
+  
+  const albums = await loadAlbumsBatched(albumIds, accessToken);
+  
+  albumData.value = albums.map(album => ({
+    id: album.id,
+    name: album.name,
+    release_date: album.release_date,
+    images: [null, { url: album.images[1]?.url }],
+    artists: [{ name: album.artists[0]?.name }]
+  }));
 
   await setCache(cacheKey.value, {
     playlistName: playlistName.value,
     albumData: albumData.value
   });
-}
-
-async function loadAlbumData(albumIds, accessToken) {
-  const albumPromises = albumIds.map(async (id) => {
-    const fullAlbum = await getAlbum(accessToken, id);
-    return {
-      id: fullAlbum.id,
-      name: fullAlbum.name,
-      release_date: fullAlbum.release_date,
-      images: [null, { url: fullAlbum.images[1]?.url }],
-      artists: [{ name: fullAlbum.artists[0]?.name }]
-    };
-  });
-  return await Promise.all(albumPromises);
 }
 
 async function handleClearCache() {
@@ -79,6 +86,20 @@ async function loadPlaylistData() {
     loading.value = false;
   }
 }
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
 
 onMounted(async () => {
   try {
@@ -117,8 +138,32 @@ onMounted(async () => {
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">
-        <AlbumItem v-for="album in albumData" :key="album.id" :album="album" />
+        <AlbumItem v-for="album in paginatedAlbums" :key="album.id" :album="album" />
       </ul>
+
+      <div class="pagination-controls">
+        <button 
+          @click="previousPage" 
+          :disabled="currentPage === 1"
+          class="pagination-button"
+        >
+          Previous
+        </button>
+        
+        <span class="pagination-info">
+          Page {{ currentPage }} of {{ totalPages }}
+          ({{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, totalAlbums) }} 
+          of {{ totalAlbums }} albums)
+        </span>
+        
+        <button 
+          @click="nextPage" 
+          :disabled="currentPage === totalPages"
+          class="pagination-button"
+        >
+          Next
+        </button>
+      </div>
     </template>
     <p v-else class="no-data-message">No albums found in this playlist.</p>
   </main>
@@ -144,5 +189,19 @@ onMounted(async () => {
   .album-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
+}
+
+.pagination-controls {
+  @apply flex justify-center items-center gap-4 mt-6 mb-8;
+}
+
+.pagination-button {
+  @apply px-4 py-2 bg-blue-500 text-white rounded 
+         hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed
+         transition-colors duration-200;
+}
+
+.pagination-info {
+  @apply text-gray-700 text-sm;
 }
 </style>

@@ -33,9 +33,9 @@ export async function getPlaylist(playlistId) {
   return await response.json();
 }
 
-export async function getPlaylistItems(playlistId, accessToken) {
+export async function getPlaylistItems(playlistId, accessToken, limit = 100, offset = 0) {
   const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`,
     {
       method: "GET",
       headers: { Authorization: "Bearer " + accessToken },
@@ -89,4 +89,32 @@ export async function getUniqueAlbumIdsFromPlaylist(playlistId, accessToken) {
   } while (offset < total);
 
   return Array.from(albumIds);
+}
+
+export async function getAlbumsBatch(accessToken, albumIds) {
+  // Spotify allows up to 20 albums per request
+  const response = await fetch(
+    `https://api.spotify.com/v1/albums?ids=${albumIds.join(',')}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + accessToken },
+    }
+  );
+
+  return await response.json();
+}
+
+export async function loadAlbumsBatched(albumIds, accessToken) {
+  const batchSize = 20;
+  const albums = [];
+  
+  for (let i = 0; i < albumIds.length; i += batchSize) {
+    const batch = albumIds.slice(i, i + batchSize);
+    const response = await getAlbumsBatch(accessToken, batch);
+    albums.push(...response.albums);
+    // Add small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  return albums;
 }
