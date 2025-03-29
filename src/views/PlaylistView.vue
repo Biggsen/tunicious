@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watchEffect } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
@@ -18,16 +18,6 @@ const cacheCleared = ref(false);
 const playlists = ref({
   new: {},
   known: {}
-});
-
-const playlistCategories = computed(() => {
-  console.log('Computing playlistCategories, userData:', userData.value);
-  if (!userData.value?.playlistOrder?.known) {
-    console.log('No playlist order data available');
-    return [];
-  }
-  console.log('Returning categories:', userData.value.playlistOrder.known);
-  return userData.value.playlistOrder.known;
 });
 
 const availableCategories = computed(() => {
@@ -74,15 +64,6 @@ const allPlaylistsLoaded = computed(() => {
 });
 
 const cacheKey = 'playlist_summaries';
-
-// Watch for user data changes
-watchEffect(() => {
-  if (userData.value) {
-    console.log('User data updated in watchEffect:', userData.value);
-    // Here you can handle user data changes
-    // For example, you might want to reload playlists or update the UI
-  }
-});
 
 async function loadPlaylists() {
   loading.value = true;
@@ -149,7 +130,6 @@ onMounted(async () => {
   try {
     loading.value = true;
     console.log('PlaylistView mounted, user:', user.value);
-    console.log('PlaylistView mounted, userData:', userData.value);
     
     await initializeToken();
     
@@ -163,7 +143,6 @@ onMounted(async () => {
       await loadPlaylists();
     }
     
-    console.log('Final user data state:', userData.value);
   } catch (e) {
     console.error("Error in PlaylistView:", e);
     error.value = "An unexpected error occurred. Please try again.";
