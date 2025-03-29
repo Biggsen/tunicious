@@ -1,8 +1,8 @@
 <script setup>
 import { RouterLink } from "vue-router";
-import { useCurrentUser } from "vuefire";
-const user = useCurrentUser();
-console.log(user.value);
+import { useUserData } from "../composables/useUserData";
+
+const { user, userData } = useUserData();
 </script>
 
 <template>
@@ -29,7 +29,7 @@ console.log(user.value);
         </div>
         <div v-else>
           <RouterLink to="/account" class="text-delft-blue hover:text-raspberry hover:underline">
-            {{ user.email }}
+            {{ userData?.displayName || user.email }}
           </RouterLink>
         </div>
       </div>
