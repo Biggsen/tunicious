@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# File Structure
+
+src/
+├───assets/
+├───components/
+│   ├───AlbumItem.vue
+│   ├───PlaylistItem.vue
+│   └───TheHeader.vue
+├───router/
+│   └───index.js
+├───utils/
+│   ├───api.js
+│   ├───auth.js
+│   └───cache.js
+├───views/
+│   ├───AccountView.vue
+│   ├───HomeView.vue
+│   ├───LoginView.vue
+│   ├───PlaylistSingle.vue
+│   └───PlaylistView.vue
+├───App.vue
+├───constants.js
+├───firebase.js
+├───main.js
+└───style.scss
