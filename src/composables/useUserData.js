@@ -13,10 +13,14 @@ export function useUserData() {
     try {
       loading.value = true;
       error.value = null;
+      console.log('Fetching user data for UID:', uid);
       const userDoc = await getDoc(doc(db, "users", uid));
+      console.log('User document exists:', userDoc.exists());
       if (userDoc.exists()) {
         userData.value = userDoc.data();
+        console.log('User data fetched:', userData.value);
       } else {
+        console.log('No user document found for UID:', uid);
         userData.value = null;
       }
     } catch (e) {
@@ -28,9 +32,11 @@ export function useUserData() {
   }
 
   onMounted(() => {
+    console.log('useUserData mounted, current user:', user.value);
     if (user.value) {
       fetchUserData(user.value.uid);
     } else {
+      console.log('No user found in useUserData mounted');
       loading.value = false;
     }
   });

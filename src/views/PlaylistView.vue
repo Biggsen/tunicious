@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watchEffect } from "vue";
 import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import PlaylistItem from "../components/PlaylistItem.vue";
 import { playlistIds } from "../constants";
+import { useUserData } from "../composables/useUserData";
 
 const { token, initializeToken } = useToken();
+const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 const loading = ref(true);
 const error = ref(null);
 const cacheCleared = ref(false);
@@ -25,6 +27,15 @@ const allPlaylistsLoaded = computed(() =>
 );
 
 const cacheKey = 'playlist_summaries';
+
+// Watch for user data changes
+watchEffect(() => {
+  if (userData.value) {
+    console.log('User data updated in watchEffect:', userData.value);
+    // Here you can handle user data changes
+    // For example, you might want to reload playlists or update the UI
+  }
+});
 
 async function loadPlaylists() {
   loading.value = true;
@@ -80,8 +91,18 @@ async function handleClearCache() {
 onMounted(async () => {
   try {
     loading.value = true;
+    console.log('PlaylistView mounted, user:', user.value);
+    console.log('PlaylistView mounted, userData:', userData.value);
     await initializeToken();
     await loadPlaylists();
+    
+    // If we have a user but no userData, try fetching it again
+    if (user.value && !userData.value) {
+      console.log('Attempting to fetch user data again...');
+      await fetchUserData(user.value.uid);
+    }
+    
+    console.log('Final user data state:', userData.value);
   } catch (e) {
     console.error("Error in PlaylistView:", e);
     error.value = "An unexpected error occurred. Please try again.";
