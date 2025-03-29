@@ -4,11 +4,13 @@ import { useToken } from "../utils/auth";
 import { getPlaylist } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import PlaylistItem from "../components/PlaylistItem.vue";
-import { playlistIds } from "../constants";
 import { useUserData } from "../composables/useUserData";
+import { usePlaylistData } from "../composables/usePlaylistData";
 
 const { token, initializeToken } = useToken();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
+const { playlists: userPlaylists, loading: playlistsLoading, error: playlistsError, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
+
 const loading = ref(true);
 const error = ref(null);
 const cacheCleared = ref(false);
@@ -28,14 +30,47 @@ const playlistCategories = computed(() => {
   return userData.value.playlistOrder.known;
 });
 
+const availableCategories = computed(() => {
+  console.log('Computing availableCategories, userPlaylists:', userPlaylists.value);
+  if (!userPlaylists.value) return { new: [], known: [] };
+  
+  const categories = {
+    new: getAvailableCategories('new'),
+    known: getAvailableCategories('known')
+  };
+  console.log('Available categories:', categories);
+  return categories;
+});
+
 const allPlaylistsLoaded = computed(() => {
   console.log('Computing allPlaylistsLoaded:', {
-    categories: playlistCategories.value,
-    playlists: playlists.value
+    availableCategories: availableCategories.value,
+    userPlaylists: userPlaylists.value,
+    spotifyPlaylists: playlists.value,
   });
-  return playlistCategories.value.every(category => 
-    playlists.value.new[category] && playlists.value.known[category]
+  
+  if (!userPlaylists.value) return false;
+  
+  // First check if we have any playlists to load
+  const hasPlaylists = availableCategories.value.new.length > 0 || availableCategories.value.known.length > 0;
+  if (!hasPlaylists) return true; // No playlists to load
+  
+  // Then check if all available playlists have been loaded from Spotify
+  const newLoaded = availableCategories.value.new.every(category => 
+    playlists.value.new[category]?.id != null
   );
+  const knownLoaded = availableCategories.value.known.every(category => 
+    playlists.value.known[category]?.id != null
+  );
+  
+  console.log('Playlists loaded status:', { 
+    hasPlaylists,
+    newLoaded, 
+    knownLoaded,
+    newCategories: availableCategories.value.new,
+    knownCategories: availableCategories.value.known
+  });
+  return newLoaded && knownLoaded;
 });
 
 const cacheKey = 'playlist_summaries';
@@ -57,6 +92,7 @@ async function loadPlaylists() {
   const cachedPlaylists = await getCache(cacheKey);
 
   if (cachedPlaylists) {
+    console.log('Using cached playlists:', cachedPlaylists);
     playlists.value = cachedPlaylists;
     loading.value = false;
     return;
@@ -64,25 +100,34 @@ async function loadPlaylists() {
 
   try {
     const playlistSummaries = { new: {}, known: {} };
-    for (const category of playlistCategories.value) {
-      const [newPlaylist, knownPlaylist] = await Promise.all([
-        getPlaylist(playlistIds.new[category]),
-        getPlaylist(playlistIds.known[category])
-      ]);
-      playlistSummaries.new[category] = {
-        id: newPlaylist.id,
-        name: newPlaylist.name,
-        images: newPlaylist.images,
-        tracks: { total: newPlaylist.tracks.total }
-      };
-      playlistSummaries.known[category] = {
-        id: knownPlaylist.id,
-        name: knownPlaylist.name,
-        images: knownPlaylist.images,
-        tracks: { total: knownPlaylist.tracks.total }
-      };
+    
+    // Only load playlists for available categories
+    for (const type of ['new', 'known']) {
+      console.log(`Loading ${type} playlists...`);
+      for (const category of availableCategories.value[type]) {
+        console.log(`Processing category ${category} for ${type}`);
+        const playlistId = userPlaylists.value[type][category]?.[0];
+        console.log(`Found playlist ID for ${type}/${category}:`, playlistId);
+        
+        if (!playlistId) {
+          console.warn(`Missing playlist ID for ${type} category: ${category}`);
+          continue;
+        }
+
+        console.log(`Fetching Spotify data for ${type}/${category} (${playlistId})`);
+        const playlist = await getPlaylist(playlistId);
+        console.log(`Got Spotify data:`, playlist);
+        
+        playlistSummaries[type][category] = {
+          id: playlist.id,
+          name: playlist.name,
+          images: playlist.images,
+          tracks: { total: playlist.tracks.total }
+        };
+      }
     }
 
+    console.log('Final playlist summaries:', playlistSummaries);
     playlists.value = playlistSummaries;
     await setCache(cacheKey, playlistSummaries);
   } catch (e) {
@@ -105,13 +150,17 @@ onMounted(async () => {
     loading.value = true;
     console.log('PlaylistView mounted, user:', user.value);
     console.log('PlaylistView mounted, userData:', userData.value);
-    await initializeToken();
-    await loadPlaylists();
     
-    // If we have a user but no userData, try fetching it again
-    if (user.value && !userData.value) {
-      console.log('Attempting to fetch user data again...');
-      await fetchUserData(user.value.uid);
+    await initializeToken();
+    
+    if (user.value) {
+      if (!userData.value) {
+        console.log('Attempting to fetch user data again...');
+        await fetchUserData(user.value.uid);
+      }
+      
+      await fetchUserPlaylists(user.value.uid);
+      await loadPlaylists();
     }
     
     console.log('Final user data state:', userData.value);
@@ -142,7 +191,7 @@ onMounted(async () => {
     <div v-else-if="allPlaylistsLoaded" class="flex gap-40">
       <ul v-for="type in ['new', 'known']" :key="type" class="flex flex-col gap-4">
         <PlaylistItem 
-          v-for="category in playlistCategories" 
+          v-for="category in availableCategories[type]" 
           :key="`${type}-${category}`"
           :playlist="playlists[type][category]" 
         />
