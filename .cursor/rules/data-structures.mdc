@@ -1,0 +1,80 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Data Structures
+
+## Users Collection
+
+```typescript
+interface User {
+  displayName: string;
+  email: string;
+  playlistOrder: {
+    known: PlaylistRating[];
+    new: PlaylistRating[];
+  }
+}
+
+// Playlist rating values from 0-5
+type PlaylistRating = {
+  0: "queued";
+  1: "curious";
+  2: "interested";
+  3: "great";
+  4: "excellent";
+  5: "wonderful";
+}
+
+// Example User Document
+{
+  displayName: "Biggs",
+  email: "biggsy@pm.me",
+  playlistOrder: {
+    known: [
+      { 0: "queued" },
+      { 1: "curious" },
+      { 2: "interested" },
+      { 3: "great" },
+      { 4: "excellent" },
+      { 5: "wonderful" }
+    ],
+    new: [
+      { 0: "queued" },
+      { 1: "curious" },
+      { 2: "interested" },
+      { 3: "great" },
+      { 4: "excellent" },
+      { 5: "wonderful" }
+    ]
+  }
+}
+```
+
+### Field Descriptions
+
+- `displayName`: User's display name in the application
+- `email`: User's email address
+- `playlistOrder`: Contains two arrays of playlist ratings based on artist familiarity
+  - `known`: Rating system for playlists from familiar/previously listened artists
+  - `new`: Rating system for playlists from newly discovered artists
+
+### Rating Scale
+
+The rating scale is consistent across both known and new artists' playlists:
+
+| Value | Rating    | Description                        |
+|-------|-----------|-----------------------------------|
+| 0     | queued    | Added but not yet rated           |
+| 1     | curious   | Might be interesting              |
+| 2     | interested| Want to listen more               |
+| 3     | great     | Solidly good playlist             |
+| 4     | excellent | Highly recommended                |
+| 5     | wonderful | Top tier playlist                 |
+
+### Notes
+- Both `known` and `new` arrays maintain the same rating structure
+- Ratings are zero-indexed
+- Each rating level has a corresponding string descriptor
