@@ -17,6 +17,13 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // Playlists collection rules
+    match /playlists/{playlistId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
     // This rule allows anyone with your Firestore database reference to view, edit,
     // and delete all data in your Firestore database. It is useful for getting
     // started, but it is configured to expire after 30 days because it
@@ -26,8 +33,8 @@ service cloud.firestore {
     // Make sure to write security rules for your app before that time, or else
     // all client requests to your Firestore database will be denied until you Update
     // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2024, 1, 9);
-    }
+    // match /{document=**} {
+    //   allow read, write: if request.time < timestamp.date(2024, 1, 9);
+    // }
   }
 }
