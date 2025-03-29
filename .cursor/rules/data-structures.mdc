@@ -78,3 +78,43 @@ The rating scale is consistent across both known and new artists' playlists:
 - Both `known` and `new` arrays maintain the same rating structure
 - Ratings are zero-indexed
 - Each rating level has a corresponding string descriptor
+
+## Playlists Collection
+
+```typescript
+interface Playlist {
+  playlistId: string;          // Spotify playlist ID
+  type: 'known' | 'new';
+  category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
+  priority: number;    // Order within the category (0-5)
+  userId: string;      // Reference to the user's document ID
+  createdAt: timestamp;
+  updatedAt: timestamp;
+}
+
+// Example Playlist Document
+{
+  playlistId: "spotify-playlist-id",
+  type: "known",
+  category: "wonderful",
+  priority: 5,
+  userId: "user123",
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+### Field Descriptions
+
+- `playlistId`: The Spotify playlist ID
+- `type`: Indicates if the playlist is for known or new artists
+- `category`: The rating category of the playlist
+- `priority`: Numeric order within the category (0-5)
+- `userId`: Reference to the user who owns this playlist
+- `createdAt`: Timestamp when the playlist was created
+- `updatedAt`: Timestamp when the playlist was last updated
+
+### Notes
+- The `priority` field matches the rating scale from the user's playlistOrder
+- Playlist metadata (name, images, etc.) is fetched from Spotify API on demand
+- Composite index required on `userId`, `type`, and `category` for efficient querying
