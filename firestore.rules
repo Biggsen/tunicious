@@ -24,6 +24,13 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
+    // Albums collection rules
+    match /albums/{albumId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+        request.resource.data.userEntries[request.auth.uid] != null;
+    }
+
     // This rule allows anyone with your Firestore database reference to view, edit,
     // and delete all data in your Firestore database. It is useful for getting
     // started, but it is configured to expire after 30 days because it
