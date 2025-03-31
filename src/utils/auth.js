@@ -14,12 +14,15 @@ export function useToken() {
       // Clear existing token first to force a new one
       clearToken();
 
-      const token = await getValidToken();
+      const tokenResponse = await getToken();
+      const token = tokenResponse.access_token;
       tokenRef.value = token;
       localStorage.setItem("token", token);
+      return tokenResponse;
     } catch (e) {
       console.error("Error initializing token:", e);
       error.value = e.message;
+      throw e;
     } finally {
       loading.value = false;
     }

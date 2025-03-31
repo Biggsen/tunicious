@@ -1,7 +1,12 @@
 <script setup>
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
 const props = defineProps({
   album: Object,
   lastFmUserName: String,
+  hideArtist: Boolean,
 });
 
 const lastFmLink = ({ artist, album }) => {
@@ -15,6 +20,10 @@ const lastFmLink = ({ artist, album }) => {
 const displayYear = (date) => {
   return date.substring(0, 4);
 };
+
+const navigateToArtist = (artistId) => {
+  router.push({ name: 'artist', params: { id: artistId } });
+};
 </script>
 
 <template>
@@ -27,7 +36,11 @@ const displayYear = (date) => {
       <p class="album-name text-sm lg:text-base xl:text-lg">
         {{ album.name }}
       </p>
-      <p class="album-artist text-sm lg:text-base xl:text-lg">
+      <p 
+        v-if="!hideArtist"
+        class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+        @click="navigateToArtist(album.artists[0].id)"
+      >
         {{ album.artists[0].name }}
       </p>
     </div>

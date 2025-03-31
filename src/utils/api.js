@@ -118,3 +118,68 @@ export async function loadAlbumsBatched(albumIds, accessToken) {
 
   return albums;
 }
+
+export async function getArtistAlbums(artistId, accessToken, limit = 50, offset = 0) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album&limit=${limit}&offset=${offset}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch artist albums: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function getArtist(artistId, accessToken) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch artist: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function getAlbumTracks(albumId) {
+  const response = await fetch(
+    `https://api.spotify.com/v1/albums/${albumId}/tracks`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch album tracks: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function checkTracksInPlaylists(trackIds, playlistIds) {
+  // Spotify API allows checking up to 50 tracks at once
+  const response = await fetch(
+    `https://api.spotify.com/v1/me/tracks/contains?ids=${trackIds.join(',')}`,
+    {
+      method: "GET",
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to check tracks: ${response.status}`);
+  }
+
+  return await response.json();
+}

@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToken } from "../utils/auth";
-import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "../utils/api";
+import { getArtist, getArtistAlbums } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
 import { useUserData } from "../composables/useUserData";
@@ -17,8 +17,8 @@ const loading = ref(false);
 const error = ref(null);
 const cacheCleared = ref(false);
 
+const artistData = ref(null);
 const albumData = ref([]);
-const playlistName = ref('');
 
 const totalAlbums = computed(() => albumData.value.length);
 
@@ -39,37 +39,39 @@ const showPagination = computed(() =>
   albumData.value.length > itemsPerPage.value
 );
 
-const cacheKey = computed(() => `playlist_${id.value}_essential`);
+const cacheKey = computed(() => `artist_${id.value}_essential`);
 
-async function fetchPlaylistData(playlistId, accessToken) {
+async function fetchArtistData(artistId) {
   const cachedData = await getCache(cacheKey.value);
 
   if (cachedData) {
-    playlistName.value = cachedData.playlistName;
+    artistData.value = cachedData.artistData;
     albumData.value = cachedData.albumData;
     return;
   }
 
-  const playlistResponse = await getPlaylist(playlistId);
-  playlistName.value = playlistResponse.name;
+  const [artistResponse, albumsResponse] = await Promise.all([
+    getArtist(artistId),
+    getArtistAlbums(artistId)
+  ]);
 
-  const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId, accessToken);
+  artistData.value = artistResponse;
   
-  const albums = await loadAlbumsBatched(albumIds, accessToken);
-  
-  albumData.value = albums.map(album => ({
-    id: album.id,
-    name: album.name,
-    release_date: album.release_date,
-    images: [null, { url: album.images[1]?.url }],
-    artists: [{ 
-      id: album.artists[0]?.id,
-      name: album.artists[0]?.name 
-    }]
-  }));
+  albumData.value = albumsResponse.items
+    .map(album => ({
+      id: album.id,
+      name: album.name,
+      release_date: album.release_date,
+      images: [null, { url: album.images[1]?.url }],
+      artists: [{ 
+        id: album.artists[0]?.id,
+        name: album.artists[0]?.name 
+      }]
+    }))
+    .sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
 
   await setCache(cacheKey.value, {
-    playlistName: playlistName.value,
+    artistData: artistData.value,
     albumData: albumData.value
   });
 }
@@ -77,20 +79,20 @@ async function fetchPlaylistData(playlistId, accessToken) {
 async function handleClearCache() {
   await clearCache(cacheKey.value);
   cacheCleared.value = true;
+  artistData.value = null;
   albumData.value = [];
-  playlistName.value = '';
-  await loadPlaylistData();
+  await loadArtistData();
 }
 
-async function loadPlaylistData() {
+async function loadArtistData() {
   loading.value = true;
   error.value = null;
   cacheCleared.value = false;
   try {
-    await fetchPlaylistData(id.value, token.value);
+    await fetchArtistData(id.value);
   } catch (e) {
-    console.error("Error loading playlist data:", e);
-    error.value = e.message || "Failed to load playlist data. Please try again.";
+    console.error("Error loading artist data:", e);
+    error.value = e.message || "Failed to load artist data. Please try again.";
   } finally {
     loading.value = false;
   }
@@ -110,16 +112,21 @@ const previousPage = () => {
   }
 };
 
+const goBack = () => {
+  router.go(-1);
+};
+
 onMounted(async () => {
   try {
-    await initializeToken();
-    if (!token.value) {
+    const tokenResult = await initializeToken();
+    if (!tokenResult?.access_token) {
       router.push({ name: 'login', query: { redirect: route.fullPath } });
       return;
     }
-    await loadPlaylistData();
+    localStorage.setItem('token', tokenResult.access_token);
+    await loadArtistData();
   } catch (e) {
-    console.error("Error in PlaylistSingle:", e);
+    console.error("Error in ArtistView:", e);
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
 });
@@ -128,21 +135,37 @@ onMounted(async () => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <RouterLink to="/playlists" class="text-blue-500 hover:underline">&larr; Back to Playlists</RouterLink>
+      <a 
+        href="#" 
+        @click.prevent="goBack" 
+        class="text-blue-500 hover:underline"
+      >&larr; Back</a>
     </div>
 
-    <h1 class="h2 pb-4">{{ playlistName }}</h1>
+    <div v-if="artistData" class="mb-8">
+      <div class="flex items-center gap-4">
+        <img 
+          :src="artistData.images[0]?.url" 
+          :alt="artistData.name"
+          class="w-32 h-32 rounded-full object-cover"
+        />
+        <div>
+          <h1 class="h2">{{ artistData.name }}</h1>
+          <p class="text-gray-600">{{ totalAlbums }} albums</p>
+        </div>
+      </div>
+    </div>
+
     <div class="mb-4">
       <a href="#" @click.prevent="handleClearCache" class="text-blue-500 hover:underline">
-        Clear cache and reload playlist
+        Clear cache and reload artist data
       </a>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
-      Cache cleared! Reloading playlist...
+      Cache cleared! Reloading artist data...
     </p>
 
-    <p class="text-lg mb-6">Total unique albums: {{ totalAlbums }}</p>
     <p v-if="tokenLoading || loading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
@@ -151,7 +174,8 @@ onMounted(async () => {
           v-for="album in paginatedAlbums" 
           :key="album.id" 
           :album="album" 
-          :lastFmUserName="userData?.lastFmUserName" 
+          :lastFmUserName="userData?.lastFmUserName"
+          :hideArtist="true" 
         />
       </ul>
 
@@ -179,7 +203,7 @@ onMounted(async () => {
         </button>
       </div>
     </template>
-    <p v-else class="no-data-message">No albums found in this playlist.</p>
+    <p v-else class="no-data-message">No albums found for this artist.</p>
   </main>
 </template>
 
@@ -218,4 +242,4 @@ onMounted(async () => {
 .pagination-info {
   @apply text-gray-700 text-sm;
 }
-</style>
+</style> 
