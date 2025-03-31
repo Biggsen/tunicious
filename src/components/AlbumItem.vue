@@ -34,7 +34,10 @@ const navigateToArtist = (artistId) => {
       <p class="album-year text-xs lg:text-sm xl:text-base">
         {{ displayYear(album.release_date) }}
       </p>
-      <p class="album-name text-sm lg:text-base xl:text-lg">
+      <p 
+        class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+        @click="router.push({ name: 'album', params: { id: album.id } })"
+      >
         {{ album.name }}
       </p>
       <p 
