@@ -7,6 +7,7 @@ const props = defineProps({
   album: Object,
   lastFmUserName: String,
   hideArtist: Boolean,
+  currentPlaylist: Object,
 });
 
 const lastFmLink = ({ artist, album }) => {

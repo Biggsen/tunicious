@@ -6,11 +6,13 @@ import { getArtist, getArtistAlbums } from "../utils/api";
 import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
 import { useUserData } from "../composables/useUserData";
+import { useAlbumsData } from "../composables/useAlbumsData";
 
 const route = useRoute();
 const router = useRouter();
 const { token, loading: tokenLoading, initializeToken } = useToken();
 const { userData } = useUserData();
+const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -19,6 +21,7 @@ const cacheCleared = ref(false);
 
 const artistData = ref(null);
 const albumData = ref([]);
+const albumsStatus = ref({});
 
 const totalAlbums = computed(() => albumData.value.length);
 
@@ -47,6 +50,8 @@ async function fetchArtistData(artistId) {
   if (cachedData) {
     artistData.value = cachedData.artistData;
     albumData.value = cachedData.albumData;
+    // Fetch fresh album statuses even when using cache
+    albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
     return;
   }
 
@@ -69,6 +74,12 @@ async function fetchArtistData(artistId) {
       }]
     }))
     .sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
+
+  // Fetch album statuses
+  albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+
+  console.log('Album Data:', albumData.value);
+  console.log('Albums Status:', albumsStatus.value);
 
   await setCache(cacheKey.value, {
     artistData: artistData.value,
@@ -166,7 +177,7 @@ onMounted(async () => {
       Cache cleared! Reloading artist data...
     </p>
 
-    <p v-if="tokenLoading || loading" class="loading-message">Loading...</p>
+    <p v-if="tokenLoading || loading || albumsLoading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">
@@ -175,7 +186,9 @@ onMounted(async () => {
           :key="album.id" 
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
-          :hideArtist="true" 
+          :hideArtist="true"
+          :currentPlaylist="albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt)"
+          :class="{ 'not-in-playlist': !albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt) }"
         />
       </ul>
 
@@ -241,5 +254,18 @@ onMounted(async () => {
 
 .pagination-info {
   @apply text-gray-700 text-sm;
+}
+
+/* Artist-specific album styling */
+:deep(.album-item.not-in-playlist) {
+  @apply bg-white border-opacity-30;
+}
+
+:deep(.album-item.not-in-playlist) .album-link {
+  @apply bg-opacity-30;
+}
+
+:deep(.album-item.not-in-playlist) .album-info {
+  @apply bg-white;
 }
 </style> 
