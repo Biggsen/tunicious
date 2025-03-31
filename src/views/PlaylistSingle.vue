@@ -68,6 +68,8 @@ async function fetchPlaylistData(playlistId, accessToken) {
     }]
   }));
 
+  console.log('Album Data:', albumData.value);
+
   await setCache(cacheKey.value, {
     playlistName: playlistName.value,
     albumData: albumData.value

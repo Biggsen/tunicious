@@ -68,3 +68,78 @@ interface Playlist {
 - The `priority` field can be any number, allowing for flexible ordering (e.g. 10, 20, 25)
 - Playlist metadata (name, images, etc.) is fetched from Spotify API on demand
 - Composite index required on `userId`, `type`, and `category` for efficient querying
+
+## Albums Collection
+
+```typescript
+interface PlaylistHistoryEntry {
+  playlistId: string;
+  category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
+  type: 'known' | 'new';
+  priority: number;
+  addedAt: timestamp;
+  removedAt: timestamp | null;
+}
+
+interface UserAlbumData {
+  playlistHistory: PlaylistHistoryEntry[];
+  createdAt: timestamp;
+  updatedAt: timestamp;
+}
+
+interface Album {
+  userEntries: {
+    [userId: string]: UserAlbumData;
+  };
+}
+
+// Example Album Document
+{
+  // Document ID is the Spotify album ID
+  userEntries: {
+    "user123": {
+      playlistHistory: [
+        {
+          playlistId: "playlist789",
+          category: "curious",
+          type: "known",
+          priority: 10,
+          addedAt: timestamp,
+          removedAt: timestamp
+        },
+        {
+          playlistId: "playlist456",
+          category: "interested",
+          type: "known",
+          priority: 20,
+          addedAt: timestamp,
+          removedAt: null  // null indicates this is the current playlist
+        }
+      ],
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
+  }
+}
+```
+
+### Field Descriptions
+
+- `userEntries`: Map of user IDs to their album data
+  - Key: User's document ID
+  - Value: User's data for this album
+- `playlistHistory`: Array of playlist entries showing the album's progression
+  - `playlistId`: The Spotify playlist ID
+  - `category`: The rating category of the playlist
+  - `type`: Whether this was a known or new artist
+  - `priority`: Number used for ordering within the playlist
+  - `addedAt`: When the album was added to this playlist
+  - `removedAt`: When the album was removed (null if current playlist)
+- `createdAt`: When this album was first added to the system
+- `updatedAt`: When this album's data was last modified
+
+### Notes
+- Document ID is the Spotify album ID
+- Current playlist is indicated by `removedAt: null` in the playlist history
+- Each user can have their own independent history with the album
+- No need for composite indexes as queries are by album ID
