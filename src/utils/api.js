@@ -45,9 +45,9 @@ export async function getAlbum(accessToken, album_id) {
   return await response.json();
 }
 
-export async function getAlbumTracks(albumId) {
+export async function getAlbumTracks(albumId, limit = 50, offset = 0) {
   const response = await fetch(
-    `https://api.spotify.com/v1/albums/${albumId}/tracks`,
+    `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=${limit}&offset=${offset}`,
     {
       method: "GET",
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },

@@ -6,7 +6,7 @@ import { getAlbum, getAlbumTracks } from '../utils/api';
 const route = useRoute();
 const router = useRouter();
 const album = ref(null);
-const tracks = ref(null);
+const tracks = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
@@ -16,16 +16,35 @@ const formatDuration = (ms) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+const fetchAllTracks = async (albumId) => {
+  let allTracks = [];
+  let offset = 0;
+  const limit = 50; // Maximum allowed by Spotify API
+  
+  while (true) {
+    const response = await getAlbumTracks(albumId, limit, offset);
+    allTracks = [...allTracks, ...response.items];
+    
+    if (response.items.length < limit) {
+      break; // No more tracks to fetch
+    }
+    
+    offset += limit;
+  }
+  
+  return allTracks;
+};
+
 onMounted(async () => {
   try {
     loading.value = true;
     const albumId = route.params.id;
     const [albumData, tracksData] = await Promise.all([
       getAlbum(localStorage.getItem('token'), albumId),
-      getAlbumTracks(albumId)
+      fetchAllTracks(albumId)
     ]);
     album.value = albumData;
-    tracks.value = tracksData.items;
+    tracks.value = tracksData;
   } catch (err) {
     error.value = 'Failed to load album details';
     console.error(err);
