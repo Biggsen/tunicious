@@ -36,7 +36,11 @@ const navigateToArtist = (artistId) => {
       </p>
       <p 
         class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        @click="router.push({ name: 'album', params: { id: album.id } })"
+        @click="router.push({ 
+          name: 'album', 
+          params: { id: album.id },
+          query: currentPlaylist ? { playlistId: currentPlaylist.playlistId } : undefined 
+        })"
       >
         {{ album.name }}
       </p>

@@ -153,7 +153,8 @@ onMounted(async () => {
           v-for="album in paginatedAlbums" 
           :key="album.id" 
           :album="album" 
-          :lastFmUserName="userData?.lastFmUserName" 
+          :lastFmUserName="userData?.lastFmUserName"
+          :currentPlaylist="{ playlistId: id }"
         />
       </ul>
 
