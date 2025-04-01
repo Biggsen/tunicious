@@ -12,14 +12,33 @@ src/
 │   ├───AlbumItem.vue
 │   ├───PlaylistItem.vue
 │   └───TheHeader.vue
+├───composables/
+│   ├───useAlbumsData.js
+│   ├───usePlaylistData.js
+│   └───useUserData.js
 ├───router/
 │   └───index.js
+├───stories/
+│   ├───assets/
+│   ├───Button.stories.js
+│   ├───Button.vue
+│   ├───Configure.mdx
+│   ├───Header.stories.js
+│   ├───Header.vue
+│   ├───Page.stories.js
+│   ├───Page.vue
+│   ├───button.css
+│   ├───header.css
+│   └───page.css
 ├───utils/
 │   ├───api.js
 │   ├───auth.js
 │   └───cache.js
 ├───views/
 │   ├───AccountView.vue
+│   ├───AddPlaylistView.vue
+│   ├───AlbumView.vue
+│   ├───ArtistView.vue
 │   ├───HomeView.vue
 │   ├───LoginView.vue
 │   ├───PlaylistSingle.vue
