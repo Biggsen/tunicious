@@ -92,10 +92,6 @@ const navigateToArtist = (artistId) => {
 
 .album-artist {
   @apply text-delft-blue;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .album-link {
