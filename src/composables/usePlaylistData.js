@@ -20,7 +20,7 @@ import { db } from '../firebase';
  * @property {PlaylistsByCategory} known
  */
 
-const ALL_CATEGORIES = ['queued', 'curious', 'interested', 'great', 'excellent', 'wonderful'];
+const ALL_CATEGORIES = ['queued', 'curious', 'interested', 'great', 'excellent', 'wonderful', 'end'];
 
 /**
  * Creates an empty grouped playlists structure with all categories initialized
@@ -58,6 +58,7 @@ export function usePlaylistData() {
       )
     });
     
+    // Get categories that have playlists
     return ALL_CATEGORIES.filter(category => 
       playlists.value[type][category]?.length > 0
     );
@@ -93,7 +94,10 @@ export function usePlaylistData() {
         if (!grouped[playlist.type][playlist.category]) {
           grouped[playlist.type][playlist.category] = [];
         }
-        grouped[playlist.type][playlist.category].push(playlist.playlistId);
+        grouped[playlist.type][playlist.category].push({
+          playlistId: playlist.playlistId,
+          priority: playlist.priority
+        });
       });
 
       console.log('Final grouped playlists:', grouped);

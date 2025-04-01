@@ -34,6 +34,7 @@
           <option value="great">Great</option>
           <option value="excellent">Excellent</option>
           <option value="wonderful">Wonderful</option>
+          <option value="end">End of the line --]</option>
         </select>
       </div>
 
