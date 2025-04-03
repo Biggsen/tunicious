@@ -1,0 +1,124 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Development Rules & Guidelines
+
+## Tech Stack
+- **Frontend Framework**: Vue 3 with Composition API
+- **Build Tool**: Vite
+- **CSS Framework**: TailwindCSS
+- **UI Development**: Storybook
+- **Backend/Database**: Firebase (Firestore)
+- **Authentication**: Firebase Auth
+- **External APIs**: Spotify API, Last.fm API
+- **Styling**: SCSS + TailwindCSS
+- **Package Manager**: npm
+
+## Project Structure
+
+src/
+├── assets/ # Static assets
+├── components/ # Reusable Vue components
+├── composables/ # Vue composables (hooks)
+├── router/ # Vue Router configuration
+├── utils/ # Helper functions and utilities
+├── views/ # Page components
+└── stories/ # Storybook stories
+
+
+## Data Structure
+- **Users**: Personal profiles with Last.fm integration
+- **Playlists**: Categorized music collections (queued → wonderful)
+- **Albums**: Historical tracking of album progression
+
+## Coding Standards
+
+### Vue Components
+- Use Composition API with `<script setup>`
+- Keep components focused and single-responsibility
+- Extract reusable logic into composables
+- Use props validation
+- Emit typed events
+
+### State Management
+- Use composables for local state
+- Firebase/Firestore for persistent data
+- Maintain clear data flow patterns
+
+### Styling
+- Use TailwindCSS utility classes as primary styling method
+- Custom CSS/SCSS only for complex, reusable patterns
+- Follow design system color tokens:
+  ```js
+  colors: {
+    'mindero': '#FFFD98',
+    'delft-blue': '#23395B',
+    'celadon': '#B9E3C6',
+    'mint': '#59C9A5',
+    'raspberry': '#D81E5B'
+  }
+  ```
+
+### Firebase/Firestore
+- Follow defined collection structures
+- Use proper security rules
+- Implement error handling for all Firebase operations
+- Use composite indexes where specified
+
+### API Integration
+- Keep API keys in environment variables
+- Implement proper error handling
+- Cache API responses appropriately
+- Use typed responses
+
+### Performance Guidelines
+- Lazy load routes and heavy components
+- Optimize image assets
+- Implement proper loading states
+- Cache Firestore queries where appropriate
+
+### Git Workflow
+- Use meaningful commit messages
+- PR reviews required for main branch
+- Automated deployment via GitHub Actions
+- Environment variables managed through GitHub Secrets
+
+### Security
+- No sensitive data in source code
+- Proper authentication checks
+- Input validation
+- Rate limiting on API calls
+
+### Testing
+- Components should have Storybook stories
+- Document component props and events
+- Test critical user paths
+
+## Environment Setup
+```bash
+# Required environment variables
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_SPOTIFY_CLIENT_ID=
+VITE_SPOTIFY_CLIENT_SECRET=
+```
+
+## Commands
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run storybook    # Start Storybook
+```
+
+## Browser Support
+- Modern browsers (last 2 versions)
+- CSS Grid and Flexbox required
+- ES6+ JavaScript features used
