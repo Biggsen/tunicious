@@ -83,7 +83,7 @@ export function useAlbumsData() {
   /**
    * Gets the current playlist information for an album
    * @param {string} albumId - The Spotify album ID
-   * @returns {Promise<{category: PlaylistCategory, type: PlaylistType, playlistId: string} | null>}
+   * @returns {Promise<{category: PlaylistCategory, type: PlaylistType, playlistId: string, playlistName: string} | null>}
    */
   const getCurrentPlaylistInfo = async (albumId) => {
     const data = await fetchAlbumData(albumId);
@@ -92,11 +92,7 @@ export function useAlbumsData() {
     const currentEntry = data.playlistHistory.find(entry => entry.removedAt === null);
     if (!currentEntry) return null;
 
-    return {
-      category: currentEntry.category,
-      type: currentEntry.type,
-      playlistId: currentEntry.playlistId
-    };
+    return currentEntry;
   };
 
   /**

@@ -307,8 +307,7 @@ onMounted(async () => {
           <div v-if="isFromPlaylist" class="mt-6">
             <div v-if="currentPlaylistInfo" class="bg-green-100 border-2 border-green-500 rounded-xl p-4">
               <p class="text-green-700">
-                This album is currently in playlist: <strong>{{ currentPlaylistInfo.category }}</strong>
-                ({{ currentPlaylistInfo.type }})
+                This album is currently in playlist: <strong>{{ currentPlaylistInfo.playlistName }}</strong>
               </p>
               <button 
                 v-if="needsUpdate"
