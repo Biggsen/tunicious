@@ -156,3 +156,36 @@ interface Album {
 - Current playlist is indicated by `removedAt: null` in the playlist history
 - Each user can have their own independent history with the album
 - No need for composite indexes as queries are by album ID
+
+## Album Mappings Collection
+
+```typescript
+interface AlbumMapping {
+  alternateId: string;  // The alternate Spotify album ID
+  primaryId: string;    // The primary Spotify album ID to use
+  createdAt: timestamp;
+  updatedAt: timestamp;
+}
+
+// Example AlbumMapping Document
+{
+  alternateId: "1CZJ60gPKnIYtSKtygtPPM",
+  primaryId: "62Um6FQA9X4aFVdfatLpHB",
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+### Field Descriptions
+
+- `alternateId`: The alternate Spotify album ID that should be mapped
+- `primaryId`: The primary Spotify album ID that contains the playlist data
+- `createdAt`: When this mapping was created
+- `updatedAt`: When this mapping was last modified
+
+### Notes
+- Used to handle cases where Spotify changes an album's ID
+- Allows maintaining playlist history when album IDs change
+- Requires composite index on `alternateId` for efficient querying
+- Any authenticated user can create, read, update, and delete mappings
+- All operations require proper data structure with alternateId and primaryId fields

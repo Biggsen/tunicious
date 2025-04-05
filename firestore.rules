@@ -34,7 +34,11 @@ service cloud.firestore {
     // Album Mappings collection rules
     match /albumMappings/{mappingId} {
       allow read: if isAuthenticated();
-      // No write access for regular users - mappings are managed by admins only
+      allow create, update: if isAuthenticated() 
+        && request.resource.data.keys().hasAll(['alternateId', 'primaryId', 'createdAt', 'updatedAt'])
+        && request.resource.data.alternateId is string
+        && request.resource.data.primaryId is string;
+      allow delete: if isAuthenticated();
     }
 
     // This rule allows anyone with your Firestore database reference to view, edit,
