@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
@@ -121,12 +121,49 @@ export function useAlbumsData() {
     return results;
   };
 
+  /**
+   * Searches for albums by title and artist name
+   * @param {string} albumTitle - The album title to search for
+   * @param {string} artistName - The artist name to search for
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>} Array of matching albums
+   */
+  const searchAlbumsByTitleAndArtist = async (albumTitle, artistName) => {
+    if (!user.value) return [];
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const albumsRef = collection(db, 'albums');
+      const q = query(
+        albumsRef,
+        where('albumTitle', '==', albumTitle),
+        where('artistName', '==', artistName)
+      );
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        albumTitle: doc.data().albumTitle,
+        artistName: doc.data().artistName
+      }));
+
+    } catch (e) {
+      console.error('Error searching albums:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     albumData,
     loading,
     error,
     fetchAlbumData,
     fetchAlbumsData,
-    getCurrentPlaylistInfo
+    getCurrentPlaylistInfo,
+    searchAlbumsByTitleAndArtist
   };
 } 

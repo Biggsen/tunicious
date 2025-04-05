@@ -7,12 +7,14 @@ import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useToken } from '../utils/auth';
+import { useAlbumMappings } from '../composables/useAlbumMappings';
 
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
-const { fetchAlbumData, getCurrentPlaylistInfo } = useAlbumsData();
+const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { token, initializeToken } = useToken();
+const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 
 const album = ref(null);
 const tracks = ref([]);
@@ -22,6 +24,11 @@ const saving = ref(false);
 const currentPlaylistInfo = ref(null);
 const updating = ref(false);
 const needsUpdate = ref(false);
+const searchResults = ref([]);
+const isSearching = ref(false);
+const searchError = ref(null);
+const isMappedAlbum = ref(false);
+const primaryAlbumId = ref(null);
 
 const checkIfNeedsUpdate = async () => {
   if (!user.value || !album.value) {
@@ -243,6 +250,39 @@ const updateAlbumData = async () => {
   }
 };
 
+const handleCheckExistingAlbum = async () => {
+  if (!album.value) return;
+
+  try {
+    isSearching.value = true;
+    searchError.value = null;
+    searchResults.value = await searchAlbumsByTitleAndArtist(
+      album.value.name,
+      album.value.artists[0].name
+    );
+  } catch (e) {
+    console.error('Error searching for existing albums:', e);
+    searchError.value = 'Failed to search for existing albums';
+  } finally {
+    isSearching.value = false;
+  }
+};
+
+const handleCreateMapping = async (primaryId) => {
+  if (!album.value) return;
+
+  try {
+    const success = await createMapping(album.value.id, primaryId);
+    if (success) {
+      // Refresh the album data to show the updated state
+      await fetchAlbumData(route.params.id);
+    }
+  } catch (e) {
+    console.error('Error creating mapping:', e);
+    searchError.value = 'Failed to create album mapping';
+  }
+};
+
 onMounted(async () => {
   try {
     loading.value = true;
@@ -251,6 +291,12 @@ onMounted(async () => {
     // Initialize token if needed
     if (!token.value) {
       await initializeToken();
+    }
+    
+    // Check if this album is already mapped
+    isMappedAlbum.value = await isAlternateId(albumId);
+    if (isMappedAlbum.value) {
+      primaryAlbumId.value = await getPrimaryId(albumId);
     }
     
     const [albumData, tracksData] = await Promise.all([
@@ -331,6 +377,32 @@ onMounted(async () => {
               </button>
             </div>
           </div>
+
+          <!-- Album Mapping UI -->
+          <div v-if="album && !album.userEntry" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
+            <h3 class="text-xl font-bold text-delft-blue mb-4">Album Mapping</h3>
+            
+            <div v-if="isMappedAlbum && primaryAlbumId" class="text-delft-blue mb-4">
+              <p>This album is already mapped to another album in your collection.</p>
+            </div>
+            
+            <div v-else>
+              <p class="text-delft-blue mb-4">
+                This album might exist in your collection under a different ID. Check if it exists:
+              </p>
+              <button 
+                @click="handleCheckExistingAlbum" 
+                :disabled="isSearching"
+                class="check-existing-btn w-full"
+              >
+                {{ isSearching ? 'Searching...' : 'Check for Existing Album' }}
+              </button>
+
+              <div v-if="searchError" class="error-message mt-4">
+                {{ searchError }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Album Info -->
@@ -361,5 +433,67 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Confirmation Dialog for Search Results -->
+    <div v-if="searchResults.length > 0" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+        <h3 class="text-xl font-bold text-delft-blue mb-4">Found Matching Albums</h3>
+        <p class="text-delft-blue mb-4">
+          The following albums match the title and artist. Select one to create a mapping:
+        </p>
+        <ul class="space-y-3">
+          <li 
+            v-for="result in searchResults" 
+            :key="result.id"
+            class="flex flex-col p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            <div class="font-medium">{{ result.title }}</div>
+            <div class="text-sm text-gray-600">by {{ result.artistName }}</div>
+            <button 
+              @click="handleCreateMapping(result.id)"
+              class="create-mapping-btn mt-2"
+            >
+              Create Mapping
+            </button>
+          </li>
+        </ul>
+        <button 
+          @click="searchResults = []"
+          class="mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors duration-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   </main>
-</template> 
+</template>
+
+<style scoped>
+.check-existing-btn,
+.create-mapping-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.check-existing-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.check-existing-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.create-mapping-btn {
+  background-color: #2196F3;
+  color: white;
+}
+
+.error-message {
+  color: #f44336;
+}
+</style> 

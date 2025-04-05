@@ -227,6 +227,7 @@ onMounted(async () => {
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
           :currentPlaylist="{ playlistId: id }"
+          :isMappedAlbum="false"
         />
       </ul>
 

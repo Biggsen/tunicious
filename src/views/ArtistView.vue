@@ -14,7 +14,7 @@ const router = useRouter();
 const { token, loading: tokenLoading, initializeToken } = useToken();
 const { userData } = useUserData();
 const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
-const { getPrimaryId, loading: mappingsLoading } = useAlbumMappings();
+const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -27,6 +27,8 @@ const albumsStatus = ref({});
 
 // Track which albums are in playlists
 const playlistStatus = ref({});
+// Track which albums are mapped
+const mappedAlbums = ref({});
 
 const totalAlbums = computed(() => albumData.value.length);
 
@@ -53,14 +55,26 @@ const cacheKey = computed(() => `artist_${id.value}_essential`);
 const checkPlaylistStatus = async (albumId) => {
   console.log(`Checking playlist status for album ${albumId}`);
   
-  // First check direct album status
+  // First check if this is a mapped album (alternateId)
+  const isMappedAlbum = await isAlternateId(albumId);
+  mappedAlbums.value[albumId] = isMappedAlbum;
+  
+  if (isMappedAlbum) {
+    console.log(`Album ${albumId} is an alternateId (mapped album)`);
+    // For mapped albums, we still want to show they're in a playlist if they map to a primary ID
+    const primaryId = await getPrimaryId(albumId);
+    playlistStatus.value[albumId] = primaryId !== null;
+    return;
+  }
+  
+  // For non-mapped albums, check direct album status
   const albumStatus = albumsStatus.value[albumId];
   if (albumStatus?.playlistHistory?.find(h => !h.removedAt)) {
     console.log(`Album ${albumId} found directly in albums collection with current playlist`);
     playlistStatus.value[albumId] = true;
     return;
   }
-
+  
   // If not found in albums collection, check if it's an alternate ID
   console.log(`Album ${albumId} not found in albums collection, checking mappings...`);
   const primaryId = await getPrimaryId(albumId);
@@ -232,6 +246,7 @@ onMounted(async () => {
           :lastFmUserName="userData?.lastFmUserName"
           :hideArtist="true"
           :currentPlaylist="albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt)"
+          :isMappedAlbum="mappedAlbums[album.id]"
           :class="{ 'not-in-playlist': !playlistStatus[album.id] }"
         />
       </ul>

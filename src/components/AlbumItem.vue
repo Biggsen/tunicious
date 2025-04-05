@@ -8,6 +8,7 @@ const props = defineProps({
   lastFmUserName: String,
   hideArtist: Boolean,
   currentPlaylist: Object,
+  isMappedAlbum: Boolean,
 });
 
 const lastFmLink = ({ artist, album }) => {
@@ -39,7 +40,7 @@ const navigateToArtist = (artistId) => {
         @click="router.push({ 
           name: 'album', 
           params: { id: album.id },
-          query: currentPlaylist ? { playlistId: currentPlaylist.playlistId } : undefined 
+          query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
         })"
       >
         {{ album.name }}

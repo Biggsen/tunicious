@@ -1,10 +1,34 @@
 import { ref } from 'vue';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export function useAlbumMappings() {
   const loading = ref(false);
   const error = ref(null);
+
+  /**
+   * Checks if an album ID is an alternate ID in the mappings
+   * @param {string} albumId - The album ID to check
+   * @returns {Promise<boolean>} True if the ID is an alternate ID, false otherwise
+   */
+  const isAlternateId = async (albumId) => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const mappingsRef = collection(db, 'albumMappings');
+      const q = query(mappingsRef, where('alternateId', '==', albumId));
+      const querySnapshot = await getDocs(q);
+
+      return !querySnapshot.empty;
+    } catch (e) {
+      console.error('Error checking if album is an alternate ID:', e);
+      error.value = 'Failed to check if album is an alternate ID';
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  };
 
   /**
    * Gets the primary ID for an album if it exists in the mappings
@@ -65,10 +89,45 @@ export function useAlbumMappings() {
     }
   };
 
+  /**
+   * Creates a mapping between an alternate ID and a primary ID
+   * @param {string} alternateId - The alternate album ID
+   * @param {string} primaryId - The primary album ID
+   * @returns {Promise<boolean>} Whether the mapping was created successfully
+   */
+  const createMapping = async (alternateId, primaryId) => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const mappingsRef = collection(db, 'albumMappings');
+      const mappingDoc = doc(mappingsRef);
+      
+      await setDoc(mappingDoc, {
+        alternateId,
+        primaryId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`Created mapping: ${alternateId} -> ${primaryId}`);
+      return true;
+
+    } catch (e) {
+      console.error('Error creating album mapping:', e);
+      error.value = 'Failed to create album mapping';
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     loading,
     error,
     getPrimaryId,
-    getAlternateIds
+    getAlternateIds,
+    createMapping,
+    isAlternateId
   };
 } 
