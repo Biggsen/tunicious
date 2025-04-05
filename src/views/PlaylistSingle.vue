@@ -6,19 +6,23 @@ import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from ".
 import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
 import { useUserData } from "../composables/useUserData";
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const route = useRoute();
 const router = useRouter();
 const { token, loading: tokenLoading, initializeToken } = useToken();
-const { userData } = useUserData();
+const { user, userData } = useUserData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
 const error = ref(null);
 const cacheCleared = ref(false);
+const updating = ref(false);
 
 const albumData = ref([]);
 const playlistName = ref('');
+const playlistDoc = ref(null);
 
 const totalAlbums = computed(() => albumData.value.length);
 
@@ -84,12 +88,62 @@ async function handleClearCache() {
   await loadPlaylistData();
 }
 
+async function getPlaylistDocument() {
+  if (!user.value) return null;
+  
+  const playlistsRef = collection(db, 'playlists');
+  const q = query(playlistsRef, where('playlistId', '==', id.value));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    console.warn('Playlist document not found');
+    return null;
+  }
+  
+  return querySnapshot.docs[0];
+}
+
+async function updatePlaylistName() {
+  if (!user.value || !playlistName.value) return;
+  
+  try {
+    updating.value = true;
+    error.value = null;
+    
+    // Get the playlist document if we don't have it
+    if (!playlistDoc.value) {
+      playlistDoc.value = await getPlaylistDocument();
+    }
+    
+    if (!playlistDoc.value) {
+      throw new Error('Playlist document not found');
+    }
+    
+    // Update the playlist document with the name
+    await updateDoc(doc(db, 'playlists', playlistDoc.value.id), {
+      name: playlistName.value,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update the local document data to reflect the change
+    playlistDoc.value = await getPlaylistDocument();
+    
+  } catch (err) {
+    console.error('Error updating playlist:', err);
+    error.value = err.message || 'Failed to update playlist';
+  } finally {
+    updating.value = false;
+  }
+}
+
 async function loadPlaylistData() {
   loading.value = true;
   error.value = null;
   cacheCleared.value = false;
   try {
     await fetchPlaylistData(id.value, token.value);
+    // Get the playlist document after loading data
+    playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
     console.error("Error loading playlist data:", e);
     error.value = e.message || "Failed to load playlist data. Please try again.";
@@ -134,7 +188,7 @@ onMounted(async () => {
     </div>
 
     <h1 class="h2 pb-4">{{ playlistName }}</h1>
-    <div class="mb-4">
+    <div class="mb-4 flex gap-4">
       <button 
         @click.prevent="handleClearCache" 
         class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
@@ -143,6 +197,18 @@ onMounted(async () => {
           <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
         </svg>
         Reload
+      </button>
+
+      <button 
+        v-if="playlistDoc && !playlistDoc.data().name"
+        @click="updatePlaylistName"
+        :disabled="updating"
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+        </svg>
+        {{ updating ? 'Updating...' : 'Update Playlist Name' }}
       </button>
     </div>
 

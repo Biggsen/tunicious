@@ -34,6 +34,7 @@ interface User {
 ```typescript
 interface Playlist {
   playlistId: string;          // Spotify playlist ID
+  name: string;               // Playlist name from Spotify
   type: 'known' | 'new';
   category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
   priority: number;    // Arbitrary number for flexible ordering (e.g. 10, 20, 25)
@@ -45,6 +46,7 @@ interface Playlist {
 // Example Playlist Document
 {
   playlistId: "spotify-playlist-id",
+  name: "Known Interested",
   type: "known",
   category: "wonderful",
   priority: 20,
@@ -57,6 +59,7 @@ interface Playlist {
 ### Field Descriptions
 
 - `playlistId`: The Spotify playlist ID
+- `name`: The name of the playlist from Spotify
 - `type`: Indicates if the playlist is for known or new artists
 - `category`: The rating category of the playlist
 - `priority`: Arbitrary number used for flexible ordering within categories
