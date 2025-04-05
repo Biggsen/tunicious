@@ -3,6 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
+import { isSimilar, stringSimilarity, albumTitleSimilarity } from '../utils/fuzzyMatch';
 
 /**
  * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
@@ -157,6 +158,69 @@ export function useAlbumsData() {
     }
   };
 
+  /**
+   * Searches for albums by title and artist name with fuzzy matching
+   * @param {string} albumTitle - The album title to search for
+   * @param {string} artistName - The artist name to search for
+   * @param {number} similarityThreshold - Threshold for fuzzy matching (0 to 1)
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string, similarity: number}[]>} Array of matching albums with similarity scores
+   */
+  const searchAlbumsByTitleAndArtistFuzzy = async (albumTitle, artistName, similarityThreshold = 0.7) => {
+    if (!user.value) return [];
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      console.log('Starting fuzzy search for:', albumTitle, 'by', artistName, 'with threshold:', similarityThreshold);
+
+      // First try exact match
+      const exactMatches = await searchAlbumsByTitleAndArtist(albumTitle, artistName);
+      console.log('Exact matches found:', exactMatches.length);
+      
+      if (exactMatches.length > 0) {
+        return exactMatches.map(match => ({ ...match, similarity: 1 }));
+      }
+
+      // If no exact matches, try fuzzy matching
+      const albumsRef = collection(db, 'albums');
+      const q = query(albumsRef, where('artistName', '==', artistName));
+      const querySnapshot = await getDocs(q);
+      
+      console.log('Found albums by artist:', querySnapshot.size);
+
+      const fuzzyMatches = [];
+      for (const doc of querySnapshot.docs) {
+        const data = doc.data();
+        const similarityScore = albumTitleSimilarity(albumTitle, data.albumTitle);
+        
+        console.log('Comparing with:', data.albumTitle, 'Score:', similarityScore);
+        
+        // Since we're already matching by artist, we can use a lower threshold
+        if (similarityScore >= similarityThreshold) {
+          fuzzyMatches.push({
+            id: doc.id,
+            albumTitle: data.albumTitle,
+            artistName: data.artistName,
+            similarity: similarityScore
+          });
+        }
+      }
+
+      console.log('Fuzzy matches found:', fuzzyMatches.length);
+      
+      // Sort by similarity (highest first)
+      return fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
+
+    } catch (e) {
+      console.error('Error searching albums with fuzzy matching:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     albumData,
     loading,
@@ -164,6 +228,7 @@ export function useAlbumsData() {
     fetchAlbumData,
     fetchAlbumsData,
     getCurrentPlaylistInfo,
-    searchAlbumsByTitleAndArtist
+    searchAlbumsByTitleAndArtist,
+    searchAlbumsByTitleAndArtistFuzzy
   };
 } 

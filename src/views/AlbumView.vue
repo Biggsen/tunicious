@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getAlbum, getAlbumTracks } from '../utils/api';
 import { useAlbumsData } from '../composables/useAlbumsData';
@@ -12,7 +12,7 @@ import { useAlbumMappings } from '../composables/useAlbumMappings';
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
-const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist } = useAlbumsData();
+const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy } = useAlbumsData();
 const { token, initializeToken } = useToken();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 
@@ -29,6 +29,7 @@ const isSearching = ref(false);
 const searchError = ref(null);
 const isMappedAlbum = ref(false);
 const primaryAlbumId = ref(null);
+const albumExists = ref(false);
 
 const checkIfNeedsUpdate = async () => {
   if (!user.value || !album.value) {
@@ -256,10 +257,13 @@ const handleCheckExistingAlbum = async () => {
   try {
     isSearching.value = true;
     searchError.value = null;
-    searchResults.value = await searchAlbumsByTitleAndArtist(
+    console.log('Starting search for album:', album.value.name, 'by', album.value.artists[0].name);
+    searchResults.value = await searchAlbumsByTitleAndArtistFuzzy(
       album.value.name,
-      album.value.artists[0].name
+      album.value.artists[0].name,
+      0.7 // Lower threshold to catch more potential matches
     );
+    console.log('Search results:', searchResults.value);
   } catch (e) {
     console.error('Error searching for existing albums:', e);
     searchError.value = 'Failed to search for existing albums';
@@ -274,6 +278,13 @@ const handleCreateMapping = async (primaryId) => {
   try {
     const success = await createMapping(album.value.id, primaryId);
     if (success) {
+      // Update mapping status
+      isMappedAlbum.value = true;
+      primaryAlbumId.value = primaryId;
+      
+      // Clear search results to close the dialog
+      searchResults.value = [];
+      
       // Refresh the album data to show the updated state
       await fetchAlbumData(route.params.id);
     }
@@ -307,6 +318,11 @@ onMounted(async () => {
     album.value = albumData;
     tracks.value = tracksData;
     
+    // Check if album exists in the albums collection
+    const albumRef = doc(db, 'albums', albumId);
+    const albumDoc = await getDoc(albumRef);
+    albumExists.value = albumDoc.exists();
+    
     // Fetch current playlist info if available
     if (albumId) {
       currentPlaylistInfo.value = await getCurrentPlaylistInfo(albumId);
@@ -318,6 +334,12 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+
+  // Add this after the onMounted hook
+  watch(searchResults, (newValue) => {
+    console.log('searchResults changed:', newValue);
+    console.log('searchResults length:', newValue.length);
+  }, { deep: true });
 });
 </script>
 
@@ -379,7 +401,7 @@ onMounted(async () => {
           </div>
 
           <!-- Album Mapping UI -->
-          <div v-if="album && !album.userEntry" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
+          <div v-if="album && !albumExists" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
             <h3 class="text-xl font-bold text-delft-blue mb-4">Album Mapping</h3>
             
             <div v-if="isMappedAlbum && primaryAlbumId" class="text-delft-blue mb-4">
@@ -435,8 +457,8 @@ onMounted(async () => {
     </div>
 
     <!-- Confirmation Dialog for Search Results -->
-    <div v-if="searchResults.length > 0" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+    <div v-if="searchResults.length > 0" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999]">
+      <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl">
         <h3 class="text-xl font-bold text-delft-blue mb-4">Found Matching Albums</h3>
         <p class="text-delft-blue mb-4">
           The following albums match the title and artist. Select one to create a mapping:
@@ -447,8 +469,11 @@ onMounted(async () => {
             :key="result.id"
             class="flex flex-col p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
-            <div class="font-medium">{{ result.title }}</div>
+            <div class="font-medium">{{ result.albumTitle }}</div>
             <div class="text-sm text-gray-600">by {{ result.artistName }}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              Similarity: {{ Math.round(result.similarity * 100) }}%
+            </div>
             <button 
               @click="handleCreateMapping(result.id)"
               class="create-mapping-btn mt-2"
