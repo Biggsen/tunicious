@@ -31,6 +31,12 @@ service cloud.firestore {
         request.resource.data.userEntries[request.auth.uid] != null;
     }
 
+    // Album Mappings collection rules
+    match /albumMappings/{mappingId} {
+      allow read: if isAuthenticated();
+      // No write access for regular users - mappings are managed by admins only
+    }
+
     // This rule allows anyone with your Firestore database reference to view, edit,
     // and delete all data in your Firestore database. It is useful for getting
     // started, but it is configured to expire after 30 days because it

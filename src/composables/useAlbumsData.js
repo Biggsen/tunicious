@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
+import { useAlbumMappings } from './useAlbumMappings';
 
 /**
  * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
@@ -23,6 +24,7 @@ import { useCurrentUser } from 'vuefire';
 
 export function useAlbumsData() {
   const user = useCurrentUser();
+  const { getPrimaryId } = useAlbumMappings();
   const albumData = ref({});
   const loading = ref(true);
   const error = ref(null);
@@ -39,7 +41,16 @@ export function useAlbumsData() {
       loading.value = true;
       error.value = null;
       
-      const albumDoc = await getDoc(doc(db, 'albums', albumId));
+      // First try the direct album ID
+      let albumDoc = await getDoc(doc(db, 'albums', albumId));
+      
+      // If not found, check if it's an alternate ID
+      if (!albumDoc.exists()) {
+        const primaryId = await getPrimaryId(albumId);
+        if (primaryId) {
+          albumDoc = await getDoc(doc(db, 'albums', primaryId));
+        }
+      }
       
       if (!albumDoc.exists()) {
         return null;

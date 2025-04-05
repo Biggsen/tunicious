@@ -7,12 +7,14 @@ import { setCache, getCache, clearCache } from "../utils/cache";
 import AlbumItem from "../components/AlbumItem.vue";
 import { useUserData } from "../composables/useUserData";
 import { useAlbumsData } from "../composables/useAlbumsData";
+import { useAlbumMappings } from "../composables/useAlbumMappings";
 
 const route = useRoute();
 const router = useRouter();
 const { token, loading: tokenLoading, initializeToken } = useToken();
 const { userData } = useUserData();
 const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
+const { getPrimaryId, loading: mappingsLoading } = useAlbumMappings();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -22,6 +24,9 @@ const cacheCleared = ref(false);
 const artistData = ref(null);
 const albumData = ref([]);
 const albumsStatus = ref({});
+
+// Track which albums are in playlists
+const playlistStatus = ref({});
 
 const totalAlbums = computed(() => albumData.value.length);
 
@@ -44,6 +49,36 @@ const showPagination = computed(() =>
 
 const cacheKey = computed(() => `artist_${id.value}_essential`);
 
+// Check if an album is in a playlist
+const checkPlaylistStatus = async (albumId) => {
+  console.log(`Checking playlist status for album ${albumId}`);
+  
+  // First check direct album status
+  const albumStatus = albumsStatus.value[albumId];
+  if (albumStatus?.playlistHistory?.find(h => !h.removedAt)) {
+    console.log(`Album ${albumId} found directly in albums collection with current playlist`);
+    playlistStatus.value[albumId] = true;
+    return;
+  }
+
+  // If not found in albums collection, check if it's an alternate ID
+  console.log(`Album ${albumId} not found in albums collection, checking mappings...`);
+  const primaryId = await getPrimaryId(albumId);
+  console.log(`Album ${albumId} mapping result:`, primaryId);
+  playlistStatus.value[albumId] = primaryId !== null;
+  
+  if (primaryId) {
+    console.log(`Album ${albumId} is mapped to ${primaryId}`);
+  }
+};
+
+// Update playlist status for all albums
+const updatePlaylistStatuses = async (albums) => {
+  console.log('Updating playlist statuses for albums:', albums.map(a => ({ id: a.id, name: a.name })));
+  await Promise.all(albums.map(album => checkPlaylistStatus(album.id)));
+  console.log('Final playlist status:', playlistStatus.value);
+};
+
 async function fetchArtistData(artistId) {
   const cachedData = await getCache(cacheKey.value);
 
@@ -52,6 +87,7 @@ async function fetchArtistData(artistId) {
     albumData.value = cachedData.albumData;
     // Fetch fresh album statuses even when using cache
     albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+    await updatePlaylistStatuses(albumData.value);
     return;
   }
 
@@ -77,9 +113,11 @@ async function fetchArtistData(artistId) {
 
   // Fetch album statuses
   albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+  await updatePlaylistStatuses(albumData.value);
 
   console.log('Album Data:', albumData.value);
   console.log('Albums Status:', albumsStatus.value);
+  console.log('Playlist Status:', playlistStatus.value);
 
   await setCache(cacheKey.value, {
     artistData: artistData.value,
@@ -183,7 +221,7 @@ onMounted(async () => {
       Cache cleared! Reloading artist data...
     </p>
 
-    <p v-if="tokenLoading || loading || albumsLoading" class="loading-message">Loading...</p>
+    <p v-if="tokenLoading || loading || albumsLoading || mappingsLoading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">
@@ -194,7 +232,7 @@ onMounted(async () => {
           :lastFmUserName="userData?.lastFmUserName"
           :hideArtist="true"
           :currentPlaylist="albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt)"
-          :class="{ 'not-in-playlist': !albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt) }"
+          :class="{ 'not-in-playlist': !playlistStatus[album.id] }"
         />
       </ul>
 
