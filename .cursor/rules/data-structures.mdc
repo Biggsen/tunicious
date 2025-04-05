@@ -77,6 +77,7 @@ interface Playlist {
 ```typescript
 interface PlaylistHistoryEntry {
   playlistId: string;
+  playlistName: string;
   category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
   type: 'known' | 'new';
   priority: number;
@@ -91,6 +92,8 @@ interface UserAlbumData {
 }
 
 interface Album {
+  albumTitle: string;
+  artistName: string;
   userEntries: {
     [userId: string]: UserAlbumData;
   };
@@ -99,11 +102,14 @@ interface Album {
 // Example Album Document
 {
   // Document ID is the Spotify album ID
+  albumTitle: "Album Title",
+  artistName: "Artist Name",
   userEntries: {
     "user123": {
       playlistHistory: [
         {
           playlistId: "playlist789",
+          playlistName: "Playlist Name 1",
           category: "curious",
           type: "known",
           priority: 10,
@@ -112,6 +118,7 @@ interface Album {
         },
         {
           playlistId: "playlist456",
+          playlistName: "Playlist Name 2",
           category: "interested",
           type: "known",
           priority: 20,
@@ -128,11 +135,14 @@ interface Album {
 
 ### Field Descriptions
 
+- `albumTitle`: The title of the album
+- `artistName`: The name of the artist
 - `userEntries`: Map of user IDs to their album data
   - Key: User's document ID
   - Value: User's data for this album
 - `playlistHistory`: Array of playlist entries showing the album's progression
   - `playlistId`: The Spotify playlist ID
+  - `playlistName`: The name of the playlist
   - `category`: The rating category of the playlist
   - `type`: Whether this was a known or new artist
   - `priority`: Number used for ordering within the playlist

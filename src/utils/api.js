@@ -55,10 +55,13 @@ export async function getAlbumTracks(albumId, limit = 50, offset = 0) {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch album tracks: ${response.status}`);
+    const error = new Error(`Failed to fetch album tracks: ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
-  return await response.json();
+  const data = await response.json();
+  return data;
 }
 
 export async function getUniqueAlbumIdsFromPlaylist(playlistId, accessToken) {
