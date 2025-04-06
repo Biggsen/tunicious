@@ -1,60 +1,80 @@
 <script setup>
-import { getAuth, signOut } from "firebase/auth";
-import { useRouter } from 'vue-router';
+import { useAuth } from "../composables/useAuth";
 import { useUserData } from "../composables/useUserData";
 
-const auth = getAuth();
-const router = useRouter();
-const { user, userData, loading, error } = useUserData();
+const { loading: authLoading, error: authError, logout } = useAuth();
+const { user, userData, loading: userLoading, error: userError } = useUserData();
 
-async function logout() {
+const handleLogout = async () => {
   try {
-    await signOut(auth);
-    router.push('/'); // Redirect to home page after logout
-  } catch (e) {
-    console.error("Error signing out:", e);
-    error.value = "Failed to sign out. Please try again.";
+    await logout('/');
+  } catch (err) {
+    console.error("Error signing out:", err);
   }
-}
+};
 </script>
 
 <template>
-  <main>
+  <main class="max-w-2xl mx-auto p-6">
     <h1 class="h2 pb-10">Account Details</h1>
-    <div v-if="loading">Loading user profile...</div>
-    <div v-else-if="error" class="error-message">{{ error }}</div>
-    <div v-else-if="userData" class="user-profile">
-      <h2><strong>Name:</strong> {{ userData.displayName }}</h2>
-      <p><strong>Email:</strong> {{ userData.email }}</p>
-      <a href="#" @click.prevent="logout" class="logout-link">Logout</a>
+    
+    <div v-if="userLoading || authLoading" class="loading-message">
+      Loading user profile...
     </div>
-    <div v-else>No user profile data available.</div>
+    
+    <div v-else-if="userError || authError" class="error-message">
+      {{ userError || authError }}
+    </div>
+    
+    <div v-else-if="userData" class="user-profile bg-white shadow rounded-lg p-6">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Name</h2>
+          <span class="text-gray-600">{{ userData.displayName }}</span>
+        </div>
+        
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Email</h2>
+          <span class="text-gray-600">{{ userData.email }}</span>
+        </div>
+        
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Last.fm Username</h2>
+          <span class="text-gray-600">{{ userData.lastFmUserName || 'Not set' }}</span>
+        </div>
+      </div>
+      
+      <div class="mt-8">
+        <button 
+          @click="handleLogout" 
+          class="logout-button"
+          :disabled="authLoading"
+        >
+          {{ authLoading ? 'Logging out...' : 'Logout' }}
+        </button>
+      </div>
+    </div>
+    
+    <div v-else class="text-center text-gray-600">
+      No user profile data available.
+    </div>
   </main>
 </template>
 
 <style scoped>
+.loading-message {
+  @apply text-center text-gray-600;
+}
+
 .error-message {
-  color: red;
-  font-weight: bold;
+  @apply p-4 bg-red-50 text-red-700 rounded-lg;
 }
 
 .user-profile {
-  max-width: 600px;
-  margin: 0 auto;
+  @apply border border-gray-200;
 }
 
-.logout-link {
-  display: inline-block;
-  margin-top: 20px;
-  padding: 10px 20px;
-  background-color: #f44336;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-.logout-link:hover {
-  background-color: #d32f2f;
+.logout-button {
+  @apply w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 </style>
