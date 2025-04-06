@@ -21,6 +21,8 @@ const playlists = ref({
   known: []
 });
 
+const cacheKey = computed(() => user.value ? `playlist_summaries_${user.value.uid}` : null);
+
 const availableCategories = computed(() => {
   console.log('Computing availableCategories, userPlaylists:', userPlaylists.value);
   if (!userPlaylists.value) return { new: [], known: [] };
@@ -62,8 +64,6 @@ const allPlaylistsLoaded = computed(() => {
   return newLoaded && knownLoaded;
 });
 
-const cacheKey = 'playlist_summaries';
-
 const filteredPlaylists = computed(() => {
   if (showEndPlaylists.value) {
     return playlists.value;
@@ -84,7 +84,7 @@ async function loadPlaylists() {
   error.value = null;
   cacheCleared.value = false;
 
-  const cachedPlaylists = await getCache(cacheKey);
+  const cachedPlaylists = await getCache(cacheKey.value);
 
   if (cachedPlaylists) {
     console.log('Using cached playlists:', cachedPlaylists);
@@ -131,7 +131,7 @@ async function loadPlaylists() {
 
     console.log('Final playlist summaries:', playlistSummaries);
     playlists.value = playlistSummaries;
-    await setCache(cacheKey, playlistSummaries);
+    await setCache(cacheKey.value, playlistSummaries);
   } catch (e) {
     console.error("Error loading playlists:", e);
     error.value = "Failed to load playlists. Please try again.";
@@ -141,7 +141,7 @@ async function loadPlaylists() {
 }
 
 async function handleClearCache() {
-  await clearCache(cacheKey);
+  await clearCache(cacheKey.value);
   cacheCleared.value = true;
   playlists.value = { new: [], known: [] };
   await loadPlaylists();
