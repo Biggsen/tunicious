@@ -13,8 +13,12 @@ src/
 │   ├───PlaylistItem.vue
 │   └───TheHeader.vue
 ├───composables/
-│   ├───useAlbumsData.js
 │   ├───useAlbumMappings.js
+│   ├───useAlbumsData.js
+│   ├───useAuth.js
+│   ├───useCache.js
+│   ├───useForm.js
+│   ├───usePagination.js
 │   ├───usePlaylistData.js
 │   └───useUserData.js
 ├───router/
