@@ -41,14 +41,17 @@ src/
 │   ├───cache.js
 │   └───fuzzyMatch.js
 ├───views/
-│   ├───AccountView.vue
-│   ├───AddPlaylistView.vue
-│   ├───AlbumView.vue
-│   ├───ArtistView.vue
-│   ├───HomeView.vue
-│   ├───LoginView.vue
-│   ├───PlaylistSingle.vue
-│   └───PlaylistView.vue
+│   ├───auth/
+│   │   ├───LoginView.vue
+│   │   └───AccountView.vue
+│   ├───playlists/
+│   │   ├───PlaylistView.vue
+│   │   ├───PlaylistSingle.vue
+│   │   └───AddPlaylistView.vue
+│   ├───music/
+│   │   ├───AlbumView.vue
+│   │   └───ArtistView.vue
+│   └───HomeView.vue
 ├───App.vue
 ├───constants.js
 ├───firebase.js
