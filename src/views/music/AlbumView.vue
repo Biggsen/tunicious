@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getAlbum, getAlbumTracks } from '../utils/api';
-import { useAlbumsData } from '../composables/useAlbumsData';
+import { getAlbum, getAlbumTracks } from '@utils/api';
+import { useAlbumsData } from '@composables/useAlbumsData';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useToken } from '../utils/auth';
-import { useAlbumMappings } from '../composables/useAlbumMappings';
+import { db } from '@firebase';
+import { useToken } from '@utils/auth';
+import { useAlbumMappings } from '@composables/useAlbumMappings';
 
 const route = useRoute();
 const router = useRouter();

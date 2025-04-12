@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
-import { useUserData } from "../composables/useUserData";
+import { ref } from "vue";
+import { useUserData } from "@composables/useUserData";
 
 const { user, userData } = useUserData();
 </script>

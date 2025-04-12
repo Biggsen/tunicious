@@ -1,13 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import HomeView from '../views/HomeView.vue';
-import PlaylistView from '../views/PlaylistView.vue';
-import PlaylistSingle from '../views/PlaylistSingle.vue';
-import AccountView from '../views/AccountView.vue';
-import LoginView from '../views/LoginView.vue';  // Assuming you have a LoginView component
-import AddPlaylistView from '../views/AddPlaylistView.vue';
-import ArtistView from '../views/ArtistView.vue';
-import AlbumView from '../views/AlbumView.vue';
+import HomeView from '@views/HomeView.vue';
+import PlaylistView from '@views/playlists/PlaylistView.vue';
+import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
+import AccountView from '@views/auth/AccountView.vue';
+import LoginView from '@views/auth/LoginView.vue';
+import AddPlaylistView from '@views/playlists/AddPlaylistView.vue';
+import ArtistView from '@views/music/ArtistView.vue';
+import AlbumView from '@views/music/AlbumView.vue';
 
 const routes = [
   {

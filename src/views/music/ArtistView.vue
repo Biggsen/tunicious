@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToken } from "../utils/auth";
-import { getArtist, getArtistAlbums } from "../utils/api";
-import { setCache, getCache, clearCache } from "../utils/cache";
-import AlbumItem from "../components/AlbumItem.vue";
-import { useUserData } from "../composables/useUserData";
-import { useAlbumsData } from "../composables/useAlbumsData";
-import { useAlbumMappings } from "../composables/useAlbumMappings";
+import { useToken } from "@utils/auth";
+import { getArtist, getArtistAlbums } from "@utils/api";
+import { setCache, getCache, clearCache } from "@utils/cache";
+import AlbumItem from "@components/AlbumItem.vue";
+import { useUserData } from "@composables/useUserData";
+import { useAlbumsData } from "@composables/useAlbumsData";
+import { useAlbumMappings } from "@composables/useAlbumMappings";
 
 const route = useRoute();
 const router = useRouter();

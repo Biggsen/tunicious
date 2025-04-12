@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
-import { useToken } from "../utils/auth";
-import { getPlaylist } from "../utils/api";
-import { setCache, getCache, clearCache } from "../utils/cache";
-import PlaylistItem from "../components/PlaylistItem.vue";
-import { useUserData } from "../composables/useUserData";
-import { usePlaylistData } from "../composables/usePlaylistData";
+import { useToken } from "@utils/auth";
+import { getPlaylist } from "@utils/api";
+import { setCache, getCache, clearCache } from "@utils/cache";
+import PlaylistItem from "@components/PlaylistItem.vue";
+import { useUserData } from "@composables/useUserData";
+import { usePlaylistData } from "@composables/usePlaylistData";
 
 const { token, initializeToken } = useToken();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();

@@ -1,13 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToken } from "../utils/auth";
-import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "../utils/api";
-import { setCache, getCache, clearCache } from "../utils/cache";
-import AlbumItem from "../components/AlbumItem.vue";
-import { useUserData } from "../composables/useUserData";
+import { useToken } from "@utils/auth";
+import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "@utils/api";
+import { setCache, getCache, clearCache } from "@utils/cache";
+import AlbumItem from "@components/AlbumItem.vue";
+import { useUserData } from "@composables/useUserData";
+import { usePlaylistData } from "@composables/usePlaylistData";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '@firebase';
 
 const route = useRoute();
 const router = useRouter();

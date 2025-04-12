@@ -1,6 +1,6 @@
 <script setup>
-import { useForm } from "../composables/useForm";
-import { useAuth } from "../composables/useAuth";
+import { useForm } from "@composables/useForm";
+import { useAuth } from "@composables/useAuth";
 import { useCurrentUser } from "vuefire";
 
 const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({

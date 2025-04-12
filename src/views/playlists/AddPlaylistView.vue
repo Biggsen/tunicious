@@ -96,9 +96,9 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useUserData } from '../composables/useUserData';
-import { useForm } from '../composables/useForm';
+import { db } from '@firebase';
+import { useUserData } from '@composables/useUserData';
+import { useForm } from '@composables/useForm';
 
 const router = useRouter();
 const { user, loading: userLoading, error: userError } = useUserData();
