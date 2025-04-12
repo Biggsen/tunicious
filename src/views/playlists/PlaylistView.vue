@@ -6,6 +6,7 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
+import BackButton from '@components/common/BackButton.vue';
 
 const { token, initializeToken } = useToken();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -176,7 +177,7 @@ onMounted(async () => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <RouterLink to="/" class="text-blue-500 hover:underline">&larr; Back to Home</RouterLink>
+      <BackButton to="/" text="Back to Home" />
     </div>
     <h1 class="h2 pb-4">Playlists</h1>
     <div class="flex gap-4 mb-6">

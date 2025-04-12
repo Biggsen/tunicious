@@ -3,7 +3,7 @@ import { useAuth } from "@composables/useAuth";
 import { useUserData } from "@composables/useUserData";
 import { useCurrentUser } from "vuefire";
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@firebase';
+import { db } from '@/firebase';
 import { useForm } from '@composables/useForm';
 
 const { loading: authLoading, error: authError, logout } = useAuth();

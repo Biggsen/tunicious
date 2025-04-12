@@ -5,9 +5,10 @@ import { getAlbum, getAlbumTracks } from '@utils/api';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
-import { db } from '@firebase';
+import { db } from '@/firebase';
 import { useToken } from '@utils/auth';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
+import BackButton from '@components/common/BackButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -346,11 +347,7 @@ onMounted(async () => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <a 
-        href="#" 
-        @click.prevent="router.back()" 
-        class="text-blue-500 hover:underline"
-      >&larr; Back</a>
+      <BackButton />
     </div>
 
     <div v-if="loading" class="text-center">

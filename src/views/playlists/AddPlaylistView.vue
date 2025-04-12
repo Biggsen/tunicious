@@ -1,7 +1,7 @@
 <template>
   <main class="max-w-2xl mx-auto p-6">
     <div class="mb-6">
-      <RouterLink to="/playlists" class="text-blue-500 hover:underline">&larr; Back to Playlists</RouterLink>
+      <BackButton to="/playlists" text="Back to Playlists" />
     </div>
     
     <h1 class="h2 pb-4">Add New Playlist</h1>
@@ -96,9 +96,10 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@firebase';
+import { db } from '../../firebase';
 import { useUserData } from '@composables/useUserData';
 import { useForm } from '@composables/useForm';
+import BackButton from '@components/common/BackButton.vue';
 
 const router = useRouter();
 const { user, loading: userLoading, error: userError } = useUserData();

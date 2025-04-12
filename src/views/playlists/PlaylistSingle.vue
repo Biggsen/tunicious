@@ -8,7 +8,8 @@ import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@firebase';
+import { db } from '@/firebase';
+import BackButton from '@components/common/BackButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -185,7 +186,7 @@ onMounted(async () => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <RouterLink to="/playlists" class="text-blue-500 hover:underline">&larr; Back to Playlists</RouterLink>
+      <BackButton to="/playlists" text="Back to Playlists" />
     </div>
 
     <h1 class="h2 pb-4">{{ playlistName }}</h1>
