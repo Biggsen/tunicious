@@ -11,6 +11,7 @@ import { useAlbumMappings } from '@composables/useAlbumMappings';
 import BackButton from '@components/common/BackButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
+import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -291,6 +292,10 @@ const handleCreateMapping = async (primaryId) => {
   }
 };
 
+const handleCloseDialog = () => {
+  searchResults.value = [];
+};
+
 onMounted(async () => {
   try {
     loading.value = true;
@@ -376,30 +381,17 @@ onMounted(async () => {
           />
 
           <!-- Album Mapping UI -->
-          <div v-if="album && !albumExists" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
-            <h3 class="text-xl font-bold text-delft-blue mb-4">Album Mapping</h3>
-            
-            <div v-if="isMappedAlbum && primaryAlbumId" class="text-delft-blue mb-4">
-              <p>This album is already mapped to another album in your collection.</p>
-            </div>
-            
-            <div v-else>
-              <p class="text-delft-blue mb-4">
-                This album might exist in your collection under a different ID. Check if it exists:
-              </p>
-              <button 
-                @click="handleCheckExistingAlbum" 
-                :disabled="isSearching"
-                class="check-existing-btn w-full"
-              >
-                {{ isSearching ? 'Searching...' : 'Check for Existing Album' }}
-              </button>
-
-              <div v-if="searchError" class="error-message mt-4">
-                {{ searchError }}
-              </div>
-            </div>
-          </div>
+          <AlbumMappingManager
+            v-if="album && !albumExists"
+            :search-results="searchResults"
+            :is-searching="isSearching"
+            :search-error="searchError"
+            :is-mapped-album="isMappedAlbum"
+            :primary-album-id="primaryAlbumId"
+            @check-existing="handleCheckExistingAlbum"
+            @create-mapping="handleCreateMapping"
+            @close="handleCloseDialog"
+          />
         </div>
 
         <!-- Album Info -->
@@ -415,70 +407,8 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-
-    <!-- Confirmation Dialog for Search Results -->
-    <div v-if="searchResults.length > 0" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999]">
-      <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl">
-        <h3 class="text-xl font-bold text-delft-blue mb-4">Found Matching Albums</h3>
-        <p class="text-delft-blue mb-4">
-          The following albums match the title and artist. Select one to create a mapping:
-        </p>
-        <ul class="space-y-3">
-          <li 
-            v-for="result in searchResults" 
-            :key="result.id"
-            class="flex flex-col p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            <div class="font-medium">{{ result.albumTitle }}</div>
-            <div class="text-sm text-gray-600">by {{ result.artistName }}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              Similarity: {{ Math.round(result.similarity * 100) }}%
-            </div>
-            <button 
-              @click="handleCreateMapping(result.id)"
-              class="create-mapping-btn mt-2"
-            >
-              Create Mapping
-            </button>
-          </li>
-        </ul>
-        <button 
-          @click="searchResults = []"
-          class="mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors duration-200"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
   </main>
 </template>
 
 <style scoped>
-.check-existing-btn,
-.create-mapping-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.check-existing-btn {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.check-existing-btn:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.create-mapping-btn {
-  background-color: #2196F3;
-  color: white;
-}
-
-.error-message {
-  color: #f44336;
-}
 </style> 
