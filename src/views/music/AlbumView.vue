@@ -10,6 +10,7 @@ import { useToken } from '@utils/auth';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import BackButton from '@components/common/BackButton.vue';
 import TrackList from '@components/TrackList.vue';
+import PlaylistStatus from '@components/PlaylistStatus.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -364,33 +365,15 @@ onMounted(async () => {
           />
           
           <!-- Playlist Status -->
-          <div v-if="isFromPlaylist" class="mt-6">
-            <div v-if="currentPlaylistInfo" class="bg-green-100 border-2 border-green-500 rounded-xl p-4">
-              <p class="text-green-700">
-                This album is currently in playlist: <strong>{{ currentPlaylistInfo.playlistName }}</strong>
-              </p>
-              <button 
-                v-if="needsUpdate"
-                @click="updateAlbumData"
-                :disabled="updating"
-                class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {{ updating ? 'Updating...' : 'Update Album Data' }}
-              </button>
-            </div>
-            <div v-else class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
-              <p class="text-yellow-700 mb-2">
-                This album is not yet in your collection.
-              </p>
-              <button 
-                @click="saveAlbum"
-                :disabled="saving"
-                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {{ saving ? 'Adding...' : 'Add to Collection' }}
-              </button>
-            </div>
-          </div>
+          <PlaylistStatus
+            v-if="isFromPlaylist"
+            :current-playlist-info="currentPlaylistInfo"
+            :needs-update="needsUpdate"
+            :updating="updating"
+            :saving="saving"
+            @update="updateAlbumData"
+            @save="saveAlbum"
+          />
 
           <!-- Album Mapping UI -->
           <div v-if="album && !albumExists" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
