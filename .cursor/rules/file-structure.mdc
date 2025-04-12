@@ -9,9 +9,13 @@ alwaysApply: true
 src/
 ├───assets/
 ├───components/
+│   ├───common/
 │   ├───AlbumItem.vue
+│   ├───AlbumMappingManager.vue
 │   ├───PlaylistItem.vue
-│   └───TheHeader.vue
+│   ├───PlaylistStatus.vue
+│   ├───TheHeader.vue
+│   └───TrackList.vue
 ├───composables/
 │   ├───useAlbumMappings.js
 │   ├───useAlbumsData.js
