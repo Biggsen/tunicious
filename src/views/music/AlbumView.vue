@@ -9,6 +9,7 @@ import { db } from '@/firebase';
 import { useToken } from '@utils/auth';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import BackButton from '@components/common/BackButton.vue';
+import TrackList from '@components/TrackList.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -57,12 +58,6 @@ const checkIfNeedsUpdate = async () => {
 
 const playlistId = computed(() => route.query.playlistId);
 const isFromPlaylist = computed(() => !!playlistId.value);
-
-const formatDuration = (ms) => {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
 
 const fetchAllTracks = async (albumId) => {
   let allTracks = [];
@@ -433,22 +428,7 @@ onMounted(async () => {
           >{{ album.artists[0].name }}</p>
           <p class="text-xl text-delft-blue mb-6 font-bold">{{ album.release_date.substring(0, 4) }}</p>
           
-          <div class="bg-white border-2 border-delft-blue rounded-xl p-4">
-            <h2 class="text-xl font-bold text-delft-blue mb-4">Track List</h2>
-            <ul class="space-y-2">
-              <li 
-                v-for="(track, index) in tracks" 
-                :key="track.id"
-                class="flex justify-between items-center text-delft-blue"
-              >
-                <span class="flex-1">
-                  <span class="mr-2">{{ index + 1 }}.</span>
-                  {{ track.name }}
-                </span>
-                <span class="ml-4">{{ formatDuration(track.duration_ms) }}</span>
-              </li>
-            </ul>
-          </div>
+          <TrackList :tracks="tracks" />
         </div>
       </div>
     </div>
