@@ -1,21 +1,20 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToken } from "@utils/auth";
-import { getArtist, getArtistAlbums } from "@utils/api";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
 import BackButton from '@components/common/BackButton.vue';
+import { useSpotifyApi } from '@composables/useSpotifyApi';
 
 const route = useRoute();
 const router = useRouter();
-const { token, loading: tokenLoading, initializeToken } = useToken();
 const { userData } = useUserData();
 const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
 const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
+const { getArtist, getArtistAlbums, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -182,12 +181,6 @@ const goBack = () => {
 
 onMounted(async () => {
   try {
-    const tokenResult = await initializeToken();
-    if (!tokenResult?.access_token) {
-      router.push({ name: 'login', query: { redirect: route.fullPath } });
-      return;
-    }
-    localStorage.setItem('token', tokenResult.access_token);
     await loadArtistData();
   } catch (e) {
     console.error("Error in ArtistView:", e);

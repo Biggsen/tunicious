@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToken } from "@utils/auth";
-import { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched } from "@utils/api";
+import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
@@ -13,8 +12,8 @@ import BackButton from '@components/common/BackButton.vue';
 
 const route = useRoute();
 const router = useRouter();
-const { token, loading: tokenLoading, initializeToken } = useToken();
 const { user, userData } = useUserData();
+const { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -47,7 +46,7 @@ const showPagination = computed(() =>
 
 const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
-async function fetchPlaylistData(playlistId, accessToken) {
+async function fetchPlaylistData(playlistId) {
   const cachedData = await getCache(cacheKey.value);
 
   if (cachedData) {
@@ -59,9 +58,9 @@ async function fetchPlaylistData(playlistId, accessToken) {
   const playlistResponse = await getPlaylist(playlistId);
   playlistName.value = playlistResponse.name;
 
-  const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId, accessToken);
+  const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId);
   
-  const albums = await loadAlbumsBatched(albumIds, accessToken);
+  const albums = await loadAlbumsBatched(albumIds);
   
   albumData.value = albums.map(album => ({
     id: album.id,
@@ -143,7 +142,7 @@ async function loadPlaylistData() {
   error.value = null;
   cacheCleared.value = false;
   try {
-    await fetchPlaylistData(id.value, token.value);
+    await fetchPlaylistData(id.value);
     // Get the playlist document after loading data
     playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
@@ -170,11 +169,6 @@ const previousPage = () => {
 
 onMounted(async () => {
   try {
-    await initializeToken();
-    if (!token.value) {
-      router.push({ name: 'login', query: { redirect: route.fullPath } });
-      return;
-    }
     await loadPlaylistData();
   } catch (e) {
     console.error("Error in PlaylistSingle:", e);
@@ -219,7 +213,7 @@ onMounted(async () => {
     </p>
 
     <p class="text-lg mb-6">Total unique albums: {{ totalAlbums }}</p>
-    <p v-if="tokenLoading || loading" class="loading-message">Loading...</p>
+    <p v-if="loading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">

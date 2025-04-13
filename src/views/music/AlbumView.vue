@@ -1,12 +1,11 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getAlbum, getAlbumTracks } from '@utils/api';
+import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { useToken } from '@utils/auth';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import BackButton from '@components/common/BackButton.vue';
 import TrackList from '@components/TrackList.vue';
@@ -17,7 +16,7 @@ const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
 const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy } = useAlbumsData();
-const { token, initializeToken } = useToken();
+const { getAlbum, getAlbumTracks, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 
 const album = ref(null);
@@ -70,10 +69,6 @@ const fetchAllTracks = async (albumId) => {
   
   while (true) {
     try {
-      if (!token.value) {
-        await initializeToken();
-      }
-
       const response = await getAlbumTracks(albumId, limit, offset);
       
       // If we get here, the request was successful
@@ -87,17 +82,6 @@ const fetchAllTracks = async (albumId) => {
       retryCount = 0; // Reset retry count on successful request
     } catch (err) {
       console.error('Error fetching album tracks:', err);
-      
-      // If we get a 401 or 403, try refreshing the token
-      if (err.status === 401 || err.status === 403) {
-        try {
-          await initializeToken();
-          continue; // Retry the current request with new token
-        } catch (refreshErr) {
-          console.error('Failed to refresh token:', refreshErr);
-          throw new Error('Failed to refresh Spotify token');
-        }
-      }
       
       // For 502 Bad Gateway or other server errors, retry a few times
       if (err.status >= 500 && retryCount < maxRetries) {
@@ -301,11 +285,6 @@ onMounted(async () => {
     loading.value = true;
     const albumId = route.params.id;
     
-    // Initialize token if needed
-    if (!token.value) {
-      await initializeToken();
-    }
-    
     // Check if this album is already mapped
     isMappedAlbum.value = await isAlternateId(albumId);
     if (isMappedAlbum.value) {
@@ -313,7 +292,7 @@ onMounted(async () => {
     }
     
     const [albumData, tracksData] = await Promise.all([
-      getAlbum(token.value, albumId),
+      getAlbum(albumId),
       fetchAllTracks(albumId)
     ]);
     

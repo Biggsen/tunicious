@@ -1,16 +1,18 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
-import { useToken } from "@utils/auth";
-import { getPlaylist } from "@utils/api";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
 import BackButton from '@components/common/BackButton.vue';
+import { useRoute } from 'vue-router';
+import { useSpotifyApi } from '@composables/useSpotifyApi';
 
-const { token, initializeToken } = useToken();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 const { playlists: userPlaylists, loading: playlistsLoading, error: playlistsError, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
+
+const route = useRoute();
+const { getPlaylist, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 
 const loading = ref(true);
 const error = ref(null);
@@ -152,8 +154,6 @@ onMounted(async () => {
   try {
     loading.value = true;
     console.log('PlaylistView mounted, user:', user.value);
-    
-    await initializeToken();
     
     if (user.value) {
       if (!userData.value) {
