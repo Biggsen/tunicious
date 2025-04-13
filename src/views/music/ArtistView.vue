@@ -225,7 +225,7 @@ onMounted(async () => {
       Cache cleared! Reloading artist data...
     </p>
 
-    <p v-if="tokenLoading || loading || albumsLoading || mappingsLoading" class="loading-message">Loading...</p>
+    <p v-if="loading || albumsLoading || mappingsLoading" class="loading-message">Loading...</p>
     <p v-else-if="error" class="error-message">{{ error }}</p>
     <template v-else-if="albumData.length">
       <ul class="album-grid">

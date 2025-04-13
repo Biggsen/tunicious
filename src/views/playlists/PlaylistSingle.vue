@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";

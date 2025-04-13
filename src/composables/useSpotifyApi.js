@@ -181,6 +181,8 @@ export function useSpotifyApi() {
   return {
     loading,
     error,
+    ensureToken,
+    refreshToken,
     getPlaylist,
     getAlbum,
     getAlbumTracks,

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useToken } from "@utils/auth";
-import { RouterLink } from "vue-router";
 
 const { token, initializeToken } = useToken();
 const loading = ref(true);

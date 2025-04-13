@@ -11,11 +11,6 @@ const { form, isSubmitting, error: formError, success, handleSubmit } = useForm(
 const { loading: authLoading, error: authError, login } = useAuth();
 const currentUser = useCurrentUser();
 
-const validationRules = {
-  email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  password: { required: true, minLength: 6 }
-};
-
 const onSubmit = async (formData) => {
   await login(formData.email, formData.password);
 };

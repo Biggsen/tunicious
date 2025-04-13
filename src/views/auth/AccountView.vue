@@ -14,11 +14,6 @@ const { form, isSubmitting, error: formError, success, handleSubmit } = useForm(
   lastFmUserName: ''
 });
 
-const validationRules = {
-  displayName: { required: true, minLength: 2 },
-  lastFmUserName: { required: false }
-};
-
 const createUserProfile = async (formData) => {
   if (!user.value) {
     throw new Error('No authenticated user found');

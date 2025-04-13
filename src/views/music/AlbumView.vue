@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
@@ -315,12 +315,6 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-
-  // Add this after the onMounted hook
-  watch(searchResults, (newValue) => {
-    console.log('searchResults changed:', newValue);
-    console.log('searchResults length:', newValue.length);
-  }, { deep: true });
 });
 </script>
 
