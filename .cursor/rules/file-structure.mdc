@@ -10,6 +10,7 @@ src/
 ├───assets/
 ├───components/
 │   ├───common/
+│   │   └───BackButton.vue
 │   ├───AlbumItem.vue
 │   ├───AlbumMappingManager.vue
 │   ├───PlaylistItem.vue
@@ -24,6 +25,7 @@ src/
 │   ├───useForm.js
 │   ├───usePagination.js
 │   ├───usePlaylistData.js
+│   ├───useSpotifyApi.js
 │   └───useUserData.js
 ├───router/
 │   └───index.js
@@ -40,7 +42,6 @@ src/
 │   ├───header.css
 │   └───page.css
 ├───utils/
-│   ├───api.js
 │   ├───auth.js
 │   ├───cache.js
 │   └───fuzzyMatch.js
