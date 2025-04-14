@@ -17,7 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
 const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy } = useAlbumsData();
-const { getAlbum, getAlbumTracks, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
 
@@ -128,8 +128,12 @@ const saveAlbum = async () => {
     const playlistDoc = querySnapshot.docs[0];
     const playlistData = playlistDoc.data();
     
+    // Get the Spotify added date for this album
+    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
+    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
+    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
+    
     const albumRef = doc(db, 'albums', album.value.id);
-    const now = new Date();
     
     // Get existing album data
     const existingData = await fetchAlbumData(album.value.id);
@@ -141,7 +145,7 @@ const saveAlbum = async () => {
       category: playlistData.category,
       type: playlistData.type,
       priority: playlistData.priority,
-      addedAt: now,
+      addedAt: spotifyAddedAt,
       removedAt: null
     };
     
@@ -204,42 +208,23 @@ const updateAlbumData = async () => {
       throw new Error('Playlist not found');
     }
     
-    const playlistData = querySnapshot.docs[0].data();
+    const playlistDoc = querySnapshot.docs[0];
+    const playlistData = playlistDoc.data();
     
-    // Update only the playlist name for the matching entry
-    const updatedHistory = existingData.playlistHistory.map(entry => {
-      if (entry.playlistId === playlistId.value) {
-        return {
-          ...entry,
-          playlistName: playlistData.name
-        };
-      }
-      return entry;
-    });
+    // Get the Spotify added date for this album
+    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
+    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
+    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
     
-    // Prepare the updated user data
-    const updatedUserData = {
-      ...existingData,
-      playlistHistory: updatedHistory,
-      updatedAt: serverTimestamp()
-    };
-    
-    // Update the album document
-    await setDoc(albumRef, {
-      albumTitle: album.value.name,
-      artistName: album.value.artists[0].name,
-      userEntries: {
-        [user.value.uid]: updatedUserData
-      }
-    }, { merge: true });
-    
-    // Refresh the current playlist info and update status
-    currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-    await checkIfNeedsUpdate();
-    
+    // Update the album's playlist history
+    const success = await updateAlbumPlaylist(album.value.id, playlistData, spotifyAddedAt);
+    if (success) {
+      // Refresh the current playlist info
+      currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
+    }
   } catch (err) {
-    console.error('Error updating album:', err);
-    error.value = err.message || 'Failed to update album';
+    console.error('Error updating album data:', err);
+    error.value = err.message || 'Failed to update album data';
   } finally {
     updating.value = false;
   }

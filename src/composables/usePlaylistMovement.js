@@ -44,9 +44,10 @@ export function usePlaylistMovement() {
    * Updates an album's playlist location
    * @param {string} albumId - The album's Spotify ID
    * @param {Object} playlistData - The target playlist data
+   * @param {string} [spotifyAddedAt] - ISO date string when the album was added to the Spotify playlist
    * @returns {Promise<boolean>} - True if update was successful
    */
-  const updateAlbumPlaylist = async (albumId, playlistData) => {
+  const updateAlbumPlaylist = async (albumId, playlistData, spotifyAddedAt = null) => {
     if (!user.value) {
       error.value = 'User must be logged in';
       return false;
@@ -71,12 +72,15 @@ export function usePlaylistMovement() {
         throw new Error('No user entry found for this album');
       }
 
-      // Update the current playlist entry's removedAt
+      // Create the new playlist entry date first
+      const newAddedAt = spotifyAddedAt ? new Date(spotifyAddedAt) : new Date();
+
+      // Update the current playlist entry's removedAt to match the new playlist's addedAt
       const updatedHistory = userEntry.playlistHistory.map(entry => {
         if (!entry.removedAt) {
           return {
             ...entry,
-            removedAt: new Date()
+            removedAt: newAddedAt // Use the same date as the new playlist's addedAt
           };
         }
         return entry;
@@ -89,7 +93,7 @@ export function usePlaylistMovement() {
         category: playlistData.category,
         type: playlistData.type,
         priority: playlistData.priority,
-        addedAt: new Date(),
+        addedAt: newAddedAt,
         removedAt: null
       });
 

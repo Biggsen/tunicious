@@ -178,6 +178,42 @@ export function useSpotifyApi() {
     return makeRequest(`https://api.spotify.com/v1/artists/${artistId}`);
   };
 
+  /**
+   * Fetches album IDs and their added dates from a playlist
+   * @param {string} playlistId - The Spotify playlist ID
+   * @returns {Promise<Array<{id: string, addedAt: string}>>} Array of objects containing album ID and when it was added
+   */
+  const getPlaylistAlbumsWithDates = async (playlistId) => {
+    let albumData = new Map(); // Using Map to handle duplicate albums (keep earliest date)
+    let offset = 0;
+    const limit = 100; // Maximum allowed by Spotify
+    let total;
+
+    do {
+      const data = await makeRequest(
+        `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(added_at,track(album(id))),total&limit=${limit}&offset=${offset}`
+      );
+
+      data.items.forEach((item) => {
+        if (item.track?.album?.id) {
+          const albumId = item.track.album.id;
+          // Only add if not already present (keeps earliest addition date)
+          if (!albumData.has(albumId)) {
+            albumData.set(albumId, {
+              id: albumId,
+              addedAt: item.added_at
+            });
+          }
+        }
+      });
+
+      total = data.total;
+      offset += limit;
+    } while (offset < total);
+
+    return Array.from(albumData.values());
+  };
+
   return {
     loading,
     error,
@@ -191,5 +227,6 @@ export function useSpotifyApi() {
     loadAlbumsBatched,
     getArtistAlbums,
     getArtist,
+    getPlaylistAlbumsWithDates,
   };
 } 

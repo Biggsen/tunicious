@@ -15,7 +15,7 @@ import { useAlbumsData } from "@composables/useAlbumsData";
 const route = useRoute();
 const router = useRouter();
 const { user, userData } = useUserData();
-const { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { getPlaylist, getUniqueAlbumIdsFromPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { checkIfAlbumMoved, updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
 const { getCurrentPlaylistInfo } = useAlbumsData();
 
@@ -62,9 +62,14 @@ async function fetchPlaylistData(playlistId) {
   const playlistResponse = await getPlaylist(playlistId);
   playlistName.value = playlistResponse.name;
 
-  const albumIds = await getUniqueAlbumIdsFromPlaylist(playlistId);
+  // Get albums with their added dates
+  const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId);
+  const albumIds = albumsWithDates.map(a => a.id);
   
   const albums = await loadAlbumsBatched(albumIds);
+  
+  // Create a map of album IDs to their added dates
+  const addedDatesMap = new Map(albumsWithDates.map(a => [a.id, a.addedAt]));
   
   albumData.value = albums.map(album => ({
     id: album.id,
@@ -74,7 +79,8 @@ async function fetchPlaylistData(playlistId) {
     artists: [{ 
       id: album.artists[0]?.id,
       name: album.artists[0]?.name 
-    }]
+    }],
+    addedAt: addedDatesMap.get(album.id) // Store the added date with the album data
   }));
 
   console.log('Album Data:', albumData.value);
@@ -209,7 +215,7 @@ const handleUpdatePlaylist = async (album) => {
       ...playlistDoc.value.data()
     };
 
-    const success = await updateAlbumPlaylist(album.id, playlistData);
+    const success = await updateAlbumPlaylist(album.id, playlistData, album.addedAt);
     if (success) {
       // Refresh the album's moved status
       album.hasMoved = false;
