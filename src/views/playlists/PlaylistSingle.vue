@@ -1,19 +1,23 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
-import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
+import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
+import { useAlbumsData } from "@composables/useAlbumsData";
 
 const route = useRoute();
 const router = useRouter();
 const { user, userData } = useUserData();
 const { getPlaylist, getUniqueAlbumIdsFromPlaylist, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { checkIfAlbumMoved, updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
+const { getCurrentPlaylistInfo } = useAlbumsData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -167,6 +171,55 @@ const previousPage = () => {
   }
 };
 
+const checkAlbumMovements = async () => {
+  console.log('Starting checkAlbumMovements for playlist:', id.value);
+  for (const album of albumData.value) {
+    try {
+      console.log('Checking album:', album.name, 'ID:', album.id);
+      const currentInfo = await getCurrentPlaylistInfo(album.id);
+      console.log('Current playlist info for album:', album.name, currentInfo);
+      
+      if (currentInfo && currentInfo.playlistId !== id.value) {
+        console.log('Album has moved:', album.name, 'Current playlist:', currentInfo.playlistId, 'Viewing playlist:', id.value);
+        album.hasMoved = true;
+      } else {
+        console.log('Album has not moved:', album.name, currentInfo ? `Current playlist: ${currentInfo.playlistId}` : 'No current info');
+        album.hasMoved = false;
+      }
+    } catch (err) {
+      console.error('Error checking album movement:', album.name, err);
+      album.hasMoved = false;
+    }
+  }
+};
+
+watch([() => albumData.value, id], () => {
+  console.log('Album data or playlist ID changed, rechecking movements');
+  checkAlbumMovements();
+}, { immediate: true });
+
+const handleUpdatePlaylist = async (album) => {
+  try {
+    error.value = null;
+    
+    // Get the current playlist data
+    const playlistData = {
+      playlistId: id.value,
+      name: playlistName.value,
+      ...playlistDoc.value.data()
+    };
+
+    const success = await updateAlbumPlaylist(album.id, playlistData);
+    if (success) {
+      // Refresh the album's moved status
+      album.hasMoved = false;
+    }
+  } catch (err) {
+    console.error('Error updating playlist:', err);
+    error.value = moveError.value || 'Failed to update playlist location';
+  }
+};
+
 onMounted(async () => {
   try {
     await loadPlaylistData();
@@ -224,6 +277,8 @@ onMounted(async () => {
           :lastFmUserName="userData?.lastFmUserName"
           :currentPlaylist="{ playlistId: id }"
           :isMappedAlbum="false"
+          :hasMoved="album.hasMoved"
+          @update-playlist="handleUpdatePlaylist"
         />
       </ul>
 

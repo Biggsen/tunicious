@@ -2,14 +2,36 @@
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const emit = defineEmits(['updatePlaylist']);
 
 const props = defineProps({
-  album: Object,
-  lastFmUserName: String,
-  hideArtist: Boolean,
-  currentPlaylist: Object,
-  isMappedAlbum: Boolean,
+  album: {
+    type: Object,
+    required: true
+  },
+  lastFmUserName: {
+    type: String,
+    default: ''
+  },
+  hideArtist: {
+    type: Boolean,
+    default: false
+  },
+  currentPlaylist: {
+    type: Object,
+    default: () => ({})
+  },
+  isMappedAlbum: {
+    type: Boolean,
+    default: false
+  },
+  hasMoved: {
+    type: Boolean,
+    default: false
+  }
 });
+
+console.log('AlbumItem hasMoved prop:', props.hasMoved, 'for album:', props.album.name);
 
 const lastFmLink = ({ artist, album }) => {
   const lastfmRoot = `https://www.last.fm/user/${props.lastFmUserName}/library/music`;
@@ -26,11 +48,24 @@ const displayYear = (date) => {
 const navigateToArtist = (artistId) => {
   router.push({ name: 'artist', params: { id: artistId } });
 };
+
+const handleUpdatePlaylist = () => {
+  emit('updatePlaylist', props.album);
+};
 </script>
 
 <template>
-  <li class="album-item">
+  <li :class="['album-item', { 'has-moved': hasMoved }]">
     <img :src="album.images[1].url" alt="" class="album-image" />
+    <div v-if="hasMoved" class="moved-indicator">
+      <span class="text-xs text-orange-600 mb-1 block">Moved</span>
+      <button 
+        @click="handleUpdatePlaylist"
+        class="update-playlist-btn"
+      >
+        Update playlist
+      </button>
+    </div>
     <div class="album-info">
       <p class="album-year text-xs lg:text-sm xl:text-base">
         {{ displayYear(album.release_date) }}
@@ -66,8 +101,12 @@ const navigateToArtist = (artistId) => {
 
 <style scoped>
 .album-item {
-  @apply bg-mindero border-2 border-delft-blue rounded-xl flex flex-col overflow-hidden;
+  @apply bg-mindero border-2 border-delft-blue rounded-xl flex flex-col overflow-hidden relative;
   height: 100%;
+}
+
+.album-item.has-moved {
+  @apply border-orange-500 border-2;
 }
 
 .album-image {
@@ -101,5 +140,15 @@ const navigateToArtist = (artistId) => {
 
 .lastfm-link {
   @apply text-white block text-center;
+}
+
+.moved-indicator {
+  @apply absolute top-2 right-2 bg-white px-2 py-1 rounded-lg shadow-md flex flex-col items-center;
+  z-index: 10;
+}
+
+.update-playlist-btn {
+  @apply text-xs bg-orange-500 text-white px-2 py-1 rounded-md hover:bg-orange-600 transition-colors duration-200;
+  white-space: nowrap;
 }
 </style>

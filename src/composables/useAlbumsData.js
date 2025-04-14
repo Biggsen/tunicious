@@ -98,11 +98,22 @@ export function useAlbumsData() {
    * @returns {Promise<{category: PlaylistCategory, type: PlaylistType, playlistId: string, playlistName: string} | null>}
    */
   const getCurrentPlaylistInfo = async (albumId) => {
+    console.log('Getting current playlist info for album:', albumId);
     const data = await fetchAlbumData(albumId);
-    if (!data) return null;
+    console.log('Fetched album data:', data);
+    
+    if (!data || !data.playlistHistory) {
+      console.log('No data or playlist history found for album:', albumId);
+      return null;
+    }
 
-    const currentEntry = data.playlistHistory.find(entry => entry.removedAt === null);
-    if (!currentEntry) return null;
+    const currentEntry = data.playlistHistory.find(entry => !entry.removedAt);
+    console.log('Current playlist entry:', currentEntry);
+    
+    if (!currentEntry) {
+      console.log('No current playlist entry found for album:', albumId);
+      return null;
+    }
 
     return currentEntry;
   };

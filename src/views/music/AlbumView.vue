@@ -11,6 +11,7 @@ import BackButton from '@components/common/BackButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
+import { usePlaylistMovement } from '@composables/usePlaylistMovement';
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +19,7 @@ const user = useCurrentUser();
 const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy } = useAlbumsData();
 const { getAlbum, getAlbumTracks, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
+const { updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
 
 const album = ref(null);
 const tracks = ref([]);
@@ -261,66 +263,14 @@ const updatePlaylist = async () => {
     
     const playlistData = querySnapshot.docs[0].data();
     
-    // Update the album document with the new playlist data
-    const albumRef = doc(db, 'albums', album.value.id);
-    const albumDoc = await getDoc(albumRef);
-    
-    if (!albumDoc.exists()) {
-      throw new Error('Album data not found');
+    const success = await updateAlbumPlaylist(album.value.id, playlistData);
+    if (success) {
+      // Refresh the current playlist info
+      currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
     }
-    
-    const albumData = albumDoc.data();
-    const userData = albumData.userEntries?.[user.value.uid];
-    
-    if (!userData) {
-      throw new Error('User album data not found');
-    }
-    
-    // Create a new entry for the current playlist
-    const newEntry = {
-      playlistId: playlistData.playlistId,
-      playlistName: playlistData.name,
-      category: playlistData.category,
-      type: playlistData.type,
-      priority: playlistData.priority,
-      addedAt: new Date(),
-      removedAt: null
-    };
-    
-    // Update the playlist history
-    const updatedHistory = userData.playlistHistory.map(entry => {
-      // Mark the current entry as removed
-      if (entry.removedAt === null) {
-        return {
-          ...entry,
-          removedAt: new Date()
-        };
-      }
-      return entry;
-    });
-    
-    // Add the new entry
-    updatedHistory.push(newEntry);
-    
-    // Update the album document
-    await setDoc(albumRef, {
-      albumTitle: album.value.name,
-      artistName: album.value.artists[0].name,
-      userEntries: {
-        [user.value.uid]: {
-          ...userData,
-          playlistHistory: updatedHistory,
-          updatedAt: serverTimestamp()
-        }
-      }
-    }, { merge: true });
-    
-    // Refresh the current playlist info
-    currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-    
   } catch (err) {
     console.error('Error updating playlist:', err);
-    error.value = err.message || 'Failed to update playlist';
+    error.value = moveError.value || 'Failed to update playlist';
   } finally {
     updating.value = false;
   }
