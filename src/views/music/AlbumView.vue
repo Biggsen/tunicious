@@ -57,6 +57,16 @@ const checkIfNeedsUpdate = async () => {
                      userData?.playlistHistory?.some(entry => entry.playlistName === 'Unknown Playlist');
 };
 
+const hasMoved = computed(() => {
+  // If there's no playlistId in the URL or no current playlist info, return false
+  if (!playlistId.value || !currentPlaylistInfo.value) {
+    return false;
+  }
+
+  // Return true if the current playlist ID doesn't match the URL query playlistId
+  return currentPlaylistInfo.value.playlistId !== playlistId.value;
+});
+
 const playlistId = computed(() => route.query.playlistId);
 const isFromPlaylist = computed(() => !!playlistId.value);
 
@@ -233,6 +243,89 @@ const updateAlbumData = async () => {
   }
 };
 
+const updatePlaylist = async () => {
+  if (!user.value || !album.value || !playlistId.value) return;
+  
+  try {
+    updating.value = true;
+    error.value = null;
+    
+    // Get the current playlist data
+    const playlistsRef = collection(db, 'playlists');
+    const q = query(playlistsRef, where('playlistId', '==', playlistId.value));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      throw new Error('Playlist not found');
+    }
+    
+    const playlistData = querySnapshot.docs[0].data();
+    
+    // Update the album document with the new playlist data
+    const albumRef = doc(db, 'albums', album.value.id);
+    const albumDoc = await getDoc(albumRef);
+    
+    if (!albumDoc.exists()) {
+      throw new Error('Album data not found');
+    }
+    
+    const albumData = albumDoc.data();
+    const userData = albumData.userEntries?.[user.value.uid];
+    
+    if (!userData) {
+      throw new Error('User album data not found');
+    }
+    
+    // Create a new entry for the current playlist
+    const newEntry = {
+      playlistId: playlistData.playlistId,
+      playlistName: playlistData.name,
+      category: playlistData.category,
+      type: playlistData.type,
+      priority: playlistData.priority,
+      addedAt: new Date(),
+      removedAt: null
+    };
+    
+    // Update the playlist history
+    const updatedHistory = userData.playlistHistory.map(entry => {
+      // Mark the current entry as removed
+      if (entry.removedAt === null) {
+        return {
+          ...entry,
+          removedAt: new Date()
+        };
+      }
+      return entry;
+    });
+    
+    // Add the new entry
+    updatedHistory.push(newEntry);
+    
+    // Update the album document
+    await setDoc(albumRef, {
+      albumTitle: album.value.name,
+      artistName: album.value.artists[0].name,
+      userEntries: {
+        [user.value.uid]: {
+          ...userData,
+          playlistHistory: updatedHistory,
+          updatedAt: serverTimestamp()
+        }
+      }
+    }, { merge: true });
+    
+    // Refresh the current playlist info
+    currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
+    
+  } catch (err) {
+    console.error('Error updating playlist:', err);
+    error.value = err.message || 'Failed to update playlist';
+  } finally {
+    updating.value = false;
+  }
+};
+
 const handleCheckExistingAlbum = async () => {
   if (!album.value) return;
 
@@ -347,10 +440,12 @@ onMounted(async () => {
             v-if="isFromPlaylist"
             :current-playlist-info="currentPlaylistInfo"
             :needs-update="needsUpdate"
+            :has-moved="hasMoved"
             :updating="updating"
             :saving="saving"
             @update="updateAlbumData"
             @save="saveAlbum"
+            @update-playlist="updatePlaylist"
           />
 
           <!-- Album Mapping UI -->

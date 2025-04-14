@@ -10,6 +10,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  hasMoved: {
+    type: Boolean,
+    default: false
+  },
   updating: {
     type: Boolean,
     default: false
@@ -20,12 +24,22 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update', 'save']);
+const emit = defineEmits(['update', 'save', 'updatePlaylist']);
 </script>
 
 <template>
   <div class="mt-6">
     <div v-if="currentPlaylistInfo" class="bg-green-100 border-2 border-green-500 rounded-xl p-4">
+      <p v-if="hasMoved" class="text-orange-600 mb-2">
+        This album has moved from its original playlist.
+        <button 
+          @click="emit('updatePlaylist')"
+          :disabled="updating"
+          class="ml-2 px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-sm"
+        >
+          Update playlist
+        </button>
+      </p>
       <p class="text-green-700">
         This album is currently in playlist: <strong>{{ currentPlaylistInfo.playlistName }}</strong>
       </p>
