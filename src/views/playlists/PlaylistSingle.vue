@@ -11,6 +11,7 @@ import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
 import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
 import { useAlbumsData } from "@composables/useAlbumsData";
+import { useSorting } from '@composables/useSorting';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,15 +30,27 @@ const albumData = ref([]);
 const playlistName = ref('');
 const playlistDoc = ref(null);
 
+// Use the sorting composable
+const { 
+  sortDirection, 
+  sortedItems: sortedAlbumData, 
+  toggleSort, 
+  sortDirectionLabel 
+} = useSorting(albumData, {
+  sortKey: 'addedAt',
+  defaultDirection: 'asc' // Default to oldest first
+});
+
 const totalAlbums = computed(() => albumData.value.length);
 
 const currentPage = ref(1);
 const itemsPerPage = ref(20);
 
+// Update paginatedAlbums to use sortedAlbumData
 const paginatedAlbums = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  return albumData.value.slice(start, end);
+  return sortedAlbumData.value.slice(start, end);
 });
 
 const totalPages = computed(() => 
@@ -264,6 +277,17 @@ onMounted(async () => {
           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
         </svg>
         {{ updating ? 'Updating...' : 'Update Playlist Name' }}
+      </button>
+      
+      <!-- Add sorting button -->
+      <button 
+        @click="toggleSort" 
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+        </svg>
+        Sort: {{ sortDirectionLabel }}
       </button>
     </div>
 
