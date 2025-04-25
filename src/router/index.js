@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { useToken } from "@utils/auth";
 import HomeView from '@views/HomeView.vue';
 import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
@@ -13,25 +14,35 @@ const routes = [
   {
     path: '/',
     name: 'home',
-    component: HomeView
+    component: HomeView,
+    meta: { requiresSpotify: true }
   },
   {
     path: '/playlists',
     name: 'playlists',
     component: PlaylistView,
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   },
   {
     path: '/playlist/add',
     name: 'addPlaylist',
     component: AddPlaylistView,
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   },
   {
     path: '/playlist/:id',
     name: 'playlistSingle',
     component: PlaylistSingle,
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   },
   {
     path: '/account',
@@ -48,13 +59,19 @@ const routes = [
     path: '/artist/:id',
     name: 'artist',
     component: ArtistView,
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   },
   {
     path: '/album/:id',
     name: 'album',
     component: AlbumView,
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   }
 ];
 
@@ -76,6 +93,23 @@ function getCurrentUser() {
   });
 }
 
+// Add Spotify token initialization guard
+router.beforeEach(async (to, from, next) => {
+  const { getValidToken } = useToken();
+  
+  try {
+    // Only initialize token for routes that need Spotify API access
+    if (to.matched.some(record => record.meta.requiresSpotify)) {
+      await getValidToken();
+    }
+    next();
+  } catch (error) {
+    console.error("Failed to initialize Spotify token:", error);
+    next();
+  }
+});
+
+// Keep existing auth guard
 router.beforeEach(async (to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     if (await getCurrentUser()) {

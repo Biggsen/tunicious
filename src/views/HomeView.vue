@@ -1,22 +1,8 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { useToken } from "@utils/auth";
 
-const { token, initializeToken } = useToken();
-const loading = ref(true);
-const error = ref(null);
-
-onMounted(async () => {
-  try {
-    await initializeToken();
-    // Add any additional initialization logic here if needed
-  } catch (e) {
-    console.error("Error in HomeView:", e);
-    error.value = "An unexpected error occurred. Please try again.";
-  } finally {
-    loading.value = false;
-  }
-});
+const { loading, error } = useToken();
 </script>
 
 <template>
