@@ -6,6 +6,8 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useForm } from '@composables/useForm';
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
+import LoadingMessage from '@components/common/LoadingMessage.vue';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -44,13 +46,9 @@ const handleLogout = async () => {
   <main class="max-w-2xl mx-auto p-6">
     <h1 class="h2 pb-10">Account Details</h1>
     
-    <div v-if="userLoading || authLoading" class="loading-message">
-      Loading user profile...
-    </div>
+    <LoadingMessage v-if="userLoading || authLoading" message="Loading user profile..." />
     
-    <div v-else-if="userError || authError" class="error-message">
-      {{ userError || authError }}
-    </div>
+    <ErrorMessage v-else-if="userError || authError" :message="userError || authError" />
     
     <div v-else-if="userData" class="user-profile bg-white shadow rounded-lg p-6">
       <div class="space-y-4">
@@ -123,23 +121,13 @@ const handleLogout = async () => {
           </BaseButton>
         </div>
         
-        <div v-if="formError" class="error-message mt-4">
-          {{ formError }}
-        </div>
+        <ErrorMessage v-if="formError" :message="formError" class="mt-4" />
       </form>
     </div>
   </main>
 </template>
 
 <style scoped>
-.loading-message {
-  @apply text-center text-gray-600;
-}
-
-.error-message {
-  @apply p-4 bg-red-50 text-red-700 rounded-lg;
-}
-
 .user-profile {
   @apply border border-gray-200;
 }

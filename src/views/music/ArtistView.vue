@@ -10,6 +10,8 @@ import BackButton from '@components/common/BackButton.vue';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { ArrowPathIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
+import LoadingMessage from '@components/common/LoadingMessage.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -222,8 +224,8 @@ onMounted(async () => {
       Cache cleared! Reloading artist data...
     </p>
 
-    <p v-if="loading || albumsLoading || mappingsLoading" class="loading-message">Loading...</p>
-    <p v-else-if="error" class="error-message">{{ error }}</p>
+    <LoadingMessage v-if="loading || albumsLoading || mappingsLoading" />
+    <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
       <ul class="album-grid">
         <AlbumItem 
@@ -259,14 +261,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.loading-message,
-.error-message,
-.no-data-message {
-  @apply text-center py-4 font-bold;
-}
-.error-message {
-  @apply text-red-500;
-}
 .album-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(150px, 1fr));

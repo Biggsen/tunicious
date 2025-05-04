@@ -83,9 +83,7 @@
       </div>
     </form>
 
-    <div v-if="userError || formError" class="error-message">
-      {{ userError || formError }}
-    </div>
+    <ErrorMessage v-if="userError || formError" :message="userError || formError" />
 
     <div v-if="success" class="success-message">
       Playlist added successfully!
@@ -101,6 +99,7 @@ import { useUserData } from '@composables/useUserData';
 import { useForm } from '@composables/useForm';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const router = useRouter();
 const { user, loading: userLoading, error: userError } = useUserData();
@@ -174,10 +173,6 @@ input, select {
 
 .cancel-button {
   @apply flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50;
-}
-
-.error-message {
-  @apply mt-4 p-4 bg-red-50 text-red-700 rounded-md;
 }
 
 .success-message {

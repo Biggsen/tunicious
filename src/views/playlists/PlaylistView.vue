@@ -9,6 +9,7 @@ import { useRoute } from 'vue-router';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 const { playlists: userPlaylists, loading: playlistsLoading, error: playlistsError, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
@@ -210,7 +211,7 @@ onMounted(async () => {
     </p>
 
     <p v-if="loading">Loading playlists...</p>
-    <p v-else-if="error" class="error-message">{{ error }}</p>
+    <ErrorMessage v-else-if="error" :message="error" />
     <div v-else-if="allPlaylistsLoaded" class="flex gap-8">
       <ul v-for="type in ['new', 'known']" :key="type" class="flex flex-col gap-4 w-1/2">
         <template v-for="playlist in filteredPlaylists[type]" :key="playlist.id">
@@ -226,8 +227,4 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.error-message {
-  color: red;
-  font-weight: bold;
-}
 </style>

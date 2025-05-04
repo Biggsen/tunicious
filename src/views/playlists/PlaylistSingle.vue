@@ -14,6 +14,8 @@ import { useAlbumsData } from "@composables/useAlbumsData";
 import { useSorting } from '@composables/useSorting';
 import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
+import LoadingMessage from '@components/common/LoadingMessage.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -284,8 +286,8 @@ onMounted(async () => {
     </p>
 
     <p class="text-lg mb-6">Total unique albums: {{ totalAlbums }}</p>
-    <p v-if="loading" class="loading-message">Loading...</p>
-    <p v-else-if="error" class="error-message">{{ error }}</p>
+    <LoadingMessage v-if="loading" />
+    <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
       <ul class="album-grid">
         <AlbumItem 
@@ -321,14 +323,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.loading-message,
-.error-message,
-.no-data-message {
-  @apply text-center py-4 font-bold;
-}
-.error-message {
-  @apply text-red-500;
-}
 .album-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(150px, 1fr));

@@ -3,6 +3,7 @@ import { useForm } from "@composables/useForm";
 import { useAuth } from "@composables/useAuth";
 import { useCurrentUser } from "vuefire";
 import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({
   email: "",
@@ -53,9 +54,7 @@ const onSubmit = async (formData) => {
         </BaseButton>
       </div>
 
-      <div v-if="authError" class="error-message">
-        {{ authError }}
-      </div>
+      <ErrorMessage v-if="authError" :message="authError" />
 
       <div v-if="success" class="success-message">
         Login successful!
@@ -99,10 +98,6 @@ input {
 
 .submit-button {
   @apply w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.error-message {
-  @apply mt-4 p-4 bg-red-50 text-red-700 rounded-md;
 }
 
 .success-message {
