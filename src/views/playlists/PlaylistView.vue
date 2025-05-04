@@ -8,6 +8,7 @@ import BackButton from '@components/common/BackButton.vue';
 import { useRoute } from 'vue-router';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
+import BaseButton from '@components/common/BaseButton.vue';
 
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 const { playlists: userPlaylists, loading: playlistsLoading, error: playlistsError, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
@@ -189,23 +190,19 @@ onMounted(async () => {
         <PlusIcon class="h-5 w-5" />
         Add playlist
       </RouterLink>
-      <button 
-        @click.prevent="handleClearCache" 
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <ArrowPathIcon class="h-5 w-5" />
+      <BaseButton @click.prevent="handleClearCache">
+        <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload
-      </button>
-      <button 
-        @click="showEndPlaylists = !showEndPlaylists" 
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <EyeSlashIcon v-if="showEndPlaylists" class="h-5 w-5" />
-        <EyeIcon v-else class="h-5 w-5" />
+      </BaseButton>
+      <BaseButton @click="showEndPlaylists = !showEndPlaylists">
+        <template #icon-left>
+          <EyeSlashIcon v-if="showEndPlaylists" class="h-5 w-5" />
+          <EyeIcon v-else class="h-5 w-5" />
+        </template>
         <span v-if="showEndPlaylists">Hide</span>
         <span v-else>Show</span>
         end playlists
-      </button>
+      </BaseButton>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">

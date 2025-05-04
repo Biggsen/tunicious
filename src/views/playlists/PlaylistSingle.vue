@@ -13,6 +13,7 @@ import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useSorting } from '@composables/useSorting';
 import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
+import BaseButton from '@components/common/BaseButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -258,33 +259,24 @@ onMounted(async () => {
 
     <h1 class="h2 pb-4">{{ playlistName }}</h1>
     <div class="mb-4 flex gap-4">
-      <button 
-        @click.prevent="handleClearCache" 
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <ArrowPathIcon class="h-5 w-5" />
+      <BaseButton @click.prevent="handleClearCache">
+        <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload
-      </button>
-
-      <button 
-        v-if="playlistDoc && !playlistDoc.data().name"
+      </BaseButton>
+      <BaseButton v-if="playlistDoc && !playlistDoc.data().name"
         @click="updatePlaylistName"
         :disabled="updating"
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <PencilIcon class="h-5 w-5" />
+        <template #icon-left><PencilIcon class="h-5 w-5" /></template>
         {{ updating ? 'Updating...' : 'Update Playlist Name' }}
-      </button>
-      
-      <!-- Add sorting button -->
-      <button 
-        @click="toggleSort" 
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <BarsArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
-        <BarsArrowDownIcon v-else class="h-5 w-5" />
+      </BaseButton>
+      <BaseButton @click="toggleSort">
+        <template #icon-left>
+          <BarsArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
+          <BarsArrowDownIcon v-else class="h-5 w-5" />
+        </template>
         Sort: {{ sortDirectionLabel }}
-      </button>
+      </BaseButton>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
@@ -309,13 +301,9 @@ onMounted(async () => {
       </ul>
 
       <div v-if="showPagination" class="pagination-controls">
-        <button 
-          @click="previousPage" 
-          :disabled="currentPage === 1"
-          class="pagination-button"
-        >
+        <BaseButton v-if="showPagination" @click="previousPage" :disabled="currentPage === 1" customClass="pagination-button">
           Previous
-        </button>
+        </BaseButton>
         
         <span class="pagination-info">
           Page {{ currentPage }} of {{ totalPages }}
@@ -323,13 +311,9 @@ onMounted(async () => {
           of {{ totalAlbums }} albums)
         </span>
         
-        <button 
-          @click="nextPage" 
-          :disabled="currentPage === totalPages"
-          class="pagination-button"
-        >
+        <BaseButton v-if="showPagination" @click="nextPage" :disabled="currentPage === totalPages" customClass="pagination-button">
           Next
-        </button>
+        </BaseButton>
       </div>
     </template>
     <p v-else class="no-data-message">No albums found in this playlist.</p>

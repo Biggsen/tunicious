@@ -66,20 +66,20 @@
       </div>
 
       <div class="form-actions">
-        <button 
+        <BaseButton 
           type="submit" 
           :disabled="isSubmitting || userLoading"
-          class="submit-button"
+          customClass="submit-button"
         >
           {{ isSubmitting ? 'Adding...' : 'Add Playlist' }}
-        </button>
-        <button 
+        </BaseButton>
+        <BaseButton 
           type="button" 
           @click="$router.push('/playlists')" 
-          class="cancel-button"
+          customClass="cancel-button"
         >
           Cancel
-        </button>
+        </BaseButton>
       </div>
     </form>
 
@@ -100,6 +100,7 @@ import { db } from '../../firebase';
 import { useUserData } from '@composables/useUserData';
 import { useForm } from '@composables/useForm';
 import BackButton from '@components/common/BackButton.vue';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const router = useRouter();
 const { user, loading: userLoading, error: userError } = useUserData();

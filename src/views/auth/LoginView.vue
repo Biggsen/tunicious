@@ -2,6 +2,7 @@
 import { useForm } from "@composables/useForm";
 import { useAuth } from "@composables/useAuth";
 import { useCurrentUser } from "vuefire";
+import BaseButton from '@components/common/BaseButton.vue';
 
 const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({
   email: "",
@@ -43,13 +44,13 @@ const onSubmit = async (formData) => {
       </div>
 
       <div class="form-actions">
-        <button 
+        <BaseButton 
           type="submit" 
           :disabled="isSubmitting || authLoading"
-          class="submit-button"
+          customClass="submit-button"
         >
           {{ isSubmitting || authLoading ? 'Logging in...' : 'Login' }}
-        </button>
+        </BaseButton>
       </div>
 
       <div v-if="authError" class="error-message">

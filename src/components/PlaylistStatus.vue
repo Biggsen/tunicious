@@ -1,5 +1,6 @@
 <script setup>
 import { defineProps, defineEmits } from 'vue';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const props = defineProps({
   currentPlaylistInfo: {
@@ -32,37 +33,24 @@ const emit = defineEmits(['update', 'save', 'updatePlaylist']);
     <div v-if="currentPlaylistInfo" class="bg-green-100 border-2 border-green-500 rounded-xl p-4">
       <p v-if="hasMoved" class="text-orange-600 mb-2">
         This album has moved from its original playlist.
-        <button 
-          @click="emit('updatePlaylist')"
-          :disabled="updating"
-          class="ml-2 px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-sm"
-        >
+        <BaseButton v-if="hasMoved" @click="$emit('update-playlist')" :loading="updating" customClass="playlist-status-btn">
           Update playlist
-        </button>
+        </BaseButton>
       </p>
       <p class="text-green-700">
         This album is currently in playlist: <strong>{{ currentPlaylistInfo.playlistName }}</strong>
       </p>
-      <button 
-        v-if="needsUpdate"
-        @click="emit('update')"
-        :disabled="updating"
-        class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-      >
+      <BaseButton v-if="needsUpdate" @click="$emit('update')" :loading="updating" customClass="playlist-status-btn">
         {{ updating ? 'Updating...' : 'Update Album Data' }}
-      </button>
+      </BaseButton>
     </div>
     <div v-else class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
       <p class="text-yellow-700 mb-2">
         This album is not yet in your collection.
       </p>
-      <button 
-        @click="emit('save')"
-        :disabled="saving"
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-      >
+      <BaseButton v-if="!needsUpdate && !hasMoved" @click="$emit('save')" :loading="saving" customClass="playlist-status-btn">
         {{ saving ? 'Adding...' : 'Add to Collection' }}
-      </button>
+      </BaseButton>
     </div>
   </div>
 </template> 

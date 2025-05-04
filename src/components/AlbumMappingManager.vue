@@ -1,5 +1,6 @@
 <script setup>
 import { defineProps, defineEmits } from 'vue';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const props = defineProps({
   searchResults: {
@@ -36,13 +37,9 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close']);
       <p class="text-delft-blue mb-4">
         This album might exist in your collection under a different ID. Check if it exists:
       </p>
-      <button 
-        @click="emit('check-existing')" 
-        :disabled="isSearching"
-        class="check-existing-btn w-full"
-      >
-        {{ isSearching ? 'Searching...' : 'Check for Existing Album' }}
-      </button>
+      <BaseButton @click="emit('check-existing')" :loading="isSearching" customClass="mapping-btn">
+        Check for Existing Albums
+      </BaseButton>
 
       <div v-if="searchError" class="error-message mt-4">
         {{ searchError }}
@@ -75,20 +72,14 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close']);
             <div class="text-xs text-gray-500 mt-1">
               Similarity: {{ Math.round(result.similarity * 100) }}%
             </div>
-            <button 
-              @click="emit('create-mapping', result.id)"
-              class="create-mapping-btn mt-2"
-            >
-              Create Mapping
-            </button>
+            <BaseButton @click="emit('create-mapping', result.id)" customClass="mapping-btn">
+              Map to {{ result.name }}
+            </BaseButton>
           </li>
         </ul>
-        <button 
-          @click="emit('close')"
-          class="mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors duration-200"
-        >
-          Cancel
-        </button>
+        <BaseButton @click="emit('close')" customClass="mapping-btn">
+          Close
+        </BaseButton>
       </div>
     </div>
   </div>

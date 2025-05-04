@@ -1,5 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const router = useRouter();
 const emit = defineEmits(['updatePlaylist']);
@@ -59,12 +60,9 @@ const handleUpdatePlaylist = () => {
     <img :src="album.images[1].url" alt="" class="album-image" />
     <div v-if="hasMoved" class="moved-indicator">
       <span class="text-xs text-orange-600 mb-1 block">Moved</span>
-      <button 
-        @click="handleUpdatePlaylist"
-        class="update-playlist-btn"
-      >
+      <BaseButton @click="handleUpdatePlaylist" :disabled="disabled" customClass="update-playlist-btn">
         Update playlist
-      </button>
+      </BaseButton>
     </div>
     <div class="album-info">
       <p class="album-year text-xs lg:text-sm xl:text-base">

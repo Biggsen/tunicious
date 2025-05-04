@@ -5,6 +5,7 @@ import { useCurrentUser } from "vuefire";
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useForm } from '@composables/useForm';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -70,13 +71,13 @@ const handleLogout = async () => {
       </div>
       
       <div class="mt-8">
-        <button 
+        <BaseButton 
           @click="handleLogout" 
-          class="logout-button"
           :disabled="authLoading"
+          customClass="logout-button"
         >
           {{ authLoading ? 'Logging out...' : 'Logout' }}
-        </button>
+        </BaseButton>
       </div>
     </div>
     
@@ -113,13 +114,13 @@ const handleLogout = async () => {
         </div>
         
         <div class="mt-6">
-          <button 
+          <BaseButton 
             type="submit" 
             class="submit-button w-full"
             :disabled="isSubmitting"
           >
             {{ isSubmitting ? 'Creating Profile...' : 'Create Profile' }}
-          </button>
+          </BaseButton>
         </div>
         
         <div v-if="formError" class="error-message mt-4">
