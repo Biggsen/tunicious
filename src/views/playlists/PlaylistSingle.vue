@@ -22,7 +22,7 @@ const router = useRouter();
 const { user, userData } = useUserData();
 const { getPlaylist, getUniqueAlbumIdsFromPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { checkIfAlbumMoved, updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData } = useAlbumsData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -67,12 +67,17 @@ const showPagination = computed(() =>
 
 const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
+const inCollectionMap = ref({});
+
 async function fetchPlaylistData(playlistId) {
   const cachedData = await getCache(cacheKey.value);
 
   if (cachedData) {
     playlistName.value = cachedData.playlistName;
     albumData.value = cachedData.albumData;
+    // Fetch inCollection status for cached albums
+    const albumIds = cachedData.albumData.map(a => a.id);
+    inCollectionMap.value = await fetchAlbumsData(albumIds);
     return;
   }
 
@@ -99,6 +104,9 @@ async function fetchPlaylistData(playlistId) {
     }],
     addedAt: addedDatesMap.get(album.id) // Store the added date with the album data
   }));
+
+  // Fetch inCollection status for loaded albums
+  inCollectionMap.value = await fetchAlbumsData(albumIds);
 
   console.log('Album Data:', albumData.value);
 
@@ -243,6 +251,12 @@ const handleUpdatePlaylist = async (album) => {
   }
 };
 
+const refreshInCollectionForAlbum = async (albumId) => {
+  // Only refresh the inCollectionMap for the given albumId
+  const result = await fetchAlbumsData([albumId]);
+  inCollectionMap.value = { ...inCollectionMap.value, ...result };
+};
+
 onMounted(async () => {
   try {
     await loadPlaylistData();
@@ -298,7 +312,9 @@ onMounted(async () => {
           :currentPlaylist="{ playlistId: id }"
           :isMappedAlbum="false"
           :hasMoved="album.hasMoved"
+          :inCollection="!!inCollectionMap[album.id]"
           @update-playlist="handleUpdatePlaylist"
+          @added-to-collection="refreshInCollectionForAlbum"
         />
       </ul>
 

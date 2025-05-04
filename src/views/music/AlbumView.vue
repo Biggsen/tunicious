@@ -16,7 +16,7 @@ import { usePlaylistMovement } from '@composables/usePlaylistMovement';
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
-const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy } = useAlbumsData();
+const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
@@ -111,65 +111,14 @@ const fetchAllTracks = async (albumId) => {
 
 const saveAlbum = async () => {
   if (!user.value || !album.value || !playlistId.value) return;
-  
   try {
     saving.value = true;
     error.value = null;
-    
-    // First find the playlist document by Spotify playlist ID
-    const playlistsRef = collection(db, 'playlists');
-    const q = query(playlistsRef, where('playlistId', '==', playlistId.value));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error('Playlist not found');
-    }
-    
-    const playlistDoc = querySnapshot.docs[0];
-    const playlistData = playlistDoc.data();
-    
-    // Get the Spotify added date for this album
-    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
-    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
-    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
-    
-    const albumRef = doc(db, 'albums', album.value.id);
-    
-    // Get existing album data
-    const existingData = await fetchAlbumData(album.value.id);
-    
-    // Prepare the new playlist history entry using playlist data
-    const newEntry = {
-      playlistId: playlistData.playlistId,
-      playlistName: playlistData.name,
-      category: playlistData.category,
-      type: playlistData.type,
-      priority: playlistData.priority,
-      addedAt: spotifyAddedAt,
-      removedAt: null
-    };
-    
-    // Prepare the user's album data
-    const userAlbumData = {
-      playlistHistory: existingData?.playlistHistory 
-        ? [...existingData.playlistHistory.filter(h => h.removedAt !== null), newEntry]
-        : [newEntry],
-      createdAt: existingData?.createdAt || serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
-    
-    // Update the album document
-    await setDoc(albumRef, {
-      albumTitle: album.value.name,
-      artistName: album.value.artists[0].name,
-      userEntries: {
-        [user.value.uid]: userAlbumData
-      }
-    }, { merge: true });
-    
-    // Refresh the current playlist info
+    await addAlbumToCollection({
+      album: album.value,
+      playlistId: playlistId.value
+    });
     currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-    
   } catch (err) {
     console.error('Error saving album:', err);
     error.value = err.message || 'Failed to save album';

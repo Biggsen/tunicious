@@ -1,9 +1,10 @@
 import { ref } from 'vue';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
 import { isSimilar, stringSimilarity, albumTitleSimilarity } from '../utils/fuzzyMatch';
+import { useSpotifyApi } from '@/composables/useSpotifyApi';
 
 /**
  * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
@@ -232,6 +233,77 @@ export function useAlbumsData() {
     }
   };
 
+  /**
+   * Adds an album to the user's collection and playlist history
+   * @param {Object} params
+   *   @param {Object} params.album - The album object (must have id, name, artists)
+   *   @param {string} params.playlistId - The Spotify playlist ID
+   *   @param {Object} [params.playlistData] - (Optional) The playlist data object (if already fetched)
+   *   @param {Date} [params.spotifyAddedAt] - (Optional) The date the album was added to the playlist
+   * @returns {Promise<void>}
+   */
+  const addAlbumToCollection = async ({ album, playlistId, playlistData = null, spotifyAddedAt = null }) => {
+    if (!user.value || !album || !playlistId) throw new Error('Missing required parameters');
+    try {
+      loading.value = true;
+      error.value = null;
+      // Find the playlist document if not provided
+      let _playlistData = playlistData;
+      if (!_playlistData) {
+        const playlistsRef = collection(db, 'playlists');
+        const q = query(playlistsRef, where('playlistId', '==', playlistId));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          throw new Error('Playlist not found');
+        }
+        _playlistData = querySnapshot.docs[0].data();
+      }
+      // Get the Spotify added date for this album if not provided
+      let _spotifyAddedAt = spotifyAddedAt;
+      if (!_spotifyAddedAt) {
+        const { getPlaylistAlbumsWithDates } = useSpotifyApi();
+        const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId);
+        const albumWithDate = albumsWithDates.find(a => a.id === album.id);
+        _spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
+      }
+      const albumRef = doc(db, 'albums', album.id);
+      // Get existing album data
+      const existingData = await fetchAlbumData(album.id);
+      // Prepare the new playlist history entry using playlist data
+      const newEntry = {
+        playlistId: _playlistData.playlistId,
+        playlistName: _playlistData.name,
+        category: _playlistData.category,
+        type: _playlistData.type,
+        priority: _playlistData.priority,
+        addedAt: _spotifyAddedAt,
+        removedAt: null
+      };
+      // Prepare the user's album data
+      const userAlbumData = {
+        playlistHistory: existingData?.playlistHistory 
+          ? [...existingData.playlistHistory.filter(h => h.removedAt !== null), newEntry]
+          : [newEntry],
+        createdAt: existingData?.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      // Update the album document
+      await setDoc(albumRef, {
+        albumTitle: album.name,
+        artistName: album.artists[0].name,
+        userEntries: {
+          [user.value.uid]: userAlbumData
+        }
+      }, { merge: true });
+    } catch (e) {
+      console.error('Error adding album to collection:', e);
+      error.value = e.message || 'Failed to add album to collection';
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     albumData,
     loading,
@@ -240,6 +312,7 @@ export function useAlbumsData() {
     fetchAlbumsData,
     getCurrentPlaylistInfo,
     searchAlbumsByTitleAndArtist,
-    searchAlbumsByTitleAndArtistFuzzy
+    searchAlbumsByTitleAndArtistFuzzy,
+    addAlbumToCollection
   };
 } 

@@ -1,9 +1,15 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
+import { ref } from 'vue';
+import { useCurrentUser } from 'vuefire';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { useAlbumsData } from '@composables/useAlbumsData';
+import { useSpotifyApi } from '@composables/useSpotifyApi';
 
 const router = useRouter();
-const emit = defineEmits(['updatePlaylist']);
+const emit = defineEmits(['updatePlaylist', 'added-to-collection']);
 
 const props = defineProps({
   album: {
@@ -29,6 +35,10 @@ const props = defineProps({
   hasMoved: {
     type: Boolean,
     default: false
+  },
+  inCollection: {
+    type: Boolean,
+    default: true
   }
 });
 
@@ -53,6 +63,30 @@ const navigateToArtist = (artistId) => {
 const handleUpdatePlaylist = () => {
   emit('updatePlaylist', props.album);
 };
+
+const saving = ref(false);
+const error = ref(null);
+const user = useCurrentUser();
+const { fetchAlbumData, addAlbumToCollection } = useAlbumsData();
+const { getPlaylistAlbumsWithDates } = useSpotifyApi();
+
+const handleAddToCollection = async () => {
+  if (!user.value || !props.album || !props.currentPlaylist?.playlistId) return;
+  try {
+    saving.value = true;
+    error.value = null;
+    await addAlbumToCollection({
+      album: props.album,
+      playlistId: props.currentPlaylist.playlistId
+    });
+    emit('added-to-collection', props.album.id);
+  } catch (err) {
+    console.error('Error saving album:', err);
+    error.value = err.message || 'Failed to save album';
+  } finally {
+    saving.value = false;
+  }
+};
 </script>
 
 <template>
@@ -63,6 +97,13 @@ const handleUpdatePlaylist = () => {
       <BaseButton @click="handleUpdatePlaylist" :disabled="disabled" customClass="update-playlist-btn">
         Update playlist
       </BaseButton>
+    </div>
+    <div v-else-if="!inCollection" class="add-indicator">
+      <BaseButton @click="handleAddToCollection" :disabled="saving" customClass="add-to-collection-btn">
+        <span v-if="saving">Adding...</span>
+        <span v-else>Add</span>
+      </BaseButton>
+      <span v-if="error" class="text-xs text-red-500 mt-1">{{ error }}</span>
     </div>
     <div class="album-info">
       <p class="album-year text-xs lg:text-sm xl:text-base">
@@ -148,5 +189,15 @@ const handleUpdatePlaylist = () => {
 .update-playlist-btn {
   @apply text-xs bg-orange-500 text-white px-2 py-1 rounded-md hover:bg-orange-600 transition-colors duration-200;
   white-space: nowrap;
+}
+
+.add-to-collection-btn {
+  @apply text-xs bg-mint text-white px-2 py-1 rounded-md hover:bg-celadon transition-colors duration-200;
+  white-space: nowrap;
+}
+
+.add-indicator {
+  @apply absolute top-2 right-2 bg-white px-2 py-1 rounded-lg shadow-md flex flex-col items-center;
+  z-index: 10;
 }
 </style>
