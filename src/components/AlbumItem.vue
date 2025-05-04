@@ -87,11 +87,13 @@ const handleAddToCollection = async () => {
     saving.value = false;
   }
 };
+
+const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
 </script>
 
 <template>
   <li :class="['album-item', { 'has-moved': hasMoved }]">
-    <img :src="album.images[1].url" alt="" class="album-image" />
+    <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
     <div v-if="hasMoved" class="moved-indicator">
       <span class="text-xs text-orange-600 mb-1 block">Moved</span>
       <BaseButton @click="handleUpdatePlaylist" :disabled="disabled" customClass="update-playlist-btn">
@@ -106,8 +108,8 @@ const handleAddToCollection = async () => {
       <span v-if="error" class="text-xs text-red-500 mt-1">{{ error }}</span>
     </div>
     <div class="album-info">
-      <p class="album-year text-xs lg:text-sm xl:text-base">
-        {{ displayYear(album.release_date) }}
+      <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
+        {{ album.releaseYear || displayYear(album.release_date) }}
       </p>
       <p 
         class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
@@ -117,19 +119,19 @@ const handleAddToCollection = async () => {
           query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
         })"
       >
-        {{ album.name }}
+        {{ album.name || album.albumTitle || 'Unknown Album' }}
       </p>
       <p 
-        v-if="!hideArtist"
+        v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
         class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        @click="navigateToArtist(album.artists[0].id)"
+        @click="(album.artistId || album.artists?.[0]?.id) ? navigateToArtist(album.artistId || album.artists[0].id) : null"
       >
-        {{ album.artists[0].name }}
+        {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
       </p>
     </div>
     <div class="album-link">
       <a
-        :href="lastFmLink({ artist: album.artists[0].name, album: album.name })"
+        :href="lastFmLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
         target="_blank"
         class="lastfm-link text-sm lg:text-base xl:text-lg"
         >LastFM</a

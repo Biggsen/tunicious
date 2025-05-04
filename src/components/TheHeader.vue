@@ -22,6 +22,9 @@ const { user, userData } = useUserData();
           <li>
             <RouterLink to="/playlists">Playlists</RouterLink>
           </li>
+          <li>
+            <RouterLink to="/search">Search</RouterLink>
+          </li>
         </ul>
       </div>
       <div class="flex items-center justify-end col-span-2">

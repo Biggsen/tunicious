@@ -9,6 +9,7 @@ import LoginView from '@views/auth/LoginView.vue';
 import AddPlaylistView from '@views/playlists/AddPlaylistView.vue';
 import ArtistView from '@views/music/ArtistView.vue';
 import AlbumView from '@views/music/AlbumView.vue';
+import SearchView from '@views/music/SearchView.vue';
 
 const routes = [
   {
@@ -72,6 +73,11 @@ const routes = [
       requiresAuth: true,
       requiresSpotify: true 
     }
+  },
+  {
+    path: '/search',
+    name: 'search',
+    component: SearchView
   }
 ];
 

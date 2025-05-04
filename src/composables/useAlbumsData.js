@@ -158,7 +158,10 @@ export function useAlbumsData() {
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         albumTitle: doc.data().albumTitle,
-        artistName: doc.data().artistName
+        artistName: doc.data().artistName,
+        albumCover: doc.data().albumCover || '',
+        releaseYear: doc.data().releaseYear || '',
+        artistId: doc.data().artistId || ''
       }));
 
     } catch (e) {
@@ -214,7 +217,10 @@ export function useAlbumsData() {
             id: doc.id,
             albumTitle: data.albumTitle,
             artistName: data.artistName,
-            similarity: similarityScore
+            similarity: similarityScore,
+            albumCover: data.albumCover || '',
+            releaseYear: data.releaseYear || '',
+            artistId: data.artistId || ''
           });
         }
       }
@@ -226,6 +232,76 @@ export function useAlbumsData() {
 
     } catch (e) {
       console.error('Error searching albums with fuzzy matching:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Searches for albums where the album title starts with the given prefix (case-insensitive)
+   * @param {string} prefix - The album title prefix to search for
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByTitlePrefix = async (prefix) => {
+    if (!user.value) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const albumsRef = collection(db, 'albums');
+      // Fetch a wide range and filter client-side for case-insensitive match
+      const q = query(
+        albumsRef,
+        where('albumTitle', '>=', prefix.charAt(0).toUpperCase()),
+        where('albumTitle', '<=', prefix.charAt(0).toLowerCase() + '\uf8ff')
+      );
+      const querySnapshot = await getDocs(albumsRef); // get all, since Firestore can't do case-insensitive
+      const lowerPrefix = prefix.toLowerCase();
+      return querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          albumTitle: doc.data().albumTitle,
+          artistName: doc.data().artistName,
+          albumCover: doc.data().albumCover || '',
+          releaseYear: doc.data().releaseYear || '',
+          artistId: doc.data().artistId || ''
+        }))
+        .filter(album => album.albumTitle && album.albumTitle.toLowerCase().startsWith(lowerPrefix));
+    } catch (e) {
+      console.error('Error searching albums by title prefix:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Searches for albums where the artist name starts with the given prefix (case-insensitive)
+   * @param {string} prefix - The artist name prefix to search for
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByArtistPrefix = async (prefix) => {
+    if (!user.value) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const albumsRef = collection(db, 'albums');
+      const querySnapshot = await getDocs(albumsRef); // get all, since Firestore can't do case-insensitive
+      const lowerPrefix = prefix.toLowerCase();
+      return querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          albumTitle: doc.data().albumTitle,
+          artistName: doc.data().artistName,
+          albumCover: doc.data().albumCover || '',
+          releaseYear: doc.data().releaseYear || '',
+          artistId: doc.data().artistId || ''
+        }))
+        .filter(album => album.artistName && album.artistName.toLowerCase().startsWith(lowerPrefix));
+    } catch (e) {
+      console.error('Error searching albums by artist prefix:', e);
       error.value = 'Failed to search albums';
       return [];
     } finally {
@@ -291,6 +367,9 @@ export function useAlbumsData() {
       await setDoc(albumRef, {
         albumTitle: album.name,
         artistName: album.artists[0].name,
+        artistId: album.artists[0].id,
+        albumCover: album.images && album.images.length > 0 ? album.images[0].url : '',
+        releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
         userEntries: {
           [user.value.uid]: userAlbumData
         }
@@ -313,6 +392,8 @@ export function useAlbumsData() {
     getCurrentPlaylistInfo,
     searchAlbumsByTitleAndArtist,
     searchAlbumsByTitleAndArtistFuzzy,
-    addAlbumToCollection
+    addAlbumToCollection,
+    searchAlbumsByTitlePrefix,
+    searchAlbumsByArtistPrefix
   };
 } 
