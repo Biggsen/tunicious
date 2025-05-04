@@ -3,7 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-
 # Development Rules & Guidelines
 
 ## Tech Stack
@@ -29,10 +28,35 @@ src/
 └── stories/ # Storybook stories
 
 
-## Data Structure
-- **Users**: Personal profiles with Last.fm integration
-- **Playlists**: Categorized music collections (queued → wonderful)
-- **Albums**: Historical tracking of album progression
+## Data Structures
+
+### Users Collection
+
+- Stores user profiles with Last.fm integration.
+- **Fields:** `displayName`, `email`, `lastFmUserName`
+- See `.cursor/rules/data-structures.mdc` for full interface and field descriptions.
+
+### Playlists Collection
+
+- Stores categorized Spotify playlists for each user.
+- **Fields:** `playlistId`, `name`, `type`, `category`, `priority`, `userId`, `createdAt`, `updatedAt`
+- **Categories:** `queued`, `curious`, `interested`, `great`, `excellent`, `wonderful`
+- Composite index required on `userId`, `type`, and `category`.
+- See `.cursor/rules/data-structures.mdc` for full interface and field descriptions.
+
+### Albums Collection
+
+- Tracks album progression and playlist history per user.
+- **Fields:** `albumTitle`, `artistName`, `userEntries` (with `playlistHistory`, `createdAt`, `updatedAt`)
+- Document ID is the Spotify album ID.
+- See `.cursor/rules/data-structures.mdc` for full interface and field descriptions.
+
+### Album Mappings Collection
+
+- Handles alternate and primary Spotify album IDs for data consistency.
+- **Fields:** `alternateId`, `primaryId`, `createdAt`, `updatedAt`
+- Composite index required on `alternateId`.
+- See `.cursor/rules/data-structures.mdc` for full interface and field descriptions.
 
 ## Coding Standards
 
