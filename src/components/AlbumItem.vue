@@ -7,6 +7,7 @@ import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 
 import { db } from '@/firebase';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { getLastFmLink } from '@utils/musicServiceLinks';
 
 const router = useRouter();
 const emit = defineEmits(['updatePlaylist', 'added-to-collection']);
@@ -43,14 +44,6 @@ const props = defineProps({
 });
 
 console.log('AlbumItem hasMoved prop:', props.hasMoved, 'for album:', props.album.name);
-
-const lastFmLink = ({ artist, album }) => {
-  const lastfmRoot = `https://www.last.fm/user/${props.lastFmUserName}/library/music`;
-  const artistName = artist.replace(/ /g, "+");
-  const albumName = album.replace(/ /g, "+");
-  const link = `${lastfmRoot}/${artistName}/${albumName}`;
-  return link;
-};
 
 const displayYear = (date) => {
   return date.substring(0, 4);
@@ -131,7 +124,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     </div>
     <div class="album-link">
       <a
-        :href="lastFmLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
+        :href="getLastFmLink({ lastFmUserName, artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
         target="_blank"
         class="lastfm-link text-sm lg:text-base xl:text-lg"
         >LastFM</a
