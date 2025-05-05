@@ -197,7 +197,12 @@ const updatePlaylist = async () => {
     
     const playlistData = querySnapshot.docs[0].data();
     
-    const success = await updateAlbumPlaylist(album.value.id, playlistData);
+    // Get the Spotify added date for this album (match PlaylistSingle.vue logic)
+    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
+    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
+    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
+    
+    const success = await updateAlbumPlaylist(album.value.id, playlistData, spotifyAddedAt);
     if (success) {
       // Refresh the current playlist info
       currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
