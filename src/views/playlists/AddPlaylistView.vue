@@ -101,7 +101,6 @@ import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
-const router = useRouter();
 const { user, loading: userLoading, error: userError } = useUserData();
 
 const { form, isSubmitting, error: formError, success, handleSubmit, validateForm } = useForm({
@@ -110,13 +109,6 @@ const { form, isSubmitting, error: formError, success, handleSubmit, validateFor
   category: 'queued',
   priority: 0
 });
-
-const validationRules = {
-  playlistId: { required: true, minLength: 1 },
-  type: { required: true },
-  category: { required: true },
-  priority: { required: true }
-};
 
 const onSubmit = async (formData) => {
   if (!user.value) {

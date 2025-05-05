@@ -1,5 +1,4 @@
 <script setup>
-import { ref } from "vue";
 import { useToken } from "@utils/auth";
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
