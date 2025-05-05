@@ -1,7 +1,6 @@
 <script setup>
 import { useAuth } from "@composables/useAuth";
 import { useUserData } from "@composables/useUserData";
-import { useCurrentUser } from "vuefire";
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useForm } from '@composables/useForm';
@@ -12,7 +11,7 @@ import LoadingMessage from '@components/common/LoadingMessage.vue';
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 
-const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({
+const { form, isSubmitting, error: formError, handleSubmit } = useForm({
   displayName: '',
   lastFmUserName: ''
 });

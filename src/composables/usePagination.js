@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 export function usePagination(itemsPerPage = 20) {
   const currentPage = ref(1);

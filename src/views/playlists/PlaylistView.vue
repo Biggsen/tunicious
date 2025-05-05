@@ -11,11 +11,11 @@ import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/2
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
-const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
-const { playlists: userPlaylists, loading: playlistsLoading, error: playlistsError, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
+const { user, userData, fetchUserData } = useUserData();
+const { playlists: userPlaylists, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
 
 const route = useRoute();
-const { getPlaylist, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { getPlaylist} = useSpotifyApi();
 
 const loading = ref(true);
 const error = ref(null);

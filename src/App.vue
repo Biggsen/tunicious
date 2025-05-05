@@ -1,8 +1,6 @@
 <script setup>
-import { RouterLink, RouterView } from "vue-router";
-import { useCurrentUser } from "vuefire";
+import { RouterView } from "vue-router";
 import TheHeader from "./components/TheHeader.vue";
-const user = useCurrentUser();
 </script>
 
 <template>

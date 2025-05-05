@@ -18,7 +18,7 @@ const router = useRouter();
 const { userData } = useUserData();
 const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
 const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
-const { getArtist, getArtistAlbums, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { getArtist, getArtistAlbums} = useSpotifyApi();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);

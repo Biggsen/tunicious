@@ -5,7 +5,6 @@ import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
-import { usePlaylistData } from "@composables/usePlaylistData";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
@@ -18,10 +17,9 @@ import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 
 const route = useRoute();
-const router = useRouter();
 const { user, userData } = useUserData();
-const { getPlaylist, getUniqueAlbumIdsFromPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
-const { checkIfAlbumMoved, updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
 const { getCurrentPlaylistInfo, fetchAlbumsData } = useAlbumsData();
 
 const id = computed(() => route.params.id);

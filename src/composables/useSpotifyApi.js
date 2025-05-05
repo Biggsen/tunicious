@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { Client, ApiUrl } from '../constants';
 
 export function useSpotifyApi() {

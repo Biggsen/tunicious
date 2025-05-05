@@ -3,8 +3,6 @@ import { useRouter } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
 import { ref } from 'vue';
 import { useCurrentUser } from 'vuefire';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
@@ -60,8 +58,7 @@ const handleUpdatePlaylist = () => {
 const saving = ref(false);
 const error = ref(null);
 const user = useCurrentUser();
-const { fetchUserAlbumData, addAlbumToCollection } = useAlbumsData();
-const { getPlaylistAlbumsWithDates } = useSpotifyApi();
+const { addAlbumToCollection } = useAlbumsData();
 
 const handleAddToCollection = async () => {
   if (!user.value || !props.album || !props.currentPlaylist?.playlistId) return;

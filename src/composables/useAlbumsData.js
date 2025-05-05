@@ -3,7 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
-import { isSimilar, stringSimilarity, albumTitleSimilarity } from '../utils/fuzzyMatch';
+import { albumTitleSimilarity } from '../utils/fuzzyMatch';
 import { useSpotifyApi } from '@/composables/useSpotifyApi';
 
 /**
