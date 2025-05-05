@@ -121,7 +121,7 @@ async function fetchArtistData(artistId) {
       id: album.id,
       name: album.name,
       release_date: album.release_date,
-      images: [null, { url: album.images[1]?.url }],
+      images: album.images,
       artists: [{ 
         id: album.artists[0]?.id,
         name: album.artists[0]?.name 
