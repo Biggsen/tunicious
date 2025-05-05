@@ -16,7 +16,7 @@ import { usePlaylistMovement } from '@composables/usePlaylistMovement';
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
-const { fetchAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection } = useAlbumsData();
+const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { updateAlbumPlaylist, loading: moveLoading, error: moveError } = usePlaylistMovement();
@@ -245,7 +245,7 @@ const handleCreateMapping = async (primaryId) => {
       searchResults.value = [];
       
       // Refresh the album data to show the updated state
-      await fetchAlbumData(route.params.id);
+      await fetchUserAlbumData(route.params.id);
     }
   } catch (e) {
     console.error('Error creating mapping:', e);

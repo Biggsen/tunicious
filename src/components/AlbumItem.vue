@@ -67,7 +67,7 @@ const handleUpdatePlaylist = () => {
 const saving = ref(false);
 const error = ref(null);
 const user = useCurrentUser();
-const { fetchAlbumData, addAlbumToCollection } = useAlbumsData();
+const { fetchUserAlbumData, addAlbumToCollection } = useAlbumsData();
 const { getPlaylistAlbumsWithDates } = useSpotifyApi();
 
 const handleAddToCollection = async () => {

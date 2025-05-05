@@ -36,7 +36,7 @@ export function useAlbumsData() {
    * @param {string} albumId - The Spotify album ID
    * @returns {Promise<UserAlbumData|null>} The album data for the current user, or null if not found
    */
-  const fetchAlbumData = async (albumId) => {
+  const fetchUserAlbumData = async (albumId) => {
     if (!user.value) return null;
 
     try {
@@ -100,7 +100,7 @@ export function useAlbumsData() {
    */
   const getCurrentPlaylistInfo = async (albumId) => {
     console.log('Getting current playlist info for album:', albumId);
-    const data = await fetchAlbumData(albumId);
+    const data = await fetchUserAlbumData(albumId);
     console.log('Fetched album data:', data);
     
     if (!data || !data.playlistHistory) {
@@ -129,7 +129,7 @@ export function useAlbumsData() {
 
     const results = {};
     for (const albumId of albumIds) {
-      results[albumId] = await fetchAlbumData(albumId);
+      results[albumId] = await fetchUserAlbumData(albumId);
     }
     return results;
   };
@@ -344,7 +344,7 @@ export function useAlbumsData() {
       }
       const albumRef = doc(db, 'albums', album.id);
       // Get existing album data
-      const existingData = await fetchAlbumData(album.id);
+      const existingData = await fetchUserAlbumData(album.id);
       // Prepare the new playlist history entry using playlist data
       const newEntry = {
         playlistId: _playlistData.playlistId,
@@ -387,7 +387,7 @@ export function useAlbumsData() {
     albumData,
     loading,
     error,
-    fetchAlbumData,
+    fetchUserAlbumData,
     fetchAlbumsData,
     getCurrentPlaylistInfo,
     searchAlbumsByTitleAndArtist,
