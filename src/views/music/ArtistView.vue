@@ -263,14 +263,14 @@ onMounted(async () => {
 <style scoped>
 .album-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 304px));
   gap: 1rem;
   justify-content: center;
 }
 
 @media (max-width: 639px) {
   .album-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 304px));
   }
 }
 
