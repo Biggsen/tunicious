@@ -383,6 +383,38 @@ export function useAlbumsData() {
     }
   };
 
+  /**
+   * Fetches all album details (excluding userEntries) from the albums collection.
+   * @returns {Promise<Array<{id: string, albumTitle: string, artistName: string, artistId?: string, albumCover?: string, releaseYear?: string}>>}
+   */
+  const fetchAlbumDetails = async () => {
+    try {
+      loading.value = true;
+      error.value = null;
+      const albumsRef = collection(db, 'albums');
+      const querySnapshot = await getDocs(albumsRef);
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Exclude userEntries
+        const { albumTitle, artistName, artistId, albumCover, releaseYear } = data;
+        return {
+          id: doc.id,
+          albumTitle: albumTitle || '',
+          artistName: artistName || '',
+          artistId: artistId || '',
+          albumCover: albumCover || '',
+          releaseYear: releaseYear || ''
+        };
+      });
+    } catch (e) {
+      console.error('Error fetching album details:', e);
+      error.value = 'Failed to fetch album details';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     albumData,
     loading,
@@ -394,6 +426,7 @@ export function useAlbumsData() {
     searchAlbumsByTitleAndArtistFuzzy,
     addAlbumToCollection,
     searchAlbumsByTitlePrefix,
-    searchAlbumsByArtistPrefix
+    searchAlbumsByArtistPrefix,
+    fetchAlbumDetails
   };
 } 
