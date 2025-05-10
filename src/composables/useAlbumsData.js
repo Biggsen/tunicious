@@ -415,6 +415,43 @@ export function useAlbumsData() {
     }
   };
 
+  /**
+   * Fetches root-level album details (excluding userEntries) from the albums collection for a given albumId.
+   * @param {string} albumId - The Spotify album ID
+   * @returns {Promise<Object|null>} The root-level album details or null if not found
+   */
+  const getAlbumDetails = async (albumId) => {
+    try {
+      const albumDoc = await getDoc(doc(db, 'albums', albumId));
+      if (!albumDoc.exists()) return null;
+      const data = albumDoc.data();
+      // Only return root-level fields, exclude userEntries
+      const { albumTitle, artistName, albumCover, artistId, releaseYear } = data;
+      return { albumTitle, artistName, albumCover, artistId, releaseYear };
+    } catch (e) {
+      console.error('Error fetching album details:', e);
+      return null;
+    }
+  };
+
+  /**
+   * Updates root-level album details (albumCover, artistId, releaseYear) for a given albumId in Firestore.
+   * @param {string} albumId - The Spotify album ID
+   * @param {Object} details - The details to update (albumCover, artistId, releaseYear)
+   * @returns {Promise<void>}
+   */
+  const updateAlbumDetails = async (albumId, details) => {
+    try {
+      await setDoc(doc(db, 'albums', albumId), {
+        ...details,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      console.error('Error updating album details:', e);
+      throw e;
+    }
+  };
+
   return {
     albumData,
     loading,
@@ -427,6 +464,8 @@ export function useAlbumsData() {
     addAlbumToCollection,
     searchAlbumsByTitlePrefix,
     searchAlbumsByArtistPrefix,
-    fetchAlbumDetails
+    fetchAlbumDetails,
+    getAlbumDetails,
+    updateAlbumDetails
   };
 } 

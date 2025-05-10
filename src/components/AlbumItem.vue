@@ -1,14 +1,14 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 
 const router = useRouter();
-const emit = defineEmits(['updatePlaylist', 'added-to-collection']);
+const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album']);
 
 const props = defineProps({
   album: {
@@ -38,6 +38,10 @@ const props = defineProps({
   inCollection: {
     type: Boolean,
     default: true
+  },
+  needsUpdate: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -78,6 +82,10 @@ const handleAddToCollection = async () => {
   }
 };
 
+const handleUpdateAlbum = () => {
+  emit('update-album', props.album);
+};
+
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
 </script>
 
@@ -96,6 +104,11 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         <span v-else>Add</span>
       </BaseButton>
       <span v-if="error" class="text-xs text-red-500 mt-1">{{ error }}</span>
+    </div>
+    <div v-else-if="needsUpdate" class="add-indicator">
+      <BaseButton @click="handleUpdateAlbum" customClass="add-to-collection-btn">
+        Update
+      </BaseButton>
     </div>
     <div class="album-info">
       <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">

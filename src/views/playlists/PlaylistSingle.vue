@@ -20,7 +20,7 @@ const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo, fetchAlbumsData } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails } = useAlbumsData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -66,6 +66,7 @@ const showPagination = computed(() =>
 const cacheKey = computed(() => `playlist_${id.value}_essential`);
 
 const inCollectionMap = ref({});
+const needsUpdateMap = ref({});
 
 async function fetchPlaylistData(playlistId) {
   const cachedData = await getCache(cacheKey.value);
@@ -255,6 +256,41 @@ const refreshInCollectionForAlbum = async (albumId) => {
   inCollectionMap.value = { ...inCollectionMap.value, ...result };
 };
 
+async function updateNeedsUpdateMap() {
+  const entries = await Promise.all(
+    albumData.value.map(async (album) => {
+      const inCollection = !!inCollectionMap.value[album.id];
+      if (!inCollection) return [album.id, false];
+      const details = await getAlbumDetails(album.id);
+      const needsUpdate = !details.albumCover || !details.artistId || !details.releaseYear;
+      return [album.id, needsUpdate];
+    })
+  );
+  needsUpdateMap.value = Object.fromEntries(entries);
+}
+
+watch([albumData, inCollectionMap], () => {
+  updateNeedsUpdateMap();
+});
+
+async function handleUpdateAlbumDetails(album) {
+  try {
+    error.value = null;
+    // Prepare details from the Spotify album prop (only use Spotify fields)
+    const details = {
+      albumCover: album.images?.[1]?.url || album.images?.[0]?.url || '',
+      artistId: album.artists?.[0]?.id || '',
+      releaseYear: album.release_date ? album.release_date.substring(0, 4) : '',
+    };
+    await updateAlbumDetails(album.id, details);
+    // Optionally refresh needsUpdateMap for this album
+    await updateNeedsUpdateMap();
+  } catch (err) {
+    console.error('Error updating album details:', err);
+    error.value = err.message || 'Failed to update album details';
+  }
+}
+
 onMounted(async () => {
   try {
     await loadPlaylistData();
@@ -311,8 +347,10 @@ onMounted(async () => {
           :isMappedAlbum="false"
           :hasMoved="album.hasMoved"
           :inCollection="!!inCollectionMap[album.id]"
+          :needsUpdate="needsUpdateMap[album.id]"
           @update-playlist="handleUpdatePlaylist"
           @added-to-collection="refreshInCollectionForAlbum"
+          @update-album="handleUpdateAlbumDetails"
         />
       </ul>
 
