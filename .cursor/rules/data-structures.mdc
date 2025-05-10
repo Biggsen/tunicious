@@ -3,7 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-
 # Data Structures
 
 ## Users Collection
@@ -94,6 +93,9 @@ interface UserAlbumData {
 interface Album {
   albumTitle: string;
   artistName: string;
+  albumCover: string;    // URL to the album cover image
+  artistId: string;      // Spotify artist ID
+  releaseYear: number;   // Year the album was released
   userEntries: {
     [userId: string]: UserAlbumData;
   };
@@ -104,6 +106,9 @@ interface Album {
   // Document ID is the Spotify album ID
   albumTitle: "Album Title",
   artistName: "Artist Name",
+  albumCover: "https://i.scdn.co/image/ab67616d0000b273e0c8e0c8e0c8e0c8e0c8e0c8",
+  artistId: "1vCWHaC5f2uS3yhpwWbIA6",
+  releaseYear: 2020,
   userEntries: {
     "user123": {
       playlistHistory: [
@@ -137,6 +142,9 @@ interface Album {
 
 - `albumTitle`: The title of the album
 - `artistName`: The name of the artist
+- `albumCover`: URL to the album cover image
+- `artistId`: Spotify artist ID for the artist
+- `releaseYear`: Year the album was released
 - `userEntries`: Map of user IDs to their album data
   - Key: User's document ID
   - Value: User's data for this album
