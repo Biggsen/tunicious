@@ -6,6 +6,7 @@ import { useCurrentUser } from 'vuefire';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
+import { getRateYourMusicLink } from '@utils/musicServiceLinks';
 
 const router = useRouter();
 const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album']);
@@ -139,6 +140,11 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         class="lastfm-link text-sm lg:text-base xl:text-lg"
         >LastFM</a
       >
+      <a
+        :href="getRateYourMusicLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
+        class="rym-link text-sm lg:text-base xl:text-lg ml-2"
+        >RYM</a
+      >
     </div>
   </li>
 </template>
@@ -180,10 +186,14 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .album-link {
   @apply bg-delft-blue p-2 mt-auto;
+.rym-link {
+  @apply text-white block text-center;
+  display: inline;
 }
 
 .lastfm-link {
   @apply text-white block text-center;
+  display: inline;
 }
 
 .moved-indicator {
