@@ -115,28 +115,27 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
       <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
         {{ album.releaseYear || displayYear(album.release_date) }}
       </p>
-      <p 
+      <a
         class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        @click="router.push({ 
+        :href="router.resolve({ 
           name: 'album', 
           params: { id: album.id },
           query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
-        })"
+        }).href"
       >
         {{ album.name || album.albumTitle || 'Unknown Album' }}
-      </p>
-      <p 
+      </a>
+      <a
         v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
         class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        @click="(album.artistId || album.artists?.[0]?.id) ? navigateToArtist(album.artistId || album.artists[0].id) : null"
+        :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
       >
         {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-      </p>
+      </a>
     </div>
     <div class="album-link">
       <a
         :href="getLastFmLink({ lastFmUserName, artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
-        target="_blank"
         class="lastfm-link text-sm lg:text-base xl:text-lg"
         >LastFM</a
       >
@@ -186,6 +185,14 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .album-link {
   @apply bg-delft-blue p-2 mt-auto;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: center;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
 .rym-link {
   @apply text-white block text-center;
   display: inline;
