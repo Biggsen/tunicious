@@ -452,6 +452,21 @@ export function useAlbumsData() {
     }
   };
 
+  /**
+   * Gets the rating data (priority, category, type, playlistId) for the current playlist entry of an album
+   * @param {string} albumId - The Spotify album ID
+   * @returns {Promise<{priority: number, category: string, type: string, playlistId: string} | null>}
+   */
+  const getAlbumRatingData = async (albumId) => {
+    const data = await fetchUserAlbumData(albumId);
+    if (!data || !data.playlistHistory) return null;
+    const currentEntry = data.playlistHistory.find(entry => !entry.removedAt);
+    if (!currentEntry) return null;
+    // Only return the relevant fields
+    const { priority, category, type, playlistId } = currentEntry;
+    return { priority, category, type, playlistId };
+  };
+
   return {
     albumData,
     loading,
@@ -466,6 +481,7 @@ export function useAlbumsData() {
     searchAlbumsByArtistPrefix,
     fetchAlbumDetails,
     getAlbumDetails,
-    updateAlbumDetails
+    updateAlbumDetails,
+    getAlbumRatingData
   };
 } 
