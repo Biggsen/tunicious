@@ -267,7 +267,7 @@ export function useAlbumsData() {
           releaseYear: doc.data().releaseYear || '',
           artistId: doc.data().artistId || ''
         }))
-        .filter(album => album.albumTitle && album.albumTitle.toLowerCase().startsWith(lowerPrefix));
+        .filter(album => album.albumTitle && album.albumTitle.toLowerCase().includes(lowerPrefix));
     } catch (e) {
       console.error('Error searching albums by title prefix:', e);
       error.value = 'Failed to search albums';
@@ -299,7 +299,7 @@ export function useAlbumsData() {
           releaseYear: doc.data().releaseYear || '',
           artistId: doc.data().artistId || ''
         }))
-        .filter(album => album.artistName && album.artistName.toLowerCase().startsWith(lowerPrefix));
+        .filter(album => album.artistName && album.artistName.toLowerCase().includes(lowerPrefix));
     } catch (e) {
       console.error('Error searching albums by artist prefix:', e);
       error.value = 'Failed to search albums';
