@@ -20,7 +20,7 @@ const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData } = useAlbumsData();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -103,6 +103,10 @@ async function loadPlaylistPage() {
     }
     albumData.value = await fetchAlbumsForPage(albumIds, currentPage.value);
     inCollectionMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+    // Fetch and attach ratingData for each album
+    await Promise.all(albumData.value.map(async (album) => {
+      album.ratingData = await getAlbumRatingData(album.id);
+    }));
     await updateNeedsUpdateMap();
     playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
@@ -335,6 +339,7 @@ onMounted(async () => {
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
           :currentPlaylist="{ playlistId: id }"
+          :ratingData="album.ratingData"
           :isMappedAlbum="false"
           :hasMoved="album.hasMoved"
           :inCollection="!!inCollectionMap[album.id]"

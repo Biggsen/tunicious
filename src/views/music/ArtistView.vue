@@ -16,7 +16,7 @@ import LoadingMessage from '@components/common/LoadingMessage.vue';
 const route = useRoute();
 const router = useRouter();
 const { userData } = useUserData();
-const { fetchAlbumsData, loading: albumsLoading } = useAlbumsData();
+const { fetchAlbumsData, loading: albumsLoading, getAlbumRatingData } = useAlbumsData();
 const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
 const { getArtist, getArtistAlbums} = useSpotifyApi();
 
@@ -106,6 +106,10 @@ async function fetchArtistData(artistId) {
     // Fetch fresh album statuses even when using cache
     albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
     await updatePlaylistStatuses(albumData.value);
+    // Fetch and attach ratingData for each album
+    await Promise.all(albumData.value.map(async (album) => {
+      album.ratingData = await getAlbumRatingData(album.id);
+    }));
     return;
   }
 
@@ -132,6 +136,11 @@ async function fetchArtistData(artistId) {
   // Fetch album statuses
   albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
   await updatePlaylistStatuses(albumData.value);
+
+  // Fetch and attach ratingData for each album
+  await Promise.all(albumData.value.map(async (album) => {
+    album.ratingData = await getAlbumRatingData(album.id);
+  }));
 
   console.log('Album Data:', albumData.value);
   console.log('Albums Status:', albumsStatus.value);
@@ -236,6 +245,7 @@ onMounted(async () => {
           :hideArtist="true"
           :currentPlaylist="albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt)"
           :isMappedAlbum="mappedAlbums[album.id]"
+          :ratingData="album.ratingData"
           :class="{ 'not-in-playlist': !playlistStatus[album.id] }"
         />
       </ul>

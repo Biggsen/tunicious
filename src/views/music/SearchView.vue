@@ -31,6 +31,7 @@
           v-for="album in results"
           :key="album.id"
           :album="album"
+          :rating-data="ratingDataMap[album.id]"
         />
       </ul>
     </div>
@@ -45,6 +46,7 @@ import { useAlbumsData } from '@/composables/useAlbumsData';
 const searchTerm = ref('');
 const filter = ref('albums'); // 'albums' or 'artists'
 const results = ref([]);
+const ratingDataMap = ref({});
 const loading = ref(false);
 const error = ref(null);
 
@@ -53,7 +55,7 @@ const activeFilterClass =
 const inactiveFilterClass =
   'px-3 py-2 rounded bg-gray-100 text-gray-500 hover:bg-celadon';
 
-const { searchAlbumsByTitlePrefix, searchAlbumsByArtistPrefix } = useAlbumsData();
+const { searchAlbumsByTitlePrefix, searchAlbumsByArtistPrefix, getAlbumRatingData } = useAlbumsData();
 
 const setFilter = (val) => {
   if (filter.value !== val) {
@@ -65,6 +67,7 @@ const setFilter = (val) => {
 const onSearch = async () => {
   if (!searchTerm.value.trim() || searchTerm.value.trim().length < 2) {
     results.value = [];
+    ratingDataMap.value = {};
     return;
   }
   loading.value = true;
@@ -75,6 +78,13 @@ const onSearch = async () => {
     } else {
       results.value = await searchAlbumsByArtistPrefix(searchTerm.value.trim());
     }
+    // Fetch rating data for all albums in parallel
+    const ratingPromises = results.value.map(album => getAlbumRatingData(album.id));
+    const ratings = await Promise.all(ratingPromises);
+    ratingDataMap.value = {};
+    results.value.forEach((album, idx) => {
+      ratingDataMap.value[album.id] = ratings[idx];
+    });
   } catch (e) {
     error.value = 'Failed to search. Please try again.';
   } finally {
