@@ -5,6 +5,7 @@ import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
 import { albumTitleSimilarity } from '../utils/fuzzyMatch';
 import { useSpotifyApi } from '@/composables/useSpotifyApi';
+import { setCache, getCache } from "@utils/cache";
 
 /**
  * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
@@ -38,6 +39,10 @@ export function useAlbumsData() {
    */
   const fetchUserAlbumData = async (albumId) => {
     if (!user.value) return null;
+
+    const cacheKey = `albumDbData_${albumId}_${user.value.uid}`;
+    let cached = await getCache(cacheKey);
+    if (cached) return cached;
 
     try {
       loading.value = true;
@@ -76,7 +81,7 @@ export function useAlbumsData() {
         return null;
       }
 
-      return {
+      const result = {
         ...userData,
         playlistHistory: userData.playlistHistory.map(entry => ({
           ...entry,
@@ -84,6 +89,8 @@ export function useAlbumsData() {
           removedAt: entry.removedAt?.toDate?.() || entry.removedAt
         }))
       };
+      await setCache(cacheKey, result);
+      return result;
     } catch (e) {
       console.error('Error fetching album data:', e);
       error.value = 'Failed to fetch album data';
@@ -287,19 +294,22 @@ export function useAlbumsData() {
     try {
       loading.value = true;
       error.value = null;
-      const albumsRef = collection(db, 'albums');
-      const querySnapshot = await getDocs(albumsRef); // get all, since Firestore can't do case-insensitive
       const lowerPrefix = prefix.toLowerCase();
-      return querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          albumTitle: doc.data().albumTitle,
-          artistName: doc.data().artistName,
-          albumCover: doc.data().albumCover || '',
-          releaseYear: doc.data().releaseYear || '',
-          artistId: doc.data().artistId || ''
-        }))
-        .filter(album => album.artistName && album.artistName.toLowerCase().includes(lowerPrefix));
+      const albumsRef = collection(db, 'albums');
+      const q = query(
+        albumsRef,
+        where('artistNameLower', '>=', lowerPrefix),
+        where('artistNameLower', '<', lowerPrefix + '\uf8ff')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        albumTitle: doc.data().albumTitle,
+        artistName: doc.data().artistName,
+        albumCover: doc.data().albumCover || '',
+        releaseYear: doc.data().releaseYear || '',
+        artistId: doc.data().artistId || ''
+      }));
     } catch (e) {
       console.error('Error searching albums by artist prefix:', e);
       error.value = 'Failed to search albums';
@@ -367,6 +377,7 @@ export function useAlbumsData() {
       await setDoc(albumRef, {
         albumTitle: album.name,
         artistName: album.artists[0].name,
+        artistNameLower: album.artists[0].name.toLowerCase(),
         artistId: album.artists[0].id,
         albumCover: album.images && album.images.length > 0 ? album.images[1].url : '',
         releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
