@@ -45,6 +45,10 @@ const props = defineProps({
   needsUpdate: {
     type: Boolean,
     default: false
+  },
+  ratingData: {
+    type: Object,
+    default: null
   }
 });
 
@@ -90,43 +94,6 @@ const handleUpdateAlbum = () => {
 };
 
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
-
-// --- Priority-based Progress Bar Logic ---
-const END_PLAYLISTS = [
-  'not interested',
-  'not curious',
-  'not great',
-  'not excellent',
-  'not wonderful'
-];
-
-// Define the min and max priorities for the ladder
-const MIN_PRIORITY = 5; // e.g. queued
-const MAX_PRIORITY = 50; // e.g. wonderful
-
-const getProgressInfo = computed(() => {
-  // Use currentPlaylist if available, fallback to album
-  const category = props.currentPlaylist?.category || props.album.category || '';
-  const priority = props.currentPlaylist?.priority ?? props.album.priority ?? MIN_PRIORITY;
-
-  // Calculate progress percentage
-  let progress = ((priority - MIN_PRIORITY) / (MAX_PRIORITY - MIN_PRIORITY)) * 100;
-  progress = Math.max(0, Math.min(progress, 100));
-
-  // Determine color and icon
-  let color = 'bg-mint';
-  let icon = '🚚';
-  if (END_PLAYLISTS.includes(category)) {
-    color = 'bg-orange-500';
-    icon = '🚫';
-  } else if (category === 'wonderful') {
-    color = 'bg-mint';
-    icon = '🚚';
-    progress = 100;
-  }
-
-  return { progress, color, icon };
-});
 </script>
 
 <template>
@@ -174,54 +141,7 @@ const getProgressInfo = computed(() => {
     </div>
     <!-- Simulated rating bars -->
     <div>
-      <div class="h-8 bg-mint flex items-center justify-end pr-2" style="width: 20%">
-        <TruckIcon class="w-6 h-6 text-delft-blue" />
-      </div>
-      <div class="h-8 bg-raspberry flex items-center justify-end pr-2" style="width: 20%">
-        <div class="flex justify-end gap-1">
-          <StarIcon class="w-6 h-6 text-mindero" />
-        </div>
-      </div>
-      <div class="h-8 bg-mint flex items-center justify-end pr-2" style="width: 40%">
-        <TruckIcon class="w-6 h-6 text-delft-blue" />
-      </div>
-      <div class="h-8 bg-raspberry flex items-center justify-end pr-2" style="width: 40%">
-        <div class="flex justify-end gap-1">
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-        </div>
-      </div>
-      <div class="h-8 bg-mint flex items-center justify-end pr-2" style="width: 60%">
-        <TruckIcon class="w-6 h-6 text-delft-blue" />
-      </div>
-      <div class="h-8 bg-raspberry flex items-center justify-end pr-2" style="width: 60%">
-        <div class="flex justify-end gap-1">
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-        </div>
-      </div>
-      <div class="h-8 bg-mint flex items-center justify-end pr-2" style="width: 80%">
-        <TruckIcon class="w-6 h-6 text-delft-blue" />
-      </div>
-      <div class="h-8 bg-raspberry flex items-center justify-end pr-2" style="width: 80%">
-        <div class="flex justify-end gap-1">
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-        </div>
-      </div>
-      <div class="h-8 bg-raspberry flex items-center justify-end pr-2" style="width: 100%">
-        <div class="flex justify-end w-full gap-1">
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-          <StarIcon class="w-6 h-6 text-mindero" />
-        </div>
-      </div>
-      <RatingBar :rating="3" />
+      <RatingBar v-if="ratingData?.category && ratingData?.category !== 'queued'" :priority="ratingData?.priority" :category="ratingData?.category" />
     </div>
     <div class="album-link">
       <a
