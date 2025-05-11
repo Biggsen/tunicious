@@ -28,6 +28,8 @@ const cacheCleared = ref(false);
 const artistData = ref(null);
 const albumData = ref([]);
 const albumsStatus = ref({});
+const albumDbDataMap = ref({});
+const albumRootDataMap = ref({});
 
 // Track which albums are in playlists
 const playlistStatus = ref({});
@@ -97,19 +99,43 @@ const updatePlaylistStatuses = async (albums) => {
   console.log('Final playlist status:', playlistStatus.value);
 };
 
+// Add a cache utility for album root details
+async function getCachedAlbumDetails(albumId) {
+  const cacheKey = `albumRootData_${albumId}`;
+  let cached = await getCache(cacheKey);
+  if (cached) return cached;
+  const details = await getAlbumRatingData(albumId); // Should be getAlbumDetails, fix below
+  if (details) await setCache(cacheKey, details);
+  return details;
+}
+
 async function fetchArtistData(artistId) {
   const cachedData = await getCache(cacheKey.value);
 
   if (cachedData) {
     artistData.value = cachedData.artistData;
     albumData.value = cachedData.albumData;
-    // Fetch fresh album statuses even when using cache
-    albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+    // Batch fetch user album data and root details
+    albumDbDataMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+    const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
+    albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
+    albumsStatus.value = albumDbDataMap.value;
+    // Use the batch data for ratingData
+    albumData.value.forEach(album => {
+      const userData = albumDbDataMap.value[album.id];
+      if (userData && userData.playlistHistory) {
+        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
+        album.ratingData = currentEntry ? {
+          priority: currentEntry.priority,
+          category: currentEntry.category,
+          type: currentEntry.type,
+          playlistId: currentEntry.playlistId
+        } : null;
+      } else {
+        album.ratingData = null;
+      }
+    });
     await updatePlaylistStatuses(albumData.value);
-    // Fetch and attach ratingData for each album
-    await Promise.all(albumData.value.map(async (album) => {
-      album.ratingData = await getAlbumRatingData(album.id);
-    }));
     return;
   }
 
@@ -133,18 +159,27 @@ async function fetchArtistData(artistId) {
     }))
     .sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
 
-  // Fetch album statuses
-  albumsStatus.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+  // Batch fetch user album data and root details
+  albumDbDataMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+  const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
+  albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
+  albumsStatus.value = albumDbDataMap.value;
+  // Use the batch data for ratingData
+  albumData.value.forEach(album => {
+    const userData = albumDbDataMap.value[album.id];
+    if (userData && userData.playlistHistory) {
+      const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
+      album.ratingData = currentEntry ? {
+        priority: currentEntry.priority,
+        category: currentEntry.category,
+        type: currentEntry.type,
+        playlistId: currentEntry.playlistId
+      } : null;
+    } else {
+      album.ratingData = null;
+    }
+  });
   await updatePlaylistStatuses(albumData.value);
-
-  // Fetch and attach ratingData for each album
-  await Promise.all(albumData.value.map(async (album) => {
-    album.ratingData = await getAlbumRatingData(album.id);
-  }));
-
-  console.log('Album Data:', albumData.value);
-  console.log('Albums Status:', albumsStatus.value);
-  console.log('Playlist Status:', playlistStatus.value);
 
   await setCache(cacheKey.value, {
     artistData: artistData.value,

@@ -67,6 +67,19 @@ const pageCacheKey = (page) => `playlist_${id.value}_page_${page}`;
 const inCollectionMap = ref({});
 const needsUpdateMap = ref({});
 
+const albumDbDataMap = ref({});
+const albumRootDataMap = ref({});
+
+// Add a cache utility for album root details
+async function getCachedAlbumDetails(albumId) {
+  const cacheKey = `albumRootData_${albumId}`;
+  let cached = await getCache(cacheKey);
+  if (cached) return cached;
+  const details = await getAlbumDetails(albumId);
+  if (details) await setCache(cacheKey, details);
+  return details;
+}
+
 async function fetchAlbumIdList(playlistId) {
   let albumIds = await getCache(albumIdListCacheKey.value);
   if (!albumIds) {
@@ -96,18 +109,34 @@ async function loadPlaylistPage() {
   cacheCleared.value = false;
   try {
     const albumIds = await fetchAlbumIdList(id.value);
-    // Fetch playlist name from Spotify if not set
     if (!playlistName.value) {
       const playlistResponse = await getPlaylist(id.value);
       playlistName.value = playlistResponse.name;
     }
     albumData.value = await fetchAlbumsForPage(albumIds, currentPage.value);
-    inCollectionMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
-    // Fetch and attach ratingData for each album
-    await Promise.all(albumData.value.map(async (album) => {
-      album.ratingData = await getAlbumRatingData(album.id);
-    }));
+    // Batch fetch user album data and root details
+    albumDbDataMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
+    const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
+    albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
+    // Use the batch data for inCollectionMap
+    inCollectionMap.value = albumDbDataMap.value;
+    // Use the batch data for ratingData
+    albumData.value.forEach(album => {
+      const userData = albumDbDataMap.value[album.id];
+      if (userData && userData.playlistHistory) {
+        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
+        album.ratingData = currentEntry ? {
+          priority: currentEntry.priority,
+          category: currentEntry.category,
+          type: currentEntry.type,
+          playlistId: currentEntry.playlistId
+        } : null;
+      } else {
+        album.ratingData = null;
+      }
+    });
     await updateNeedsUpdateMap();
+    await checkAlbumMovements();
     playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
     console.error("Error loading playlist page:", e);
@@ -124,6 +153,12 @@ async function handleClearCache() {
   const totalPagesToClear = albumIds ? Math.ceil(albumIds.length / itemsPerPage.value) : totalPages.value;
   for (let page = 1; page <= totalPagesToClear; page++) {
     await clearCache(pageCacheKey(page));
+  }
+  // Also clear albumDbData cache for all albums on the current page
+  if (user.value && albumData.value && albumData.value.length) {
+    for (const album of albumData.value) {
+      await clearCache(`albumDbData_${album.id}_${user.value.uid}`);
+    }
   }
   cacheCleared.value = true;
   albumData.value = [];
@@ -197,22 +232,20 @@ const previousPage = async () => {
 };
 
 const checkAlbumMovements = async () => {
-  console.log('Starting checkAlbumMovements for playlist:', id.value);
   for (const album of albumData.value) {
     try {
-      console.log('Checking album:', album.name, 'ID:', album.id);
-      const currentInfo = await getCurrentPlaylistInfo(album.id);
-      console.log('Current playlist info for album:', album.name, currentInfo);
-      
-      if (currentInfo && currentInfo.playlistId !== id.value) {
-        console.log('Album has moved:', album.name, 'Current playlist:', currentInfo.playlistId, 'Viewing playlist:', id.value);
-        album.hasMoved = true;
+      const userData = albumDbDataMap.value[album.id];
+      if (userData && userData.playlistHistory) {
+        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
+        if (currentEntry && currentEntry.playlistId !== id.value) {
+          album.hasMoved = true;
+        } else {
+          album.hasMoved = false;
+        }
       } else {
-        console.log('Album has not moved:', album.name, currentInfo ? `Current playlist: ${currentInfo.playlistId}` : 'No current info');
         album.hasMoved = false;
       }
     } catch (err) {
-      console.error('Error checking album movement:', album.name, err);
       album.hasMoved = false;
     }
   }
@@ -256,8 +289,8 @@ async function updateNeedsUpdateMap() {
     albumData.value.map(async (album) => {
       const inCollection = !!inCollectionMap.value[album.id];
       if (!inCollection) return [album.id, false];
-      const details = await getAlbumDetails(album.id);
-      const needsUpdate = !details.albumCover || !details.artistId || !details.releaseYear;
+      const details = albumRootDataMap.value[album.id];
+      const needsUpdate = !details?.albumCover || !details?.artistId || !details?.releaseYear;
       return [album.id, needsUpdate];
     })
   );
