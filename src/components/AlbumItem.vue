@@ -8,6 +8,7 @@ import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
 import { TruckIcon, StarIcon } from '@heroicons/vue/24/solid';
+import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
 const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album']);
@@ -220,6 +221,7 @@ const getProgressInfo = computed(() => {
           <StarIcon class="w-6 h-6 text-mindero" />
         </div>
       </div>
+      <RatingBar :rating="3" />
     </div>
     <div class="album-link">
       <a
