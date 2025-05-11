@@ -1,5 +1,5 @@
 <script setup>
-import { TruckIcon, StarIcon } from '@heroicons/vue/24/solid';
+import { MusicalNoteIcon, StarIcon } from '@heroicons/vue/24/solid';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -30,7 +30,7 @@ const bgClass = computed(() => (props.category === 'end' || props.category === '
 
 <template>
   <div
-    :class="['h-8', bgClass, 'flex items-center justify-end pr-2']"
+    :class="['h-6', 'py-1', bgClass, 'flex items-center justify-end pr-2']"
     :style="{ width: barWidths[Math.max(0, rating - 1)] }"
   >
     <div class="flex justify-end gap-1">
@@ -38,11 +38,11 @@ const bgClass = computed(() => (props.category === 'end' || props.category === '
         <StarIcon
           v-for="n in rating"
           :key="n"
-          class="w-6 h-6 text-mindero"
+          class="w-5 h-5 text-mindero"
         />
       </template>
       <template v-else>
-        <TruckIcon class="w-6 h-6 text-delft-blue" />
+        <MusicalNoteIcon class="w-5 h-5 text-delft-blue" />
       </template>
     </div>
   </div>
