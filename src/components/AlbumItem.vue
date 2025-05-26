@@ -146,12 +146,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     <div class="album-link">
       <a
         :href="getLastFmLink({ lastFmUserName, artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
-        class="lastfm-link text-sm lg:text-base xl:text-lg"
+        class="lastfm-link text-sm lg:text-base xl:text-lg" target="_blank"
         >LastFM</a
       >
       <a
         :href="getRateYourMusicLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
-        class="rym-link text-sm lg:text-base xl:text-lg ml-2"
+        class="rym-link text-sm lg:text-base xl:text-lg ml-2" target="_blank"
         >RYM</a
       >
     </div>
