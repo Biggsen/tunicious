@@ -8,6 +8,7 @@ import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
 import { TruckIcon, StarIcon, PlusIcon } from '@heroicons/vue/24/solid';
+import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
@@ -143,6 +144,10 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     <!-- Simulated rating bars -->
     <div>
       <RatingBar v-if="ratingData?.category && ratingData?.category !== 'queued'" :priority="ratingData?.priority" :category="ratingData?.category" />
+      <!-- Show queued indicator for queued albums -->
+      <div v-else-if="ratingData?.category === 'queued'" class="h-6 py-1 flex items-center justify-start pl-2" style="width: 100%">
+        <ClockIcon class="w-5 h-5 text-delft-blue" title="Queued" />
+      </div>
     </div>
     <div class="album-link">
       <a
