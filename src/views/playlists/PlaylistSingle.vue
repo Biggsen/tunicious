@@ -287,34 +287,15 @@ const refreshInCollectionForAlbum = async (albumId) => {
   const cacheKey = `albumRootData_${albumId}`;
   await clearCache(cacheKey);
   
-  // Poll Firestore until the album details are available (with timeout)
-  let attempts = 0;
-  const maxAttempts = 10;
-  const delayMs = 200;
-  
-  while (attempts < maxAttempts) {
-    const details = await getAlbumDetails(albumId);
-    
-    if (details) {
-      albumRootDataMap.value = { ...albumRootDataMap.value, [albumId]: details };
-      // Also update the cache with fresh data
-      await setCache(cacheKey, details);
-      
-      // Manually trigger needsUpdate recalculation after updating albumRootDataMap
-      await updateNeedsUpdateMap();
-      break;
-    }
-    
-    attempts++;
-    if (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
+  // Fetch fresh album details
+  const details = await getAlbumDetails(albumId);
+  if (details) {
+    albumRootDataMap.value = { ...albumRootDataMap.value, [albumId]: details };
+    await setCache(cacheKey, details);
   }
   
-  // If we still don't have details after all attempts, that's a legitimate "needs update" case
-  if (attempts === maxAttempts) {
-    console.warn(`Failed to fetch album details for ${albumId} after ${maxAttempts} attempts`);
-  }
+  // Manually trigger needsUpdate recalculation after updating albumRootDataMap
+  await updateNeedsUpdateMap();
 };
 
 async function updateNeedsUpdateMap() {
