@@ -291,6 +291,7 @@ async function updateNeedsUpdateMap() {
       if (!inCollection) return [album.id, false];
       const details = albumRootDataMap.value[album.id];
       const needsUpdate = !details?.albumCover || !details?.artistId || !details?.releaseYear;
+      console.log('updateNeedsUpdateMap:', { albumId: album.id, details, needsUpdate });
       return [album.id, needsUpdate];
     })
   );
