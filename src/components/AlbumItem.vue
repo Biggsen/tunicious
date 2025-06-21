@@ -191,7 +191,11 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 }
 
 .album-artist {
-  @apply text-delft-blue;
+  @apply text-delft-blue leading-tight;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .album-link {
