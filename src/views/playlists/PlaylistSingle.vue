@@ -279,9 +279,42 @@ const handleUpdatePlaylist = async (album) => {
 };
 
 const refreshInCollectionForAlbum = async (albumId) => {
-  // Only refresh the inCollectionMap for the given albumId
+  // Refresh both collection status AND root details for the album
   const result = await fetchAlbumsData([albumId]);
   inCollectionMap.value = { ...inCollectionMap.value, ...result };
+  
+  // Clear the cache for this album to ensure fresh data
+  const cacheKey = `albumRootData_${albumId}`;
+  await clearCache(cacheKey);
+  
+  // Poll Firestore until the album details are available (with timeout)
+  let attempts = 0;
+  const maxAttempts = 10;
+  const delayMs = 200;
+  
+  while (attempts < maxAttempts) {
+    const details = await getAlbumDetails(albumId);
+    
+    if (details) {
+      albumRootDataMap.value = { ...albumRootDataMap.value, [albumId]: details };
+      // Also update the cache with fresh data
+      await setCache(cacheKey, details);
+      
+      // Manually trigger needsUpdate recalculation after updating albumRootDataMap
+      await updateNeedsUpdateMap();
+      break;
+    }
+    
+    attempts++;
+    if (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  
+  // If we still don't have details after all attempts, that's a legitimate "needs update" case
+  if (attempts === maxAttempts) {
+    console.warn(`Failed to fetch album details for ${albumId} after ${maxAttempts} attempts`);
+  }
 };
 
 async function updateNeedsUpdateMap() {

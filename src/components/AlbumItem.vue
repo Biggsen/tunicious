@@ -7,7 +7,7 @@ import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
-import { TruckIcon, StarIcon } from '@heroicons/vue/24/solid';
+import { TruckIcon, StarIcon, PlusIcon } from '@heroicons/vue/24/solid';
 import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
@@ -107,6 +107,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     </div>
     <div v-else-if="!inCollection" class="add-indicator">
       <BaseButton @click="handleAddToCollection" :disabled="saving" customClass="add-to-collection-btn">
+        <template #icon-left v-if="!saving"><PlusIcon class="h-4 w-4" /></template>
         <span v-if="saving">Adding...</span>
         <span v-else>Add</span>
       </BaseButton>
@@ -214,7 +215,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 }
 
 .moved-indicator {
-  @apply absolute top-2 right-2 bg-white px-2 py-1 rounded-lg shadow-md flex flex-col items-center;
+  @apply absolute top-2 right-2 flex flex-col items-center;
   z-index: 10;
 }
 
@@ -224,12 +225,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 }
 
 .add-to-collection-btn {
-  @apply text-xs bg-mint text-white px-2 py-1 rounded-md hover:bg-celadon transition-colors duration-200;
+  @apply text-xs bg-mint text-delft-blue border border-delft-blue px-2 py-1 rounded-md hover:bg-celadon transition-colors duration-200;
   white-space: nowrap;
 }
 
 .add-indicator {
-  @apply absolute top-2 right-2 bg-white px-2 py-1 rounded-lg shadow-md flex flex-col items-center;
+  @apply absolute top-2 right-2 flex flex-col items-center;
   z-index: 10;
 }
 </style>
