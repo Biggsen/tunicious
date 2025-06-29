@@ -379,7 +379,11 @@ async function loadPlaylistPage() {
     playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
     console.error("Error loading playlist page:", e);
-    error.value = e.message || "Failed to load playlist data. Please try again.";
+    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
+      error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
+    } else {
+      error.value = e.message || "Failed to load playlist data. Please try again.";
+    }
   } finally {
     loading.value = false;
   }

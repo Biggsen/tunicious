@@ -140,7 +140,11 @@ async function loadPlaylists() {
     await setCache(cacheKey.value, playlistSummaries);
   } catch (e) {
     console.error("Error loading playlists:", e);
-    error.value = "Failed to load playlists. Please try again.";
+    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
+      error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
+    } else {
+      error.value = "Failed to load playlists. Please try again.";
+    }
   } finally {
     loading.value = false;
   }
@@ -170,7 +174,11 @@ onMounted(async () => {
     
   } catch (e) {
     console.error("Error in PlaylistView:", e);
-    error.value = "An unexpected error occurred. Please try again.";
+    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
+      error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
+    } else {
+      error.value = "An unexpected error occurred. Please try again.";
+    }
   } finally {
     loading.value = false;
   }

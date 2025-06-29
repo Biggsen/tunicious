@@ -7,6 +7,7 @@ import { useForm } from '@composables/useForm';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import CacheManager from '@components/common/CacheManager.vue';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -76,6 +77,11 @@ const handleLogout = async () => {
           {{ authLoading ? 'Logging out...' : 'Logout' }}
         </BaseButton>
       </div>
+    </div>
+    
+    <!-- Cache Management Section -->
+    <div v-if="userData" class="mt-8">
+      <CacheManager />
     </div>
     
     <div v-else class="text-center">
