@@ -134,12 +134,18 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         {{ album.name || album.albumTitle || 'Unknown Album' }}
       </a>
       <a
-        v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
+        v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
         class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
         :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
       >
         {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
       </a>
+      <span
+        v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
+        class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
+      >
+        {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
+      </span>
     </div>
     <!-- Simulated rating bars -->
     <div>
