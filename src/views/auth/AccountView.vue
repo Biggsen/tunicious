@@ -8,6 +8,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import CacheManager from '@components/common/CacheManager.vue';
+import LastFmStats from '@components/LastFmStats.vue';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -77,6 +78,12 @@ const handleLogout = async () => {
           {{ authLoading ? 'Logging out...' : 'Logout' }}
         </BaseButton>
       </div>
+    </div>
+    
+    <!-- Last.fm Stats Section -->
+    <div v-if="userData?.lastFmUserName" class="mt-8">
+      <h2 class="text-xl font-semibold text-delft-blue mb-4">Your Last.fm Stats</h2>
+      <LastFmStats :username="userData.lastFmUserName" />
     </div>
     
     <!-- Cache Management Section -->
