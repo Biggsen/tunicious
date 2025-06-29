@@ -176,6 +176,8 @@ async function handleClearCache() {
   if (user.value && albumData.value && albumData.value.length) {
     for (const album of albumData.value) {
       await clearCache(`albumDbData_${album.id}_${user.value.uid}`);
+      // Clear album root data cache as well
+      await clearCache(`albumRootData_${album.id}`);
     }
   }
   
