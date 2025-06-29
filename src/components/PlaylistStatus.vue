@@ -41,7 +41,7 @@ const emit = defineEmits(['update', 'save', 'updatePlaylist']);
         This album is currently in playlist: <strong>{{ currentPlaylistInfo.playlistName }}</strong>
       </p>
       <BaseButton v-if="needsUpdate" @click="$emit('update')" :loading="updating" customClass="playlist-status-btn">
-        {{ updating ? 'Updating...' : 'Update Album Data' }}
+        {{ updating ? 'Updating...' : 'Update Album Details' }}
       </BaseButton>
     </div>
     <div v-else class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">

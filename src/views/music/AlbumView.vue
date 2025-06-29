@@ -8,15 +8,17 @@ import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firesto
 import { db } from '@/firebase';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import BackButton from '@components/common/BackButton.vue';
+import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import { usePlaylistMovement } from '@composables/usePlaylistMovement';
+import { clearCache } from '@utils/cache';
 
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
-const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection } = useAlbumsData();
+const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
@@ -51,12 +53,9 @@ const checkIfNeedsUpdate = async () => {
   }
   
   const albumData = albumDoc.data();
-  const userData = albumData.userEntries?.[user.value.uid];
   
-  needsUpdate.value = !albumData.albumTitle || 
-                     !albumData.artistName || 
-                     !userData?.playlistHistory?.some(entry => entry.playlistName) ||
-                     userData?.playlistHistory?.some(entry => entry.playlistName === 'Unknown Playlist');
+  // Check for missing album details (matching PlaylistSingle logic)
+  needsUpdate.value = !albumData.albumCover || !albumData.artistId || !albumData.releaseYear;
 };
 
 const hasMoved = computed(() => {
@@ -206,10 +205,42 @@ const updatePlaylist = async () => {
     if (success) {
       // Refresh the current playlist info
       currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
+      
+      // Clear the cache for this album to ensure fresh data on future page loads
+      if (user.value) {
+        const albumDbCacheKey = `albumDbData_${album.value.id}_${user.value.uid}`;
+        await clearCache(albumDbCacheKey);
+      }
     }
   } catch (err) {
     console.error('Error updating playlist:', err);
     error.value = moveError.value || 'Failed to update playlist';
+  } finally {
+    updating.value = false;
+  }
+};
+
+const handleUpdateAlbumDetails = async () => {
+  if (!user.value || !album.value) return;
+  
+  try {
+    updating.value = true;
+    error.value = null;
+    
+    // Prepare details from the Spotify album data (matching PlaylistSingle logic)
+    const details = {
+      albumCover: album.value.images?.[1]?.url || album.value.images?.[0]?.url || '',
+      artistId: album.value.artists?.[0]?.id || '',
+      releaseYear: album.value.release_date ? album.value.release_date.substring(0, 4) : '',
+    };
+    
+    await updateAlbumDetails(album.value.id, details);
+    
+    // Refresh the needsUpdate status
+    await checkIfNeedsUpdate();
+  } catch (err) {
+    console.error('Error updating album details:', err);
+    error.value = err.message || 'Failed to update album details';
   } finally {
     updating.value = false;
   }
@@ -332,10 +363,22 @@ onMounted(async () => {
             :has-moved="hasMoved"
             :updating="updating"
             :saving="saving"
-            @update="updateAlbumData"
+            @update="handleUpdateAlbumDetails"
             @save="saveAlbum"
             @update-playlist="updatePlaylist"
           />
+          
+          <!-- Album Details Update for non-playlist albums -->
+          <div v-if="!isFromPlaylist && albumExists && needsUpdate" class="mt-6">
+            <div class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
+              <p class="text-yellow-700 mb-2">
+                This album is missing some details.
+              </p>
+              <BaseButton @click="handleUpdateAlbumDetails" :loading="updating" customClass="playlist-status-btn">
+                {{ updating ? 'Updating...' : 'Update Album Details' }}
+              </BaseButton>
+            </div>
+          </div>
 
           <!-- Album Mapping UI -->
           <AlbumMappingManager
