@@ -14,6 +14,7 @@ import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 
 const route = useRoute();
 const { user, userData } = useUserData();
@@ -94,6 +95,11 @@ const needsUpdateMap = ref({});
 const albumDbDataMap = ref({});
 const albumRootDataMap = ref({});
 
+// Last.fm loved tracks data
+const lovedTracks = ref([]);
+const lovedTracksLoadingStarted = ref(false);
+const albumLovedData = ref({}); // Map of albumId -> { lovedCount, totalCount, percentage, isLoading }
+
 // Add a cache utility for album root details
 async function getCachedAlbumDetails(albumId) {
   const cacheKey = `albumRootData_${albumId}`;
@@ -102,6 +108,120 @@ async function getCachedAlbumDetails(albumId) {
   const details = await getAlbumDetails(albumId);
   if (details) await setCache(cacheKey, details);
   return details;
+}
+
+// Progressive loading of loved track percentages
+async function loadLovedTrackPercentages() {
+  if (!userData.value?.lastFmUserName || lovedTracksLoadingStarted.value) {
+    return;
+  }
+  
+  try {
+    lovedTracksLoadingStarted.value = true;
+    
+    // Set loading state for all current albums
+    albumData.value.forEach(album => {
+      albumLovedData.value[album.id] = {
+        lovedCount: 0,
+        totalCount: 0,
+        percentage: 0,
+        isLoading: true
+      };
+    });
+    
+    // Fetch loved tracks once (cached for 24 hours)
+    lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    
+    if (!lovedTracks.value.length) {
+      // No loved tracks, clear loading states
+      albumData.value.forEach(album => {
+        albumLovedData.value[album.id] = {
+          lovedCount: 0,
+          totalCount: 0,
+          percentage: 0,
+          isLoading: false
+        };
+      });
+      return;
+    }
+    
+    // Calculate percentages progressively for each album
+    for (const album of albumData.value) {
+      try {
+        const result = await calculateLovedTrackPercentage(album, lovedTracks.value);
+        albumLovedData.value[album.id] = {
+          ...result,
+          isLoading: false
+        };
+      } catch (err) {
+        console.error(`Error calculating loved track percentage for album ${album.id}:`, err);
+        albumLovedData.value[album.id] = {
+          lovedCount: 0,
+          totalCount: 0,
+          percentage: 0,
+          isLoading: false
+        };
+      }
+      
+      // Small delay to prevent overwhelming the UI with updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+  } catch (err) {
+    console.error('Error loading loved track percentages:', err);
+    // Clear loading states on error
+    albumData.value.forEach(album => {
+      albumLovedData.value[album.id] = {
+        lovedCount: 0,
+        totalCount: 0,
+        percentage: 0,
+        isLoading: false
+      };
+    });
+  }
+}
+
+// Function to load loved track data for newly added albums (when pagination changes)
+async function loadLovedTrackPercentagesForNewAlbums() {
+  if (!userData.value?.lastFmUserName || !lovedTracks.value.length) {
+    return;
+  }
+  
+  // Find albums that don't have loved track data yet
+  const newAlbums = albumData.value.filter(album => !albumLovedData.value[album.id]);
+  
+  if (!newAlbums.length) return;
+  
+  // Set loading state for new albums
+  newAlbums.forEach(album => {
+    albumLovedData.value[album.id] = {
+      lovedCount: 0,
+      totalCount: 0,
+      percentage: 0,
+      isLoading: true
+    };
+  });
+  
+  // Calculate percentages for new albums
+  for (const album of newAlbums) {
+    try {
+      const result = await calculateLovedTrackPercentage(album, lovedTracks.value);
+      albumLovedData.value[album.id] = {
+        ...result,
+        isLoading: false
+      };
+    } catch (err) {
+      console.error(`Error calculating loved track percentage for album ${album.id}:`, err);
+      albumLovedData.value[album.id] = {
+        lovedCount: 0,
+        totalCount: 0,
+        percentage: 0,
+        isLoading: false
+      };
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 }
 
 async function fetchAlbumIdList(playlistId) {
@@ -159,6 +279,17 @@ async function loadCurrentPage() {
   });
   await updateNeedsUpdateMap();
   await checkAlbumMovements();
+  
+  // Load loved track percentages progressively
+  if (userData.value?.lastFmUserName) {
+    if (!lovedTracksLoadingStarted.value) {
+      // First time loading - start progressive loading
+      loadLovedTrackPercentages();
+    } else {
+      // Subsequent page loads - only load data for new albums
+      loadLovedTrackPercentagesForNewAlbums();
+    }
+  }
 }
 
 async function handleClearCache() {
@@ -186,6 +317,17 @@ async function handleClearCache() {
   albumsWithDates.value = [];
   sortedAlbumIds.value = [];
   playlistName.value = '';
+  
+  // Clear loved tracks data
+  lovedTracks.value = [];
+  lovedTracksLoadingStarted.value = false;
+  albumLovedData.value = {};
+  
+  // Clear loved tracks cache if exists
+  if (userData.value?.lastFmUserName) {
+    await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
+  }
+  
   await loadPlaylistPage();
 }
 
@@ -447,6 +589,7 @@ onMounted(async () => {
           :hasMoved="album.hasMoved"
           :inCollection="!!inCollectionMap[album.id]"
           :needsUpdate="needsUpdateMap[album.id]"
+          :lovedTrackData="albumLovedData[album.id]"
           @update-playlist="handleUpdatePlaylist"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"

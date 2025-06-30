@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
@@ -7,6 +7,9 @@ import { useCurrentUser } from 'vuefire';
 import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
+import { useLastFmApi } from '@composables/useLastFmApi';
+import { useUserData } from '@composables/useUserData';
+import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
@@ -18,6 +21,8 @@ import { clearCache } from '@utils/cache';
 const route = useRoute();
 const router = useRouter();
 const user = useCurrentUser();
+const { userData } = useUserData();
+const { getUserLovedTracks } = useLastFmApi();
 const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
@@ -37,6 +42,12 @@ const searchError = ref(null);
 const isMappedAlbum = ref(false);
 const primaryAlbumId = ref(null);
 const albumExists = ref(false);
+
+// Last.fm loved tracks data
+const lovedTracks = ref([]);
+const lovedTracksLoading = ref(false);
+const lovedTracksError = ref(null);
+const lovedTracksCount = ref(0);
 
 const checkIfNeedsUpdate = async () => {
   if (!user.value || !album.value) {
@@ -293,6 +304,49 @@ const handleCloseDialog = () => {
   searchResults.value = [];
 };
 
+/**
+ * Fetches loved tracks and calculates percentage for the current album
+ */
+const fetchLovedTracks = async () => {
+  if (!userData.value?.lastFmUserName || !album.value) {
+    return;
+  }
+
+  try {
+    lovedTracksLoading.value = true;
+    lovedTracksError.value = null;
+    
+    // Use the cached utility function to get loved tracks
+    lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    
+    if (lovedTracks.value.length > 0 && tracks.value.length > 0) {
+      // Calculate the loved track percentage using the utility function
+      const result = await calculateLovedTrackPercentage(album.value, lovedTracks.value, tracks.value);
+      lovedTracksCount.value = result.lovedCount;
+    } else {
+      lovedTracksCount.value = 0;
+    }
+    
+  } catch (err) {
+    console.error('Error fetching loved tracks:', err);
+    lovedTracksError.value = err.message || 'Failed to fetch loved tracks';
+  } finally {
+    lovedTracksLoading.value = false;
+  }
+};
+
+// Watch for changes to tracks data and recalculate loved tracks count
+watch([tracks], async () => {
+  if (tracks.value.length > 0 && lovedTracks.value.length > 0 && album.value) {
+    try {
+      const result = await calculateLovedTrackPercentage(album.value, lovedTracks.value, tracks.value);
+      lovedTracksCount.value = result.lovedCount;
+    } catch (err) {
+      console.error('Error calculating loved tracks count:', err);
+    }
+  }
+});
+
 onMounted(async () => {
   try {
     loading.value = true;
@@ -321,6 +375,11 @@ onMounted(async () => {
     if (albumId) {
       currentPlaylistInfo.value = await getCurrentPlaylistInfo(albumId);
       await checkIfNeedsUpdate();
+    }
+    
+    // Fetch Last.fm loved tracks if user has Last.fm username
+    if (userData.value?.lastFmUserName) {
+      await fetchLovedTracks();
     }
   } catch (err) {
     console.error('Error in AlbumView:', err);
@@ -403,7 +462,40 @@ onMounted(async () => {
           >{{ album.artists[0].name }}</p>
           <p class="text-xl text-delft-blue mb-6 font-bold">{{ album.release_date.substring(0, 4) }}</p>
           
-          <TrackList :tracks="tracks" />
+          <!-- Last.fm Loved Tracks Info -->
+          <div v-if="userData?.lastFmUserName" class="mb-6">
+            <div v-if="lovedTracksLoading" class="text-sm text-gray-600">
+              <span class="animate-pulse">Loading loved tracks...</span>
+            </div>
+            <div v-else-if="lovedTracksError" class="text-sm text-red-500">
+              <span>{{ lovedTracksError }}</span>
+            </div>
+            <div v-else-if="!lovedTracksLoading" class="bg-mint bg-opacity-20 border border-mint rounded-lg p-4">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-5 h-5 text-mint" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="font-semibold text-delft-blue">Last.fm Loved Tracks</span>
+              </div>
+              <p class="text-delft-blue">
+                <span class="font-bold text-lg">{{ lovedTracksCount }}</span> 
+                {{ lovedTracksCount === 1 ? 'track' : 'tracks' }} from this album 
+                {{ lovedTracksCount === 1 ? 'is' : 'are' }} in your loved tracks
+                <span v-if="tracks.length > 0 && lovedTracksCount > 0" class="text-sm text-gray-600">
+                  ({{ Math.round((lovedTracksCount / tracks.length) * 100) }}% of album)
+                </span>
+              </p>
+              <p v-if="lovedTracks.length === 0" class="text-sm text-gray-600 mt-1">
+                No loved tracks found for {{ userData.lastFmUserName }}
+              </p>
+            </div>
+          </div>
+          
+          <TrackList 
+            :tracks="tracks" 
+            :lovedTracks="lovedTracks"
+            :albumArtist="album.artists[0]?.name || ''"
+          />
         </div>
       </div>
     </div>

@@ -184,6 +184,21 @@ export function useLastFmApi() {
     return makeRequest('artist.search', { artist, limit });
   };
 
+  /**
+   * Gets user's loved tracks
+   * @param {string} username - The Last.fm username
+   * @param {number} limit - Number of results to return (default: 50, max: 1000)
+   * @param {number} page - Page number to fetch (default: 1)
+   * @returns {Promise<Object>} User's loved tracks data
+   */
+  const getUserLovedTracks = async (username, limit = 50, page = 1) => {
+    return makeRequest('user.getlovedtracks', { 
+      user: username, 
+      limit, 
+      page 
+    });
+  };
+
   return {
     loading,
     error,
@@ -198,5 +213,6 @@ export function useLastFmApi() {
     getUserAlbumTracks,
     searchAlbums,
     searchArtists,
+    getUserLovedTracks,
   };
 } 
