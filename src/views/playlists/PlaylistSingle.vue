@@ -1,401 +1,50 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useSpotifyApi } from '@composables/useSpotifyApi';
-import { setCache, getCache, clearCache } from "@utils/cache";
-import AlbumItem from "@components/AlbumItem.vue";
-import { useUserData } from "@composables/useUserData";
-import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import AlbumItem from '@components/AlbumItem.vue';
 import BackButton from '@components/common/BackButton.vue';
-import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
-import { useAlbumsData } from "@composables/useAlbumsData";
-import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid';
+import { usePlaylistAlbums } from '@composables/usePlaylistAlbums';
+import { usePlaylistDocument } from '@composables/usePlaylistDocument';
+import { useUserData } from '@composables/useUserData';
 
 const route = useRoute();
-const { user, userData } = useUserData();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
-const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData } = useAlbumsData();
-
+const { userData } = useUserData();
 const id = computed(() => route.params.id);
-const loading = ref(false);
-const error = ref(null);
-const cacheCleared = ref(false);
-const updating = ref(false);
 
-const albumData = ref([]);
-const playlistName = ref('');
-const playlistDoc = ref(null);
+const {
+  albumData,
+  playlistName,
+  inCollectionMap,
+  needsUpdateMap,
+  loading,
+  error,
+  currentPage,
+  totalPages,
+  totalAlbums,
+  itemsPerPage,
+  showPagination,
+  sortDirection,
+  sortDirectionLabel,
+  toggleSort,
+  nextPage,
+  previousPage,
+  loadPlaylistPage,
+  handleClearCache,
+  handleUpdatePlaylist,
+  refreshInCollectionForAlbum,
+  handleUpdateAlbumDetails,
+  cacheCleared
+} = usePlaylistAlbums(id);
 
-// Store the full album data with dates and sorted album IDs
-const albumsWithDates = ref([]);
-const sortedAlbumIds = ref([]);
-
-// Manual sorting state instead of useSorting composable
-const sortDirection = ref('asc'); // Default to oldest first
-
-const sortDirectionLabel = computed(() => {
-  return sortDirection.value === 'desc' ? 'Newest First' : 'Oldest First';
-});
-
-const toggleSort = async () => {
-  sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc';
-  await applySortingAndReload();
-};
-
-// Apply sorting to the full album list
-const applySortingAndReload = async () => {
-  if (albumsWithDates.value.length === 0) return;
-  
-  // Sort the full albums with dates list
-  const sorted = [...albumsWithDates.value].sort((a, b) => {
-    const dateA = new Date(a.addedAt);
-    const dateB = new Date(b.addedAt);
-    return sortDirection.value === 'desc' 
-      ? dateB - dateA 
-      : dateA - dateB;
-  });
-  
-  // Update the sorted album IDs for pagination
-  sortedAlbumIds.value = sorted.map(a => a.id);
-  
-  // Reset to first page and reload current page
-  currentPage.value = 1;
-  await loadCurrentPage();
-};
-
-const currentPage = ref(1);
-const itemsPerPage = ref(20);
-
-// Update paginatedAlbums to use albumData (current page albums)
-const paginatedAlbums = computed(() => {
-  return albumData.value;
-});
-
-// Update totalAlbums to use sortedAlbumIds
-const totalAlbums = computed(() => sortedAlbumIds.value.length);
-
-// Update totalPages calculation
-const totalPages = computed(() => Math.ceil(sortedAlbumIds.value.length / itemsPerPage.value));
-
-const showPagination = computed(() => totalAlbums.value > itemsPerPage.value);
-
-// Update cache keys
-const albumIdListCacheKey = computed(() => `playlist_${id.value}_albumsWithDates`);
-const pageCacheKey = (page) => `playlist_${id.value}_page_${page}_${sortDirection.value}`;
-
-const inCollectionMap = ref({});
-const needsUpdateMap = ref({});
-
-const albumDbDataMap = ref({});
-const albumRootDataMap = ref({});
-
-// Add a cache utility for album root details
-async function getCachedAlbumDetails(albumId) {
-  const cacheKey = `albumRootData_${albumId}`;
-  let cached = await getCache(cacheKey);
-  if (cached) return cached;
-  const details = await getAlbumDetails(albumId);
-  if (details) await setCache(cacheKey, details);
-  return details;
-}
-
-async function fetchAlbumIdList(playlistId) {
-  let albumsWithDatesData = await getCache(albumIdListCacheKey.value);
-  if (!albumsWithDatesData) {
-    albumsWithDatesData = await getPlaylistAlbumsWithDates(playlistId);
-    await setCache(albumIdListCacheKey.value, albumsWithDatesData);
-  }
-  albumsWithDates.value = albumsWithDatesData;
-  
-  // Apply initial sorting
-  await applySortingAndReload();
-  
-  return sortedAlbumIds.value;
-}
-
-async function fetchAlbumsForPage(albumIds, page) {
-  const start = (page - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  const pageAlbumIds = albumIds.slice(start, end);
-  let pageAlbums = await getCache(pageCacheKey(page));
-  if (!pageAlbums) {
-    pageAlbums = await loadAlbumsBatched(pageAlbumIds);
-    await setCache(pageCacheKey(page), pageAlbums);
-  }
-  return pageAlbums;
-}
-
-// Add a separate function to load the current page
-async function loadCurrentPage() {
-  if (sortedAlbumIds.value.length === 0) return;
-  
-  albumData.value = await fetchAlbumsForPage(sortedAlbumIds.value, currentPage.value);
-  
-  // Batch fetch user album data and root details
-  albumDbDataMap.value = await fetchAlbumsData(albumData.value.map(a => a.id));
-  const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
-  albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
-  // Use the batch data for inCollectionMap
-  inCollectionMap.value = albumDbDataMap.value;
-  // Use the batch data for ratingData
-  albumData.value.forEach(album => {
-    const userData = albumDbDataMap.value[album.id];
-    if (userData && userData.playlistHistory) {
-      const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-      album.ratingData = currentEntry ? {
-        priority: currentEntry.priority,
-        category: currentEntry.category,
-        type: currentEntry.type,
-        playlistId: currentEntry.playlistId
-      } : null;
-    } else {
-      album.ratingData = null;
-    }
-  });
-  await updateNeedsUpdateMap();
-  await checkAlbumMovements();
-}
-
-async function handleClearCache() {
-  // Clear all related cache keys for this playlist
-  await clearCache(albumIdListCacheKey.value);
-  
-  // Clear page caches for both sort directions
-  const totalPagesToClear = totalPages.value || 50; // Fallback number
-  for (let page = 1; page <= totalPagesToClear; page++) {
-    await clearCache(`playlist_${id.value}_page_${page}_asc`);
-    await clearCache(`playlist_${id.value}_page_${page}_desc`);
-  }
-  
-  // Also clear albumDbData cache for all albums on the current page
-  if (user.value && albumData.value && albumData.value.length) {
-    for (const album of albumData.value) {
-      await clearCache(`albumDbData_${album.id}_${user.value.uid}`);
-      // Clear album root data cache as well
-      await clearCache(`albumRootData_${album.id}`);
-    }
-  }
-  
-  cacheCleared.value = true;
-  albumData.value = [];
-  albumsWithDates.value = [];
-  sortedAlbumIds.value = [];
-  playlistName.value = '';
-  await loadPlaylistPage();
-}
-
-async function getPlaylistDocument() {
-  if (!user.value) return null;
-  
-  const playlistsRef = collection(db, 'playlists');
-  const q = query(playlistsRef, where('playlistId', '==', id.value));
-  const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
-    console.warn('Playlist document not found');
-    return null;
-  }
-  
-  return querySnapshot.docs[0];
-}
-
-async function updatePlaylistName() {
-  if (!user.value || !playlistName.value) return;
-  
-  try {
-    updating.value = true;
-    error.value = null;
-    
-    // Get the playlist document if we don't have it
-    if (!playlistDoc.value) {
-      playlistDoc.value = await getPlaylistDocument();
-    }
-    
-    if (!playlistDoc.value) {
-      throw new Error('Playlist document not found');
-    }
-    
-    // Update the playlist document with the name
-    await updateDoc(doc(db, 'playlists', playlistDoc.value.id), {
-      name: playlistName.value,
-      updatedAt: serverTimestamp()
-    });
-    
-    // Update the local document data to reflect the change
-    playlistDoc.value = await getPlaylistDocument();
-    
-  } catch (err) {
-    console.error('Error updating playlist:', err);
-    error.value = err.message || 'Failed to update playlist';
-  } finally {
-    updating.value = false;
-  }
-}
-
-// Update pagination logic to load data per page
-const nextPage = async () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-    await loadCurrentPage();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-};
-
-const previousPage = async () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-    await loadCurrentPage();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-};
-
-const checkAlbumMovements = async () => {
-  for (const album of albumData.value) {
-    try {
-      const userData = albumDbDataMap.value[album.id];
-      if (userData && userData.playlistHistory) {
-        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-        if (currentEntry && currentEntry.playlistId !== id.value) {
-          album.hasMoved = true;
-        } else {
-          album.hasMoved = false;
-        }
-      } else {
-        album.hasMoved = false;
-      }
-    } catch (err) {
-      album.hasMoved = false;
-    }
-  }
-};
-
-watch([() => albumData.value, id], () => {
-  console.log('Album data or playlist ID changed, rechecking movements');
-  checkAlbumMovements();
-}, { immediate: true });
-
-const handleUpdatePlaylist = async (album) => {
-  try {
-    error.value = null;
-    
-    // Get the current playlist data
-    const playlistData = {
-      playlistId: id.value,
-      name: playlistName.value,
-      ...playlistDoc.value.data()
-    };
-
-    const success = await updateAlbumPlaylist(album.id, playlistData, album.addedAt);
-    if (success) {
-      // Refresh the album's moved status
-      album.hasMoved = false;
-      
-      // Clear the cache for this album to ensure fresh data on future page loads
-      if (user.value) {
-        const albumDbCacheKey = `albumDbData_${album.id}_${user.value.uid}`;
-        await clearCache(albumDbCacheKey);
-      }
-    }
-  } catch (err) {
-    console.error('Error updating playlist:', err);
-    error.value = moveError.value || 'Failed to update playlist location';
-  }
-};
-
-const refreshInCollectionForAlbum = async (albumId) => {
-  // Refresh both collection status AND root details for the album
-  const result = await fetchAlbumsData([albumId]);
-  inCollectionMap.value = { ...inCollectionMap.value, ...result };
-  
-  // Clear the cache for this album to ensure fresh data
-  const cacheKey = `albumRootData_${albumId}`;
-  await clearCache(cacheKey);
-  
-  // Fetch fresh album details
-  const details = await getAlbumDetails(albumId);
-  if (details) {
-    albumRootDataMap.value = { ...albumRootDataMap.value, [albumId]: details };
-    await setCache(cacheKey, details);
-  }
-  
-  // Manually trigger needsUpdate recalculation after updating albumRootDataMap
-  await updateNeedsUpdateMap();
-};
-
-async function updateNeedsUpdateMap() {
-  const entries = await Promise.all(
-    albumData.value.map(async (album) => {
-      const inCollection = !!inCollectionMap.value[album.id];
-      if (!inCollection) return [album.id, false];
-      const details = albumRootDataMap.value[album.id];
-      const needsUpdate = !details?.albumCover || !details?.artistId || !details?.releaseYear;
-      console.log('updateNeedsUpdateMap:', { albumId: album.id, details, needsUpdate });
-      return [album.id, needsUpdate];
-    })
-  );
-  needsUpdateMap.value = Object.fromEntries(entries);
-}
-
-watch([albumData, inCollectionMap], () => {
-  updateNeedsUpdateMap();
-});
-
-async function handleUpdateAlbumDetails(album) {
-  try {
-    error.value = null;
-    // Prepare details from the Spotify album prop (only use Spotify fields)
-    const details = {
-      albumCover: album.images?.[1]?.url || album.images?.[0]?.url || '',
-      artistId: album.artists?.[0]?.id || '',
-      releaseYear: album.release_date ? album.release_date.substring(0, 4) : '',
-    };
-    await updateAlbumDetails(album.id, details);
-    // Optionally refresh needsUpdateMap for this album
-    await updateNeedsUpdateMap();
-  } catch (err) {
-    console.error('Error updating album details:', err);
-    error.value = err.message || 'Failed to update album details';
-  }
-}
-
-async function loadPlaylistPage() {
-  loading.value = true;
-  error.value = null;
-  cacheCleared.value = false;
-  try {
-    await fetchAlbumIdList(id.value);
-    if (!playlistName.value) {
-      const playlistResponse = await getPlaylist(id.value);
-      playlistName.value = playlistResponse.name;
-    }
-    
-    // The album data is already loaded by applySortingAndReload in fetchAlbumIdList
-    // loadCurrentPage is called within applySortingAndReload
-    playlistDoc.value = await getPlaylistDocument();
-  } catch (e) {
-    console.error("Error loading playlist page:", e);
-    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
-      error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
-    } else {
-      error.value = e.message || "Failed to load playlist data. Please try again.";
-    }
-  } finally {
-    loading.value = false;
-  }
-}
+const { playlistDoc, updating, getPlaylistDocument, updatePlaylistName } = usePlaylistDocument();
 
 onMounted(async () => {
-  try {
-    await loadPlaylistPage();
-  } catch (e) {
-    console.error("Error in PlaylistSingle:", e);
-    error.value = e.message || "An unexpected error occurred. Please try again.";
-  }
+  await loadPlaylistPage();
+  playlistDoc.value = await getPlaylistDocument(id.value);
 });
 </script>
 
@@ -436,8 +85,8 @@ onMounted(async () => {
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
       <ul class="album-grid">
-        <AlbumItem 
-          v-for="album in paginatedAlbums" 
+        <AlbumItem
+          v-for="album in albumData"
           :key="album.id" 
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
