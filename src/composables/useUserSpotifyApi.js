@@ -126,9 +126,14 @@ export function useUserSpotifyApi() {
     // First get the user's Spotify profile to get their user ID
     const profile = await makeUserRequest('https://api.spotify.com/v1/me');
     
+    // Add AudioFoodie identifier to description
+    const audioFoodieDescription = description 
+      ? `${description} [AudioFoodie]`
+      : '[AudioFoodie]';
+    
     const playlistData = {
       name,
-      description,
+      description: audioFoodieDescription,
       public: isPublic
     };
 
@@ -223,6 +228,7 @@ export function useUserSpotifyApi() {
     getPlaylistTracks,
     removeTracksFromPlaylist,
     searchAlbums,
+    isAudioFoodiePlaylist,
     getUserTokens
   };
 }

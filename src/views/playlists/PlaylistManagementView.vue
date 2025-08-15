@@ -107,22 +107,37 @@
          </form>
        </div>
 
-      <!-- User's Playlists Section -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold">Your Playlists</h2>
-          <BaseButton 
-            @click="loadUserPlaylists"
-            :disabled="spotifyLoading"
-            customClass="btn-secondary"
-          >
-            {{ spotifyLoading ? 'Loading...' : 'Refresh' }}
-          </BaseButton>
-        </div>
+             <!-- User's Playlists Section -->
+       <div class="bg-white shadow rounded-lg p-6">
+         <div class="flex justify-between items-center mb-4">
+           <h2 class="text-lg font-semibold">Your Playlists</h2>
+           <div class="flex items-center gap-4">
+             <label class="flex items-center text-sm">
+               <input 
+                 type="checkbox" 
+                 v-model="showOnlyAudioFoodie"
+                 class="mr-2"
+               />
+               <span>Show only AudioFoodie playlists</span>
+             </label>
+             <BaseButton 
+               @click="loadUserPlaylists"
+               :disabled="spotifyLoading"
+               customClass="btn-secondary"
+             >
+               {{ spotifyLoading ? 'Loading...' : 'Refresh' }}
+             </BaseButton>
+           </div>
+         </div>
         
-        <div v-if="userPlaylists.length === 0" class="text-center py-8 text-gray-500">
-          <p>No playlists found. Create your first playlist above!</p>
-        </div>
+                 <div v-if="userPlaylists.length === 0" class="text-center py-8 text-gray-500">
+           <p v-if="showOnlyAudioFoodie">
+             No AudioFoodie playlists found. Create your first AudioFoodie playlist above!
+           </p>
+           <p v-else>
+             No playlists found. Create your first playlist above!
+           </p>
+         </div>
         
         <div v-else class="space-y-4">
           <div 
@@ -134,12 +149,17 @@
               <div class="flex-1">
                 <h3 class="font-medium">{{ playlist.name }}</h3>
                 <p class="text-sm text-gray-600">{{ playlist.tracks.total }} tracks</p>
-                <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
-                  {{ playlist.description }}
-                </p>
-                <p class="text-xs text-gray-400 mt-1">
-                  {{ playlist.public ? 'Public' : 'Private' }} • ID: {{ playlist.id }}
-                </p>
+                                 <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
+                   {{ playlist.description.replace(' [AudioFoodie]', '') }}
+                 </p>
+                 <div class="flex items-center gap-2 mt-1">
+                   <p class="text-xs text-gray-400">
+                     {{ playlist.public ? 'Public' : 'Private' }} • ID: {{ playlist.id }}
+                   </p>
+                   <span v-if="isAudioFoodiePlaylist(playlist)" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                     AudioFoodie
+                   </span>
+                 </div>
               </div>
               <div class="flex gap-2">
                 <BaseButton 
@@ -189,10 +209,13 @@ const {
   error: spotifyError, 
   createPlaylist, 
   addAlbumToPlaylist, 
-  getUserPlaylists 
+  getUserPlaylists,
+  isAudioFoodiePlaylist
 } = useUserSpotifyApi();
 
 const userPlaylists = ref([]);
+const allPlaylists = ref([]);
+const showOnlyAudioFoodie = ref(true);
 const successMessage = ref('');
 
 const createForm = ref({
@@ -217,7 +240,7 @@ const handleCreatePlaylist = async () => {
       createForm.value.isPublic
     );
     
-    successMessage.value = `Playlist "${playlist.name}" created successfully!`;
+         successMessage.value = `AudioFoodie playlist "${playlist.name}" created successfully!`;
     
     // Reset form
     createForm.value = {
@@ -265,12 +288,28 @@ const loadUserPlaylists = async () => {
   try {
     spotifyError.value = null;
     const response = await getUserPlaylists(50, 0);
-    userPlaylists.value = response.items;
+    allPlaylists.value = response.items;
+    
+    // Filter playlists based on current setting
+    if (showOnlyAudioFoodie.value) {
+      userPlaylists.value = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
+    } else {
+      userPlaylists.value = allPlaylists.value;
+    }
   } catch (err) {
     console.error('Error loading playlists:', err);
     spotifyError.value = err.message;
   }
 };
+
+// Watch for changes in filter setting
+watch(showOnlyAudioFoodie, () => {
+  if (showOnlyAudioFoodie.value) {
+    userPlaylists.value = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
+  } else {
+    userPlaylists.value = allPlaylists.value;
+  }
+});
 
 const viewPlaylist = (playlistId) => {
   router.push(`/playlist/${playlistId}`);
