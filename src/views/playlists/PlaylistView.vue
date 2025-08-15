@@ -199,6 +199,13 @@ onMounted(async () => {
         <PlusIcon class="h-5 w-5" />
         Add playlist
       </RouterLink>
+      <RouterLink 
+        to="/playlist/management" 
+        class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center gap-2"
+      >
+        <PlusIcon class="h-5 w-5" />
+        Playlist Management
+      </RouterLink>
       <BaseButton @click.prevent="handleClearCache">
         <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload

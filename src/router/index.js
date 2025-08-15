@@ -7,9 +7,11 @@ import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
 import AccountView from '@views/auth/AccountView.vue';
 import LoginView from '@views/auth/LoginView.vue';
 import AddPlaylistView from '@views/playlists/AddPlaylistView.vue';
+import PlaylistManagementView from '@views/playlists/PlaylistManagementView.vue';
 import ArtistView from '@views/music/ArtistView.vue';
 import AlbumView from '@views/music/AlbumView.vue';
 import SearchView from '@views/music/SearchView.vue';
+import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 
 const routes = [
   {
@@ -37,6 +39,15 @@ const routes = [
     }
   },
   {
+    path: '/playlist/management',
+    name: 'playlistManagement',
+    component: PlaylistManagementView,
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
+  },
+  {
     path: '/playlist/:id',
     name: 'playlistSingle',
     component: PlaylistSingle,
@@ -55,6 +66,12 @@ const routes = [
     path: '/login',
     name: 'login',
     component: LoginView
+  },
+  {
+    path: '/spotify-callback',
+    name: 'spotifyCallback',
+    component: SpotifyCallbackView,
+    meta: { requiresAuth: true }
   },
   {
     path: '/artist/:id',
