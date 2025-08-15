@@ -21,6 +21,7 @@ const loading = ref(true);
 const error = ref(null);
 const cacheCleared = ref(false);
 const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') !== 'false');
+const activeTab = ref(sessionStorage.getItem('activeTab') || 'new'); // Default to 'new' tab, or stored value
 
 const playlists = ref({
   new: [],
@@ -80,9 +81,18 @@ const filteredPlaylists = computed(() => {
   };
 });
 
+const currentPlaylists = computed(() => {
+  return filteredPlaylists.value[activeTab.value] || [];
+});
+
 // Watch for changes to showEndPlaylists and update session storage
 watch(showEndPlaylists, (newValue) => {
   sessionStorage.setItem('showEndPlaylists', newValue);
+});
+
+// Watch for changes to activeTab and update session storage
+watch(activeTab, (newValue) => {
+  sessionStorage.setItem('activeTab', newValue);
 });
 
 async function loadPlaylists() {
@@ -121,7 +131,8 @@ async function loadPlaylists() {
           console.log(`Got Spotify data:`, playlist);
           
           allPlaylistsForType.push({
-            id: playlist.id,
+            id: playlist.id, // Spotify playlist ID
+            firebaseId: playlistData.firebaseId, // Firebase document ID
             name: playlist.name,
             images: playlist.images,
             tracks: { total: playlist.tracks.total },
@@ -227,15 +238,38 @@ onMounted(async () => {
 
     <p v-if="loading">Loading playlists...</p>
     <ErrorMessage v-else-if="error" :message="error" />
-    <div v-else-if="allPlaylistsLoaded" class="flex gap-8">
-      <ul v-for="type in ['new', 'known']" :key="type" class="flex flex-col gap-4 w-1/2">
-        <template v-for="playlist in filteredPlaylists[type]" :key="playlist.id">
-          <PlaylistItem 
-            :playlist="playlist"
-            :category="playlist.category"
-          />
-        </template>
-      </ul>
+    <div v-else-if="allPlaylistsLoaded">
+      <!-- Tab Navigation -->
+      <div class="mb-6 border-b border-gray-600">
+        <nav class="-mb-px flex space-x-8">
+          <button
+            v-for="tab in ['new', 'known']"
+            :key="tab"
+            @click="activeTab = tab"
+            :class="[
+              'py-3 px-4 border-b-2 font-semibold text-sm capitalize rounded-t-lg transition-all duration-200',
+              activeTab === tab
+                ? 'border-delft-blue text-delft-blue bg-white shadow-sm'
+                : 'border-transparent text-gray-600 hover:text-delft-blue hover:border-gray-300 hover:bg-gray-50'
+            ]"
+          >
+            {{ tab }} ({{ filteredPlaylists[tab]?.length || 0 }})
+          </button>
+        </nav>
+      </div>
+
+      <!-- Tab Content -->
+      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4">
+        <PlaylistItem 
+          v-for="playlist in currentPlaylists"
+          :key="playlist.id"
+          :playlist="playlist"
+          :category="playlist.category"
+        />
+      </div>
+      <p v-else class="text-gray-500 text-center py-8">
+        No {{ activeTab }} playlists available.
+      </p>
     </div>
     <p v-else>No playlists available.</p>
   </main>

@@ -96,6 +96,7 @@ export function usePlaylistData() {
         }
         grouped[playlist.type][playlist.category].push({
           playlistId: playlist.playlistId,
+          firebaseId: doc.id, // Include Firebase document ID
           priority: playlist.priority
         });
       });
