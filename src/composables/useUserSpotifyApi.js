@@ -197,6 +197,21 @@ export function useUserSpotifyApi() {
     });
   };
 
+  /**
+   * Searches for albums by query (artist name or album title)
+   */
+  const searchAlbums = async (query, limit = 20) => {
+    const encodedQuery = encodeURIComponent(query);
+    return makeUserRequest(`https://api.spotify.com/v1/search?q=${encodedQuery}&type=album&limit=${limit}`);
+  };
+
+  /**
+   * Checks if a playlist was created by AudioFoodie
+   */
+  const isAudioFoodiePlaylist = (playlist) => {
+    return playlist.description && playlist.description.includes('[AudioFoodie]');
+  };
+
   return {
     loading,
     error,
@@ -207,6 +222,7 @@ export function useUserSpotifyApi() {
     getPlaylist,
     getPlaylistTracks,
     removeTracksFromPlaylist,
+    searchAlbums,
     getUserTokens
   };
 }

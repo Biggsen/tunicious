@@ -69,54 +69,43 @@
         </form>
       </div>
 
-      <!-- Add Album to Playlist Section -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
-        
-        <form @submit.prevent="handleAddAlbum" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-group">
-              <label for="albumId">Spotify Album ID</label>
-              <input 
-                type="text" 
-                id="albumId" 
-                v-model="albumForm.albumId"
-                required
-                placeholder="Enter Spotify album ID"
-                class="form-input"
-              />
-              <p class="text-sm text-gray-500 mt-1">
-                Find album ID in Spotify URL: spotify.com/album/[ALBUM_ID]
-              </p>
-            </div>
-            
-            <div class="form-group">
-              <label for="targetPlaylist">Target Playlist</label>
-              <select 
-                id="targetPlaylist" 
-                v-model="albumForm.playlistId"
-                required
-                class="form-input"
-              >
-                <option value="">Select a playlist</option>
-                <option v-for="playlist in userPlaylists" :key="playlist.id" :value="playlist.id">
-                  {{ playlist.name }} ({{ playlist.tracks.total }} tracks)
-                </option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="flex gap-4">
-            <BaseButton 
-              type="submit" 
-              :disabled="spotifyLoading"
-              customClass="btn-primary"
-            >
-              {{ spotifyLoading ? 'Adding...' : 'Add Album to Playlist' }}
-            </BaseButton>
-          </div>
-        </form>
-      </div>
+             <!-- Add Album to Playlist Section -->
+       <div class="bg-white shadow rounded-lg p-6">
+         <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
+         
+         <form @submit.prevent="handleAddAlbum" class="space-y-4">
+           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div class="form-group">
+               <AlbumSearch v-model="selectedAlbum" />
+             </div>
+             
+             <div class="form-group">
+               <label for="targetPlaylist">Target Playlist</label>
+               <select 
+                 id="targetPlaylist" 
+                 v-model="albumForm.playlistId"
+                 required
+                 class="form-input"
+               >
+                 <option value="">Select a playlist</option>
+                 <option v-for="playlist in userPlaylists" :key="playlist.id" :value="playlist.id">
+                   {{ playlist.name }} ({{ playlist.tracks.total }} tracks)
+                 </option>
+               </select>
+             </div>
+           </div>
+           
+           <div class="flex gap-4">
+             <BaseButton 
+               type="submit" 
+               :disabled="spotifyLoading || !selectedAlbum"
+               customClass="btn-primary"
+             >
+               {{ spotifyLoading ? 'Adding...' : 'Add Album to Playlist' }}
+             </BaseButton>
+           </div>
+         </form>
+       </div>
 
       <!-- User's Playlists Section -->
       <div class="bg-white shadow rounded-lg p-6">
@@ -184,13 +173,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserData } from '@composables/useUserData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
+import AlbumSearch from '@components/AlbumSearch.vue';
 
 const router = useRouter();
 const { userData } = useUserData();
@@ -211,8 +201,8 @@ const createForm = ref({
   isPublic: false
 });
 
+const selectedAlbum = ref(null);
 const albumForm = ref({
-  albumId: '',
   playlistId: ''
 });
 
@@ -249,13 +239,17 @@ const handleAddAlbum = async () => {
     spotifyError.value = null;
     successMessage.value = '';
     
-    await addAlbumToPlaylist(albumForm.value.playlistId, albumForm.value.albumId);
+    if (!selectedAlbum.value) {
+      throw new Error('Please select an album first');
+    }
     
-    successMessage.value = 'Album added to playlist successfully!';
+    await addAlbumToPlaylist(albumForm.value.playlistId, selectedAlbum.value.id);
+    
+    successMessage.value = `"${selectedAlbum.value.name}" added to playlist successfully!`;
     
     // Reset form
+    selectedAlbum.value = null;
     albumForm.value = {
-      albumId: '',
       playlistId: ''
     };
     
