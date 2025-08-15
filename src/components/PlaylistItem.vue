@@ -31,7 +31,18 @@ const isEndCategory = computed(() => props.category === 'end');
     ]"
     @click="navigateToPlaylist(playlist.id)"
   >
-    <img :src="playlist.images[2]?.url" alt="" class="mr-4 rounded-lg w-16 h-16 sm:w-20 sm:h-20" />
+    <img 
+      v-if="playlist.images && playlist.images[2]?.url" 
+      :src="playlist.images[2].url" 
+      alt="" 
+      class="mr-4 rounded-lg w-16 h-16 sm:w-20 sm:h-20" 
+    />
+    <div 
+      v-else 
+      class="mr-4 rounded-lg w-16 h-16 sm:w-20 sm:h-20 bg-gray-300 flex items-center justify-center"
+    >
+      <span class="text-gray-500 text-xs">No Image</span>
+    </div>
     <div class="flex-1">
       <h2 :class="['mb-1 text-mindero truncate', isEndCategory ? 'text-[16px]' : 'text-[20px]']">{{ playlist.name }}</h2>
       <p class="text-mindero">{{ playlist.tracks.total }} songs</p>

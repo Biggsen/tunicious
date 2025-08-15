@@ -12,7 +12,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { user, userData, fetchUserData } = useUserData();
-const { playlists: userPlaylists, fetchUserPlaylists, getAvailableCategories } = usePlaylistData();
+const { playlists: userPlaylists, fetchUserPlaylists, getAvailableCategories, getAvailableGroups } = usePlaylistData();
 
 const route = useRoute();
 const { getPlaylist} = useSpotifyApi();
@@ -21,68 +21,89 @@ const loading = ref(true);
 const error = ref(null);
 const cacheCleared = ref(false);
 const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') !== 'false');
-const activeTab = ref(sessionStorage.getItem('activeTab') || 'new'); // Default to 'new' tab, or stored value
 
-const playlists = ref({
-  new: [],
-  known: []
-});
+// Dynamic active tab - will be set to first available group
+const activeTab = ref(sessionStorage.getItem('activeTab') || '');
+
+// Dynamic playlists structure
+const playlists = ref({});
 
 const cacheKey = computed(() => user.value ? `playlist_summaries_${user.value.uid}` : null);
 
+// Get available groups dynamically
+const availableGroups = computed(() => {
+  return getAvailableGroups();
+});
+
+// Set active tab to first available group if not set
+const initializeActiveTab = () => {
+  if (!activeTab.value && availableGroups.value.length > 0) {
+    activeTab.value = availableGroups.value[0];
+    sessionStorage.setItem('activeTab', activeTab.value);
+  }
+};
+
 const availableCategories = computed(() => {
   console.log('Computing availableCategories, userPlaylists:', userPlaylists.value);
-  if (!userPlaylists.value) return { new: [], known: [] };
+  if (!userPlaylists.value || !activeTab.value) return {};
   
-  const categories = {
-    new: getAvailableCategories('new'),
-    known: getAvailableCategories('known')
-  };
+  const categories = {};
+  availableGroups.value.forEach(group => {
+    categories[group] = getAvailableCategories(group);
+  });
   console.log('Available categories:', categories);
   return categories;
 });
 
 const allPlaylistsLoaded = computed(() => {
   console.log('Computing allPlaylistsLoaded:', {
-    availableCategories: availableCategories.value,
+    availableGroups: availableGroups.value,
     userPlaylists: userPlaylists.value,
     spotifyPlaylists: playlists.value,
   });
   
-  if (!userPlaylists.value) return false;
+  if (!userPlaylists.value || availableGroups.value.length === 0) return false;
   
-  // First check if we have any playlists to load
-  const hasPlaylists = availableCategories.value.new.length > 0 || availableCategories.value.known.length > 0;
-  if (!hasPlaylists) return true; // No playlists to load
-  
-  // Then check if all available playlists have been loaded from Spotify
-  const newLoaded = playlists.value.new.length > 0 && 
-    playlists.value.new.every(p => p.id != null);
-  const knownLoaded = playlists.value.known.length > 0 && 
-    playlists.value.known.every(p => p.id != null);
+  // Check if all available groups have been loaded from Spotify
+  const allGroupsLoaded = availableGroups.value.every(group => {
+    const groupPlaylists = playlists.value[group] || [];
+    // A group is considered loaded if it has playlists OR if it has no playlists in the userPlaylists data
+    const hasPlaylistsInData = Object.values(userPlaylists.value[group] || {}).some(categoryPlaylists => 
+      categoryPlaylists.length > 0
+    );
+    
+    if (!hasPlaylistsInData) {
+      // If no playlists in data, consider it loaded
+      return true;
+    }
+    
+    // If there are playlists in data, check if they've been loaded from Spotify
+    return groupPlaylists.length > 0 && groupPlaylists.every(p => p.id != null);
+  });
   
   console.log('Playlists loaded status:', { 
-    hasPlaylists,
-    newLoaded, 
-    knownLoaded,
-    newCategories: availableCategories.value.new,
-    knownCategories: availableCategories.value.known
+    availableGroups: availableGroups.value,
+    allGroupsLoaded
   });
-  return newLoaded && knownLoaded;
+  return allGroupsLoaded;
 });
 
 const filteredPlaylists = computed(() => {
   if (showEndPlaylists.value) {
     return playlists.value;
   }
-  return {
-    new: playlists.value.new.filter(p => p.category !== 'end'),
-    known: playlists.value.known.filter(p => p.category !== 'end')
-  };
+  
+  const filtered = {};
+  availableGroups.value.forEach(group => {
+    filtered[group] = (playlists.value[group] || []).filter(p => p.category !== 'end');
+  });
+  return filtered;
 });
 
 const currentPlaylists = computed(() => {
-  return filteredPlaylists.value[activeTab.value] || [];
+  const playlists = filteredPlaylists.value[activeTab.value] || [];
+  console.log(`Current playlists for ${activeTab.value}:`, playlists);
+  return playlists;
 });
 
 // Watch for changes to showEndPlaylists and update session storage
@@ -92,8 +113,15 @@ watch(showEndPlaylists, (newValue) => {
 
 // Watch for changes to activeTab and update session storage
 watch(activeTab, (newValue) => {
-  sessionStorage.setItem('activeTab', newValue);
+  if (newValue) {
+    sessionStorage.setItem('activeTab', newValue);
+  }
 });
+
+// Watch for changes to available groups and initialize active tab
+watch(availableGroups, () => {
+  initializeActiveTab();
+}, { immediate: true });
 
 async function loadPlaylists() {
   loading.value = true;
@@ -110,40 +138,54 @@ async function loadPlaylists() {
   }
 
   try {
-    const playlistSummaries = { new: [], known: [] };
+    const playlistSummaries = {};
     
-    // Load all playlists for each type
-    for (const type of ['new', 'known']) {
-      console.log(`Loading ${type} playlists...`);
+    // Load all playlists for each group
+    for (const group of availableGroups.value) {
+      console.log(`Loading ${group} playlists...`);
       
-      // Collect all playlists for this type
-      const allPlaylistsForType = [];
-      for (const category of availableCategories.value[type]) {
-        const categoryPlaylists = userPlaylists.value[type][category] || [];
+      // Collect all playlists for this group
+      const allPlaylistsForGroup = [];
+      for (const category of availableCategories.value[group] || []) {
+        const categoryPlaylists = userPlaylists.value[group]?.[category] || [];
         for (const playlistData of categoryPlaylists) {
           if (!playlistData?.playlistId) {
-            console.warn(`Missing playlist data for ${type} category: ${category}`);
+            console.warn(`Missing playlist data for ${group} category: ${category}`);
             continue;
           }
 
-          console.log(`Fetching Spotify data for ${type}/${category} (${playlistData.playlistId})`);
-          const playlist = await getPlaylist(playlistData.playlistId);
-          console.log(`Got Spotify data:`, playlist);
-          
-          allPlaylistsForType.push({
-            id: playlist.id, // Spotify playlist ID
-            firebaseId: playlistData.firebaseId, // Firebase document ID
-            name: playlist.name,
-            images: playlist.images,
-            tracks: { total: playlist.tracks.total },
-            priority: playlistData.priority,
-            category: category
-          });
+          try {
+            console.log(`Fetching Spotify data for ${group}/${category} (${playlistData.playlistId})`);
+            const playlist = await getPlaylist(playlistData.playlistId);
+            console.log(`Got Spotify data:`, playlist);
+            
+            allPlaylistsForGroup.push({
+              id: playlist.id, // Spotify playlist ID
+              firebaseId: playlistData.firebaseId, // Firebase document ID
+              name: playlist.name,
+              images: playlist.images,
+              tracks: { total: playlist.tracks.total },
+              priority: playlistData.priority,
+              category: category
+            });
+          } catch (playlistError) {
+            console.error(`Failed to load playlist ${playlistData.playlistId} for ${group}/${category}:`, playlistError);
+            // Still add the playlist with basic data even if Spotify API fails
+            allPlaylistsForGroup.push({
+              id: playlistData.playlistId, // Use the playlistId as fallback
+              firebaseId: playlistData.firebaseId,
+              name: `${group} ${category}`, // Fallback name
+              images: [],
+              tracks: { total: 0 }, // Assume empty if we can't get data
+              priority: playlistData.priority,
+              category: category
+            });
+          }
         }
       }
       
       // Sort all playlists by priority
-      playlistSummaries[type] = allPlaylistsForType.sort((a, b) => a.priority - b.priority);
+      playlistSummaries[group] = allPlaylistsForGroup.sort((a, b) => a.priority - b.priority);
     }
 
     console.log('Final playlist summaries:', playlistSummaries);
@@ -164,7 +206,7 @@ async function loadPlaylists() {
 async function handleClearCache() {
   await clearCache(cacheKey.value);
   cacheCleared.value = true;
-  playlists.value = { new: [], known: [] };
+  playlists.value = {};
   await loadPlaylists();
 }
 
@@ -238,22 +280,22 @@ onMounted(async () => {
 
     <p v-if="loading">Loading playlists...</p>
     <ErrorMessage v-else-if="error" :message="error" />
-    <div v-else-if="allPlaylistsLoaded">
+    <div v-else-if="allPlaylistsLoaded && availableGroups.length > 0">
       <!-- Tab Navigation -->
       <div class="mb-6 border-b border-gray-600">
         <nav class="-mb-px flex space-x-8">
           <button
-            v-for="tab in ['new', 'known']"
-            :key="tab"
-            @click="activeTab = tab"
+            v-for="group in availableGroups"
+            :key="group"
+            @click="activeTab = group"
             :class="[
               'py-3 px-4 border-b-2 font-semibold text-sm capitalize rounded-t-lg transition-all duration-200',
-              activeTab === tab
+              activeTab === group
                 ? 'border-delft-blue text-delft-blue bg-white shadow-sm'
                 : 'border-transparent text-gray-600 hover:text-delft-blue hover:border-gray-300 hover:bg-gray-50'
             ]"
           >
-            {{ tab }} ({{ filteredPlaylists[tab]?.length || 0 }})
+            {{ group }} ({{ filteredPlaylists[group]?.length || 0 }})
           </button>
         </nav>
       </div>
@@ -271,7 +313,9 @@ onMounted(async () => {
         No {{ activeTab }} playlists available.
       </p>
     </div>
-    <p v-else>No playlists available.</p>
+    <p v-else-if="availableGroups.length === 0" class="text-gray-500 text-center py-8">
+      No playlists available.
+    </p>
   </main>
 </template>
 
