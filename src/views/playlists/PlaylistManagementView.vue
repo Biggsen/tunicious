@@ -147,15 +147,41 @@
            >
              <div class="flex justify-between items-start">
                <div class="flex-1">
-                 <div class="flex items-center gap-2 mb-2">
-                   <h3 class="font-medium">{{ playlist.name }}</h3>
-                   <button 
-                     @click="togglePlaylistExpansion(playlist.id)"
-                     class="text-gray-500 hover:text-gray-700 text-sm"
-                   >
-                     {{ expandedPlaylists.has(playlist.id) ? '▼' : '▶' }}
-                   </button>
-                 </div>
+                                   <div class="flex items-center gap-2 mb-2">
+                    <div v-if="renamingPlaylist?.id === playlist.id" class="flex items-center gap-2 flex-1">
+                      <input 
+                        v-model="newPlaylistName"
+                        @keyup.enter="handleRenamePlaylist"
+                        @keyup.esc="cancelRenamePlaylist"
+                        class="form-input text-sm py-1 px-2"
+                        placeholder="Enter new name"
+                        ref="renameInput"
+                      />
+                      <BaseButton 
+                        @click="handleRenamePlaylist"
+                        :disabled="spotifyLoading || !newPlaylistName.trim()"
+                        customClass="btn-primary btn-sm"
+                      >
+                        {{ spotifyLoading ? 'Saving...' : 'Save' }}
+                      </BaseButton>
+                      <BaseButton 
+                        @click="cancelRenamePlaylist"
+                        :disabled="spotifyLoading"
+                        customClass="btn-secondary btn-sm"
+                      >
+                        Cancel
+                      </BaseButton>
+                    </div>
+                    <div v-else class="flex items-center gap-2">
+                      <h3 class="font-medium">{{ playlist.name }}</h3>
+                      <button 
+                        @click="togglePlaylistExpansion(playlist.id)"
+                        class="text-gray-500 hover:text-gray-700 text-sm"
+                      >
+                        {{ expandedPlaylists.has(playlist.id) ? '▼' : '▶' }}
+                      </button>
+                    </div>
+                  </div>
                  <p class="text-sm text-gray-600">{{ playlist.tracks.total }} tracks</p>
                  <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
                    {{ playlist.description.replace(' [AudioFoodie]', '') }}
@@ -169,21 +195,27 @@
                    </span>
                  </div>
                </div>
-               <div class="flex gap-2">
-                 <BaseButton 
-                   @click="viewPlaylist(playlist.id)"
-                   customClass="btn-secondary btn-sm"
-                 >
-                   View
-                 </BaseButton>
-                 <a 
-                   :href="playlist.external_urls.spotify" 
-                   target="_blank"
-                   class="btn-secondary btn-sm"
-                 >
-                   Open in Spotify
-                 </a>
-               </div>
+                               <div class="flex gap-2">
+                  <BaseButton 
+                    @click="viewPlaylist(playlist.id)"
+                    customClass="btn-secondary btn-sm"
+                  >
+                    View
+                  </BaseButton>
+                  <BaseButton 
+                    @click="startRenamePlaylist(playlist)"
+                    customClass="btn-secondary btn-sm"
+                  >
+                    Rename
+                  </BaseButton>
+                  <a 
+                    :href="playlist.external_urls.spotify" 
+                    target="_blank"
+                    class="btn-secondary btn-sm"
+                  >
+                    Open in Spotify
+                  </a>
+                </div>
              </div>
              
              <!-- Albums Section -->
@@ -244,7 +276,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserData } from '@composables/useUserData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
@@ -263,6 +295,7 @@ const {
   getUserPlaylists,
   getPlaylistAlbums,
   removeAlbumFromPlaylist,
+  updatePlaylist,
   isAudioFoodiePlaylist
 } = useUserSpotifyApi();
 
@@ -283,6 +316,10 @@ const selectedAlbum = ref(null);
 const albumForm = ref({
   playlistId: ''
 });
+
+// Rename playlist state
+const renamingPlaylist = ref(null);
+const newPlaylistName = ref('');
 
 const handleCreatePlaylist = async () => {
   try {
@@ -321,7 +358,9 @@ const handleAddAlbum = async () => {
       throw new Error('Please select an album first');
     }
     
-    await addAlbumToPlaylist(albumForm.value.playlistId, selectedAlbum.value.id);
+    const targetPlaylistId = albumForm.value.playlistId;
+    
+    await addAlbumToPlaylist(targetPlaylistId, selectedAlbum.value.id);
     
     successMessage.value = `"${selectedAlbum.value.name}" added to playlist successfully!`;
     
@@ -331,8 +370,18 @@ const handleAddAlbum = async () => {
       playlistId: ''
     };
     
-    // Refresh playlists
-    await loadUserPlaylists();
+         // Only refresh playlists if the target playlist is currently visible
+     const targetPlaylist = userPlaylists.value.find(p => p.id === targetPlaylistId);
+     if (targetPlaylist) {
+       // Get the actual number of tracks from the selected album
+       // The selectedAlbum should have the track count from the search results
+       const trackCount = selectedAlbum.value.total_tracks || selectedAlbum.value.tracks?.length || 1;
+       targetPlaylist.tracks.total += trackCount;
+       
+       // Clear cached album data for this specific playlist only
+       playlistAlbums.value.delete(targetPlaylistId);
+     }
+    
      } catch (err) {
      console.error('Error adding album:', err);
      spotifyError.value = err.message || 'Failed to add album to playlist';
@@ -351,6 +400,12 @@ const handleRemoveAlbum = async (playlistId, album) => {
     await removeAlbumFromPlaylist(playlistId, album);
     
     successMessage.value = `"${album.name}" removed from playlist successfully!`;
+    
+    // Update track count locally
+    const playlist = userPlaylists.value.find(p => p.id === playlistId);
+    if (playlist) {
+      playlist.tracks.total -= album.tracks.length;
+    }
     
     // Refresh the albums for this playlist
     const albums = await getPlaylistAlbums(playlistId);
@@ -374,6 +429,13 @@ const loadUserPlaylists = async () => {
     } else {
       userPlaylists.value = allPlaylists.value;
     }
+    
+    // Only clear cached album data if we're doing a full refresh
+    // This prevents unnecessary API calls when just filtering
+    if (response.items.length > 0) {
+      playlistAlbums.value.clear();
+    }
+    
      } catch (err) {
      console.error('Error loading playlists:', err);
      spotifyError.value = err.message || 'Failed to load playlists';
@@ -393,13 +455,58 @@ const viewPlaylist = (playlistId) => {
   router.push(`/playlist/${playlistId}`);
 };
 
+const startRenamePlaylist = async (playlist) => {
+  renamingPlaylist.value = playlist;
+  newPlaylistName.value = playlist.name;
+  
+  // Auto-focus the input after it's rendered
+  await nextTick();
+  const renameInput = document.querySelector('input[placeholder="Enter new name"]');
+  if (renameInput) {
+    renameInput.focus();
+    renameInput.select();
+  }
+};
+
+const cancelRenamePlaylist = () => {
+  renamingPlaylist.value = null;
+  newPlaylistName.value = '';
+};
+
+const handleRenamePlaylist = async () => {
+  if (!renamingPlaylist.value || !newPlaylistName.value.trim()) {
+    return;
+  }
+  
+  try {
+    spotifyError.value = null;
+    successMessage.value = '';
+    
+    await updatePlaylist(renamingPlaylist.value.id, {
+      name: newPlaylistName.value.trim()
+    });
+    
+    successMessage.value = `Playlist renamed to "${newPlaylistName.value.trim()}" successfully!`;
+    
+    // Update the playlist name locally
+    renamingPlaylist.value.name = newPlaylistName.value.trim();
+    
+    // Reset rename state
+    cancelRenamePlaylist();
+    
+  } catch (err) {
+    console.error('Error renaming playlist:', err);
+    spotifyError.value = err.message || 'Failed to rename playlist';
+  }
+};
+
 const togglePlaylistExpansion = async (playlistId) => {
   if (expandedPlaylists.value.has(playlistId)) {
     expandedPlaylists.value.delete(playlistId);
   } else {
     expandedPlaylists.value.add(playlistId);
     
-    // Load albums if not already loaded
+    // Only fetch album data if not already cached
     if (!playlistAlbums.value.has(playlistId)) {
       try {
         const albums = await getPlaylistAlbums(playlistId);

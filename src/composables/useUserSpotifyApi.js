@@ -152,13 +152,20 @@ export function useUserSpotifyApi() {
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Spotify API error:', response.status, response.statusText, errorText);
-        throw new Error(`Spotify API error: ${response.status} - ${response.statusText}`);
-      }
+             if (!response.ok) {
+         const errorText = await response.text();
+         console.error('Spotify API error:', response.status, response.statusText, errorText);
+         throw new Error(`Spotify API error: ${response.status} - ${response.statusText}`);
+       }
 
-      return await response.json();
+       // Check if response has content before trying to parse JSON
+       const contentType = response.headers.get('content-type');
+       if (contentType && contentType.includes('application/json')) {
+         return await response.json();
+       } else {
+         // For endpoints that return empty responses (like PUT requests)
+         return { success: true };
+       }
     } catch (err) {
       error.value = err;
       throw err;
@@ -229,6 +236,16 @@ export function useUserSpotifyApi() {
    */
   const getPlaylist = async (playlistId) => {
     return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}`);
+  };
+
+  /**
+   * Updates a playlist
+   */
+  const updatePlaylist = async (playlistId, updates) => {
+    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
   };
 
   /**
@@ -361,6 +378,7 @@ export function useUserSpotifyApi() {
     addAlbumToPlaylist,
     getUserPlaylists,
     getPlaylist,
+    updatePlaylist,
     getPlaylistTracks,
     getAllPlaylistTracks,
     getPlaylistAlbums,
