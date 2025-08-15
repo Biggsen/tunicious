@@ -139,17 +139,25 @@
            </p>
          </div>
         
-        <div v-else class="space-y-4">
-          <div 
-            v-for="playlist in userPlaylists" 
-            :key="playlist.id"
-            class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-          >
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <h3 class="font-medium">{{ playlist.name }}</h3>
-                <p class="text-sm text-gray-600">{{ playlist.tracks.total }} tracks</p>
-                                 <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
+                 <div v-else class="space-y-4">
+           <div 
+             v-for="playlist in userPlaylists" 
+             :key="playlist.id"
+             class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+           >
+             <div class="flex justify-between items-start">
+               <div class="flex-1">
+                 <div class="flex items-center gap-2 mb-2">
+                   <h3 class="font-medium">{{ playlist.name }}</h3>
+                   <button 
+                     @click="togglePlaylistExpansion(playlist.id)"
+                     class="text-gray-500 hover:text-gray-700 text-sm"
+                   >
+                     {{ expandedPlaylists.has(playlist.id) ? '▼' : '▶' }}
+                   </button>
+                 </div>
+                 <p class="text-sm text-gray-600">{{ playlist.tracks.total }} tracks</p>
+                 <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
                    {{ playlist.description.replace(' [AudioFoodie]', '') }}
                  </p>
                  <div class="flex items-center gap-2 mt-1">
@@ -160,30 +168,73 @@
                      AudioFoodie
                    </span>
                  </div>
-              </div>
-              <div class="flex gap-2">
-                <BaseButton 
-                  @click="viewPlaylist(playlist.id)"
-                  customClass="btn-secondary btn-sm"
-                >
-                  View
-                </BaseButton>
-                <a 
-                  :href="playlist.external_urls.spotify" 
-                  target="_blank"
-                  class="btn-secondary btn-sm"
-                >
-                  Open in Spotify
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
+               </div>
+               <div class="flex gap-2">
+                 <BaseButton 
+                   @click="viewPlaylist(playlist.id)"
+                   customClass="btn-secondary btn-sm"
+                 >
+                   View
+                 </BaseButton>
+                 <a 
+                   :href="playlist.external_urls.spotify" 
+                   target="_blank"
+                   class="btn-secondary btn-sm"
+                 >
+                   Open in Spotify
+                 </a>
+               </div>
+             </div>
+             
+             <!-- Albums Section -->
+             <div v-if="expandedPlaylists.has(playlist.id)" class="mt-4 pt-4 border-t border-gray-200">
+               <div v-if="playlistAlbums.has(playlist.id) && playlistAlbums.get(playlist.id).length > 0" class="space-y-3">
+                 <h4 class="text-sm font-medium text-gray-700">Albums ({{ playlistAlbums.get(playlist.id).length }})</h4>
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                   <div 
+                     v-for="album in playlistAlbums.get(playlist.id)" 
+                     :key="album.id"
+                     class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                   >
+                     <img 
+                       v-if="album.cover" 
+                       :src="album.cover" 
+                       :alt="album.name"
+                       class="w-12 h-12 rounded object-cover"
+                     />
+                     <div v-else class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                       <span class="text-gray-400 text-xs">No Image</span>
+                     </div>
+                     <div class="flex-1 min-w-0">
+                       <h5 class="text-sm font-medium text-gray-900 truncate">{{ album.name }}</h5>
+                       <p class="text-xs text-gray-600 truncate">{{ album.artist }}</p>
+                       <p class="text-xs text-gray-500">{{ album.tracks.length }} tracks</p>
+                     </div>
+                     <BaseButton 
+                       @click="handleRemoveAlbum(playlist.id, album)"
+                       :disabled="spotifyLoading"
+                       customClass="btn-danger btn-sm"
+                     >
+                       Remove
+                     </BaseButton>
+                   </div>
+                 </div>
+               </div>
+               <div v-else-if="playlistAlbums.has(playlist.id)" class="text-center py-4 text-gray-500">
+                 <p>No albums found in this playlist</p>
+               </div>
+               <div v-else class="text-center py-4">
+                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                 <p class="text-sm text-gray-500 mt-2">Loading albums...</p>
+               </div>
+             </div>
+           </div>
+         </div>
       </div>
     </div>
 
-    <!-- Error Messages -->
-    <ErrorMessage v-if="spotifyError" :message="spotifyError" class="mt-4" />
+         <!-- Error Messages -->
+     <ErrorMessage v-if="spotifyError" :message="spotifyError.message || spotifyError" class="mt-4" />
     
     <!-- Success Messages -->
     <div v-if="successMessage" class="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
@@ -210,6 +261,8 @@ const {
   createPlaylist, 
   addAlbumToPlaylist, 
   getUserPlaylists,
+  getPlaylistAlbums,
+  removeAlbumFromPlaylist,
   isAudioFoodiePlaylist
 } = useUserSpotifyApi();
 
@@ -217,6 +270,8 @@ const userPlaylists = ref([]);
 const allPlaylists = ref([]);
 const showOnlyAudioFoodie = ref(true);
 const successMessage = ref('');
+const expandedPlaylists = ref(new Set());
+const playlistAlbums = ref(new Map());
 
 const createForm = ref({
   name: '',
@@ -251,10 +306,10 @@ const handleCreatePlaylist = async () => {
     
     // Refresh playlists
     await loadUserPlaylists();
-  } catch (err) {
-    console.error('Error creating playlist:', err);
-    spotifyError.value = err.message;
-  }
+     } catch (err) {
+     console.error('Error creating playlist:', err);
+     spotifyError.value = err.message || 'Failed to create playlist';
+   }
 };
 
 const handleAddAlbum = async () => {
@@ -278,9 +333,32 @@ const handleAddAlbum = async () => {
     
     // Refresh playlists
     await loadUserPlaylists();
+     } catch (err) {
+     console.error('Error adding album:', err);
+     spotifyError.value = err.message || 'Failed to add album to playlist';
+   }
+};
+
+const handleRemoveAlbum = async (playlistId, album) => {
+  if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {
+    return;
+  }
+  
+  try {
+    spotifyError.value = null;
+    successMessage.value = '';
+    
+    await removeAlbumFromPlaylist(playlistId, album);
+    
+    successMessage.value = `"${album.name}" removed from playlist successfully!`;
+    
+    // Refresh the albums for this playlist
+    const albums = await getPlaylistAlbums(playlistId);
+    playlistAlbums.value.set(playlistId, albums);
+    
   } catch (err) {
-    console.error('Error adding album:', err);
-    spotifyError.value = err.message;
+    console.error('Error removing album:', err);
+    spotifyError.value = err.message || 'Failed to remove album from playlist';
   }
 };
 
@@ -296,10 +374,10 @@ const loadUserPlaylists = async () => {
     } else {
       userPlaylists.value = allPlaylists.value;
     }
-  } catch (err) {
-    console.error('Error loading playlists:', err);
-    spotifyError.value = err.message;
-  }
+     } catch (err) {
+     console.error('Error loading playlists:', err);
+     spotifyError.value = err.message || 'Failed to load playlists';
+   }
 };
 
 // Watch for changes in filter setting
@@ -313,6 +391,25 @@ watch(showOnlyAudioFoodie, () => {
 
 const viewPlaylist = (playlistId) => {
   router.push(`/playlist/${playlistId}`);
+};
+
+const togglePlaylistExpansion = async (playlistId) => {
+  if (expandedPlaylists.value.has(playlistId)) {
+    expandedPlaylists.value.delete(playlistId);
+  } else {
+    expandedPlaylists.value.add(playlistId);
+    
+    // Load albums if not already loaded
+    if (!playlistAlbums.value.has(playlistId)) {
+      try {
+        const albums = await getPlaylistAlbums(playlistId);
+        playlistAlbums.value.set(playlistId, albums);
+      } catch (err) {
+        console.error('Error loading playlist albums:', err);
+        playlistAlbums.value.set(playlistId, []);
+      }
+    }
+  }
 };
 
 onMounted(async () => {
@@ -341,6 +438,10 @@ label {
 
 .btn-secondary {
   @apply px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-danger {
+  @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-sm {
