@@ -520,7 +520,15 @@ const togglePlaylistExpansion = async (playlistId) => {
 };
 
 onMounted(async () => {
+  // Wait for user data to be loaded
   if (userData.value?.spotifyConnected) {
+    await loadUserPlaylists();
+  }
+});
+
+// Watch for changes in user data and Spotify connection
+watch(() => userData.value?.spotifyConnected, async (isConnected) => {
+  if (isConnected && !spotifyLoading.value && userPlaylists.value.length === 0) {
     await loadUserPlaylists();
   }
 });
