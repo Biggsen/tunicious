@@ -24,6 +24,9 @@ const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
 const { addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
 
+// Processing state
+const processingAlbum = ref(null);
+
 const id = computed(() => route.params.id);
 const loading = ref(false);
 const error = ref(null);
@@ -464,6 +467,77 @@ const handleRemoveAlbum = async (album) => {
     spotifyApiError.value = err.message || 'Failed to remove album from playlist';
   }
 };
+
+const handleProcessAlbum = async ({ album, action }) => {
+  if (action !== 'yes' && action !== 'no') return;
+  
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    processingAlbum.value = album.id;
+    
+    // Get the current playlist data
+    const currentPlaylistData = playlistDoc.value?.data();
+    
+    let targetPlaylistId, targetPlaylistData, targetSpotifyPlaylistId;
+    
+    if (action === 'yes') {
+      if (!currentPlaylistData?.nextStagePlaylistId) {
+        throw new Error('No next stage playlist configured for this source playlist');
+      }
+      
+      // Fetch the target playlist document
+      const targetPlaylistDoc = await getDoc(doc(db, 'playlists', currentPlaylistData.nextStagePlaylistId));
+      if (!targetPlaylistDoc.exists()) {
+        throw new Error('Target playlist not found');
+      }
+      
+      targetPlaylistData = targetPlaylistDoc.data();
+      targetSpotifyPlaylistId = targetPlaylistData.playlistId;
+      
+    } else if (action === 'no') {
+      if (!currentPlaylistData?.terminationPlaylistId) {
+        throw new Error('No termination playlist configured for this source playlist');
+      }
+      
+      // Fetch the termination playlist document
+      const terminationPlaylistDoc = await getDoc(doc(db, 'playlists', currentPlaylistData.terminationPlaylistId));
+      if (!terminationPlaylistDoc.exists()) {
+        throw new Error('Termination playlist not found');
+      }
+      
+      targetPlaylistData = terminationPlaylistDoc.data();
+      targetSpotifyPlaylistId = targetPlaylistData.playlistId;
+    }
+    
+    // 1. Remove album from current playlist
+    await removeFromSpotify(id.value, album);
+    await removeAlbumFromPlaylist(album.id, id.value);
+    
+    // 2. Add album to target Spotify playlist
+    await addAlbumToPlaylist(targetSpotifyPlaylistId, album.id);
+    
+    // 3. Add album to target playlist in Firebase collection
+    await addAlbumToCollection({
+      album: album,
+      playlistId: targetSpotifyPlaylistId,
+      playlistData: targetPlaylistData,
+      spotifyAddedAt: new Date()
+    });
+    
+    const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
+    successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
+    
+    // Clear cache and reload the playlist to reflect the changes
+    await handleClearCache();
+    
+  } catch (err) {
+    console.error('Error processing album:', err);
+    spotifyApiError.value = err.message || 'Failed to process album';
+  } finally {
+    processingAlbum.value = null;
+  }
+};
 </script>
 
 <template>
@@ -503,23 +577,28 @@ const handleRemoveAlbum = async (album) => {
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
       <ul class="album-grid">
-        <AlbumItem 
-          v-for="album in paginatedAlbums" 
-          :key="album.id" 
-          :album="album" 
-          :lastFmUserName="userData?.lastFmUserName"
-          :currentPlaylist="{ playlistId: id }"
-          :ratingData="album.ratingData"
-          :isMappedAlbum="false"
-          :hasMoved="album.hasMoved"
-          :inCollection="!!inCollectionMap[album.id]"
-          :needsUpdate="needsUpdateMap[album.id]"
-          :showRemoveButton="userData?.spotifyConnected"
-          @update-playlist="handleUpdatePlaylist"
-          @added-to-collection="refreshInCollectionForAlbum"
-          @update-album="handleUpdateAlbumDetails"
-          @remove-album="handleRemoveAlbum"
-        />
+                 <AlbumItem 
+           v-for="album in paginatedAlbums" 
+           :key="album.id" 
+           :album="album" 
+           :lastFmUserName="userData?.lastFmUserName"
+           :currentPlaylist="{ playlistId: id }"
+           :ratingData="album.ratingData"
+           :isMappedAlbum="false"
+           :hasMoved="album.hasMoved"
+           :inCollection="!!inCollectionMap[album.id]"
+           :needsUpdate="needsUpdateMap[album.id]"
+                       :showRemoveButton="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
+                        :showProcessingButtons="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
+            :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
+            :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
+            :isProcessing="processingAlbum === album.id"
+           @update-playlist="handleUpdatePlaylist"
+           @added-to-collection="refreshInCollectionForAlbum"
+           @update-album="handleUpdateAlbumDetails"
+           @remove-album="handleRemoveAlbum"
+           @process-album="handleProcessAlbum"
+         />
       </ul>
 
       <div v-if="showPagination" class="pagination-controls">

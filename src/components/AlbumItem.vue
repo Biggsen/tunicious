@@ -12,7 +12,7 @@ import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
-const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album', 'remove-album']);
+const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album', 'remove-album', 'process-album']);
 
 const props = defineProps({
   album: {
@@ -52,6 +52,22 @@ const props = defineProps({
     default: null
   },
   showRemoveButton: {
+    type: Boolean,
+    default: false
+  },
+  showProcessingButtons: {
+    type: Boolean,
+    default: false
+  },
+  isSourcePlaylist: {
+    type: Boolean,
+    default: false
+  },
+  isProcessing: {
+    type: Boolean,
+    default: false
+  },
+  hasTerminationPlaylist: {
     type: Boolean,
     default: false
   }
@@ -100,6 +116,10 @@ const handleUpdateAlbum = () => {
 
 const handleRemoveAlbum = () => {
   emit('remove-album', props.album);
+};
+
+const handleProcessAlbum = (action) => {
+  emit('process-album', { album: props.album, action });
 };
 
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
@@ -157,14 +177,33 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
           </span>
         </div>
-        <BaseButton 
-          v-if="showRemoveButton"
-          @click="handleRemoveAlbum"
-          customClass="btn-danger btn-sm"
-          title="Remove from playlist"
-        >
-          ×
-        </BaseButton>
+                 <div v-if="showProcessingButtons && isSourcePlaylist" class="flex gap-1">
+           <BaseButton 
+             @click="handleProcessAlbum('yes')"
+             :disabled="isProcessing"
+             customClass="btn-process btn-sm"
+             title="Process album"
+           >
+             {{ isProcessing ? 'Processing...' : 'Yes' }}
+           </BaseButton>
+           <BaseButton 
+             v-if="hasTerminationPlaylist"
+             @click="handleProcessAlbum('no')"
+             :disabled="isProcessing"
+             customClass="btn-terminate btn-sm"
+             title="Terminate album"
+           >
+             {{ isProcessing ? 'Processing...' : 'No' }}
+           </BaseButton>
+         </div>
+         <BaseButton 
+           v-if="showRemoveButton"
+           @click="handleRemoveAlbum"
+           customClass="btn-danger btn-sm"
+           title="Remove from playlist"
+         >
+           ×
+         </BaseButton>
       </div>
     </div>
     <!-- Simulated rating bars -->
@@ -275,5 +314,13 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .btn-sm {
   @apply text-xs;
+}
+
+.btn-process {
+  @apply px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200 text-sm font-bold;
+}
+
+.btn-terminate {
+  @apply px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 text-sm font-bold;
 }
 </style>
