@@ -130,7 +130,11 @@ export function usePlaylistData() {
         grouped[group][playlist.category].push({
           playlistId: playlist.playlistId,
           firebaseId: doc.id, // Include Firebase document ID
-          priority: playlist.priority
+          priority: playlist.priority,
+          pipelineRole: playlist.pipelineRole || 'transient', // Include pipeline role
+          name: playlist.name,
+          type: playlist.type,
+          group: playlist.group
         });
       });
 

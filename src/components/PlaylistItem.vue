@@ -19,7 +19,21 @@ const navigateToEdit = (event, firebaseId) => {
   router.push({ path: `playlist/${firebaseId}/edit` });
 };
 
-const isEndCategory = computed(() => props.category === 'end');
+const isEndPlaylist = computed(() => {
+  // Check if this is an end playlist using the new pipeline system
+  // End playlists are those with pipelineRole 'terminal' or 'sink'
+  return props.playlist?.pipelineRole === 'terminal' || props.playlist?.pipelineRole === 'sink';
+});
+
+const isTerminalPlaylist = computed(() => {
+  // Terminal playlists are final destinations (cream of the crop)
+  return props.playlist?.pipelineRole === 'terminal';
+});
+
+const isSinkPlaylist = computed(() => {
+  // Sink playlists are termination points (rejected albums)
+  return props.playlist?.pipelineRole === 'sink';
+});
 </script>
 
 <template>
@@ -27,7 +41,9 @@ const isEndCategory = computed(() => props.category === 'end');
     v-if="playlist"
     :class="[
       'p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry pr-6 w-full min-w-[200px] relative group',
-      isEndCategory ? 'bg-red-700 text-sm max-w-[460px]' : 'bg-delft-blue max-w-[500px]'
+      isTerminalPlaylist ? 'bg-delft-blue text-sm max-w-[500px]' : 
+      isSinkPlaylist ? 'bg-red-700 text-sm max-w-[460px]' : 
+      'bg-delft-blue max-w-[500px]'
     ]"
     @click="navigateToPlaylist(playlist.id)"
   >
@@ -44,7 +60,7 @@ const isEndCategory = computed(() => props.category === 'end');
       <span class="text-gray-500 text-xs">No Image</span>
     </div>
     <div class="flex-1">
-      <h2 :class="['mb-1 text-mindero truncate', isEndCategory ? 'text-[16px]' : 'text-[20px]']">{{ playlist.name }}</h2>
+      <h2 :class="['mb-1 text-mindero truncate', isSinkPlaylist ? 'text-[16px]' : 'text-[20px]']">{{ playlist.name }}</h2>
       <p class="text-mindero">{{ playlist.tracks.total }} songs</p>
     </div>
     

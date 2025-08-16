@@ -95,7 +95,9 @@ const filteredPlaylists = computed(() => {
   
   const filtered = {};
   availableGroups.value.forEach(group => {
-    filtered[group] = (playlists.value[group] || []).filter(p => p.category !== 'end');
+    filtered[group] = (playlists.value[group] || []).filter(p => 
+      p.pipelineRole !== 'sink'
+    );
   });
   return filtered;
 });
@@ -148,26 +150,27 @@ async function loadPlaylists() {
       const allPlaylistsForGroup = [];
       for (const category of availableCategories.value[group] || []) {
         const categoryPlaylists = userPlaylists.value[group]?.[category] || [];
-        for (const playlistData of categoryPlaylists) {
-          if (!playlistData?.playlistId) {
-            console.warn(`Missing playlist data for ${group} category: ${category}`);
-            continue;
-          }
+                  for (const playlistData of categoryPlaylists) {
+            if (!playlistData?.playlistId) {
+              console.warn(`Missing playlist data for ${group} category: ${category}`);
+              continue;
+            }
 
-          try {
-            console.log(`Fetching Spotify data for ${group}/${category} (${playlistData.playlistId})`);
-            const playlist = await getPlaylist(playlistData.playlistId);
-            console.log(`Got Spotify data:`, playlist);
-            
-            allPlaylistsForGroup.push({
-              id: playlist.id, // Spotify playlist ID
-              firebaseId: playlistData.firebaseId, // Firebase document ID
-              name: playlist.name,
-              images: playlist.images,
-              tracks: { total: playlist.tracks.total },
-              priority: playlistData.priority,
-              category: category
-            });
+            try {
+              console.log(`Fetching Spotify data for ${group}/${category} (${playlistData.playlistId})`);
+              const playlist = await getPlaylist(playlistData.playlistId);
+              console.log(`Got Spotify data:`, playlist);
+              
+              allPlaylistsForGroup.push({
+                id: playlist.id, // Spotify playlist ID
+                firebaseId: playlistData.firebaseId, // Firebase document ID
+                name: playlist.name,
+                images: playlist.images,
+                tracks: { total: playlist.tracks.total },
+                priority: playlistData.priority,
+                category: category,
+                pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
+              });
           } catch (playlistError) {
             console.error(`Failed to load playlist ${playlistData.playlistId} for ${group}/${category}:`, playlistError);
             // Still add the playlist with basic data even if Spotify API fails
@@ -178,7 +181,8 @@ async function loadPlaylists() {
               images: [],
               tracks: { total: 0 }, // Assume empty if we can't get data
               priority: playlistData.priority,
-              category: category
+              category: category,
+              pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
             });
           }
         }
