@@ -12,7 +12,7 @@ import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
-const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album']);
+const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album', 'remove-album']);
 
 const props = defineProps({
   album: {
@@ -50,6 +50,10 @@ const props = defineProps({
   ratingData: {
     type: Object,
     default: null
+  },
+  showRemoveButton: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -94,6 +98,10 @@ const handleUpdateAlbum = () => {
   emit('update-album', props.album);
 };
 
+const handleRemoveAlbum = () => {
+  emit('remove-album', props.album);
+};
+
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
 </script>
 
@@ -120,32 +128,44 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
       </BaseButton>
     </div>
     <div class="album-info">
-      <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
-        {{ album.releaseYear || displayYear(album.release_date) }}
-      </p>
-      <a
-        class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        :href="router.resolve({ 
-          name: 'album', 
-          params: { id: album.id },
-          query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
-        }).href"
-      >
-        {{ album.name || album.albumTitle || 'Unknown Album' }}
-      </a>
-      <a
-        v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
-        class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-        :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
-      >
-        {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-      </a>
-      <span
-        v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
-        class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
-      >
-        {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-      </span>
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
+            {{ album.releaseYear || displayYear(album.release_date) }}
+          </p>
+          <a
+            class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+            :href="router.resolve({ 
+              name: 'album', 
+              params: { id: album.id },
+              query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
+            }).href"
+          >
+            {{ album.name || album.albumTitle || 'Unknown Album' }}
+          </a>
+          <a
+            v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
+            class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+            :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
+          >
+            {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
+          </a>
+          <span
+            v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
+            class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
+          >
+            {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
+          </span>
+        </div>
+        <BaseButton 
+          v-if="showRemoveButton"
+          @click="handleRemoveAlbum"
+          customClass="btn-danger btn-sm"
+          title="Remove from playlist"
+        >
+          ×
+        </BaseButton>
+      </div>
     </div>
     <!-- Simulated rating bars -->
     <div>
@@ -247,5 +267,13 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 .add-indicator {
   @apply absolute top-2 right-2 flex flex-col items-center;
   z-index: 10;
+}
+
+.btn-danger {
+  @apply px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 text-sm font-bold;
+}
+
+.btn-sm {
+  @apply text-xs;
 }
 </style>

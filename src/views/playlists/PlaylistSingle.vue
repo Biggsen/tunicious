@@ -14,12 +14,15 @@ import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import AlbumSearch from '@components/AlbumSearch.vue';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 
 const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
+const { addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -397,6 +400,70 @@ onMounted(async () => {
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
 });
+
+// Add album to playlist state
+const selectedAlbum = ref(null);
+const successMessage = ref('');
+
+const handleAddAlbum = async () => {
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    
+    if (!selectedAlbum.value) {
+      throw new Error('Please select an album first');
+    }
+    
+    // Add album to Spotify playlist
+    await addAlbumToPlaylist(id.value, selectedAlbum.value.id);
+    
+    // Add album to Firebase collection
+    await addAlbumToCollection({
+      album: selectedAlbum.value,
+      playlistId: id.value,
+      playlistData: playlistDoc.value?.data(),
+      spotifyAddedAt: new Date()
+    });
+    
+    successMessage.value = `"${selectedAlbum.value.name}" added to playlist and collection successfully!`;
+    
+    // Reset form
+    selectedAlbum.value = null;
+    
+    // Clear cache and reload the playlist to show the new album
+    await handleClearCache();
+    
+  } catch (err) {
+    console.error('Error adding album:', err);
+    spotifyApiError.value = err.message || 'Failed to add album to playlist';
+  }
+};
+
+const handleRemoveAlbum = async (album) => {
+  if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {
+    return;
+  }
+  
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    
+    // Remove from Spotify playlist
+    await removeFromSpotify(id.value, album);
+    
+    // Remove from Firebase collection
+    await removeAlbumFromPlaylist(album.id, id.value);
+    
+    successMessage.value = `"${album.name}" removed from playlist and collection successfully!`;
+    
+    // Clear cache and reload the playlist to reflect the removal
+    await handleClearCache();
+    
+  } catch (err) {
+    console.error('Error removing album:', err);
+    spotifyApiError.value = err.message || 'Failed to remove album from playlist';
+  }
+};
 </script>
 
 <template>
@@ -447,9 +514,11 @@ onMounted(async () => {
           :hasMoved="album.hasMoved"
           :inCollection="!!inCollectionMap[album.id]"
           :needsUpdate="needsUpdateMap[album.id]"
+          :showRemoveButton="userData?.spotifyConnected"
           @update-playlist="handleUpdatePlaylist"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
+          @remove-album="handleRemoveAlbum"
         />
       </ul>
 
@@ -470,6 +539,44 @@ onMounted(async () => {
       </div>
     </template>
     <p v-else class="no-data-message">No albums found in this playlist.</p>
+
+    <!-- Add Album to Playlist Section -->
+    <div v-if="userData?.spotifyConnected" class="mt-8 bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
+      
+      <form @submit.prevent="handleAddAlbum" class="space-y-4">
+        <div class="form-group">
+          <AlbumSearch v-model="selectedAlbum" />
+        </div>
+        
+        <div class="flex gap-4">
+          <BaseButton 
+            type="submit" 
+            :disabled="spotifyApiLoading || !selectedAlbum"
+            customClass="btn-primary"
+          >
+            {{ spotifyApiLoading ? 'Adding...' : 'Add Album to Playlist' }}
+          </BaseButton>
+        </div>
+      </form>
+
+      <!-- Error Messages -->
+      <ErrorMessage v-if="spotifyApiError" :message="spotifyApiError" class="mt-4" />
+      
+      <!-- Success Messages -->
+      <div v-if="successMessage" class="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
+        {{ successMessage }}
+      </div>
+    </div>
+
+    <!-- Spotify Connection Required Message -->
+    <div v-else class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <p class="text-yellow-800">
+        <strong>Spotify Connection Required:</strong> Please connect your Spotify account in your 
+        <router-link to="/account" class="text-yellow-900 underline">Account Settings</router-link> 
+        to add albums to playlists.
+      </p>
+    </div>
   </main>
 </template>
 
@@ -499,5 +606,13 @@ onMounted(async () => {
 
 .pagination-info {
   @apply text-gray-700 text-sm;
+}
+
+.form-group {
+  @apply space-y-2;
+}
+
+.btn-primary {
+  @apply px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 </style>
