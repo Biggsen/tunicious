@@ -7,7 +7,7 @@ import { useAlbumsData } from '@composables/useAlbumsData';
 import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
-import { TruckIcon, StarIcon, PlusIcon } from '@heroicons/vue/24/solid';
+import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon, MusicalNoteIcon, TrashIcon } from '@heroicons/vue/24/solid';
 import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 
@@ -117,12 +117,48 @@ const handleProcessAlbum = (action) => {
   emit('process-album', { album: props.album, action });
 };
 
+const handleYesClick = () => {
+  handleProcessAlbum('yes');
+};
+
+const handleNoClick = () => {
+  handleProcessAlbum('no');
+};
+
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
 </script>
 
 <template>
   <li class="album-item">
-    <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
+    <div class="album-image-container">
+      <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
+                    <div v-if="showProcessingButtons" class="hover-buttons">
+         <button 
+           @click="handleYesClick"
+           class="hover-btn yes-btn"
+           title="Yes"
+         >
+                       <MusicalNoteIcon v-if="currentPlaylist?.pipelineRole === 'source'" class="h-4 w-4" />
+            <HandThumbUpIcon v-else class="h-4 w-4" />
+         </button>
+                   <button 
+            v-if="hasTerminationPlaylist"
+            @click="handleNoClick"
+            class="hover-btn no-btn"
+            title="No"
+          >
+            <ArchiveBoxArrowDownIcon class="h-4 w-4" />
+          </button>
+          <button 
+            v-if="showRemoveButton"
+            @click="handleRemoveAlbum"
+            class="hover-btn remove-btn"
+            title="Remove from playlist"
+          >
+            <TrashIcon class="h-4 w-4" />
+          </button>
+       </div>
+    </div>
     <div v-if="!inCollection" class="add-indicator">
       <BaseButton @click="handleAddToCollection" :disabled="saving" customClass="add-to-collection-btn">
         <template #icon-left v-if="!saving"><PlusIcon class="h-4 w-4" /></template>
@@ -164,36 +200,9 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
           >
             {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-          </span>
-        </div>
-                 <div v-if="showProcessingButtons && isSourcePlaylist" class="flex gap-1">
-           <BaseButton 
-             @click="handleProcessAlbum('yes')"
-             :disabled="isProcessing"
-             customClass="btn-process btn-sm"
-             title="Process album"
-           >
-             {{ isProcessing ? 'Processing...' : 'Yes' }}
-           </BaseButton>
-           <BaseButton 
-             v-if="hasTerminationPlaylist"
-             @click="handleProcessAlbum('no')"
-             :disabled="isProcessing"
-             customClass="btn-terminate btn-sm"
-             title="Terminate album"
-           >
-             {{ isProcessing ? 'Processing...' : 'No' }}
-           </BaseButton>
-         </div>
-         <BaseButton 
-           v-if="showRemoveButton"
-           @click="handleRemoveAlbum"
-           customClass="btn-danger btn-sm"
-           title="Remove from playlist"
-         >
-           ×
-         </BaseButton>
-      </div>
+                     </span>
+                  </div>
+       </div>
     </div>
     <!-- Simulated rating bars -->
     <div>
@@ -226,9 +235,47 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 
 
+.album-image-container {
+  @apply relative;
+}
+
 .album-image {
   @apply w-full object-cover;
   aspect-ratio: 1 / 1;
+}
+
+.hover-buttons {
+  @apply absolute inset-0 opacity-0 transition-opacity duration-200;
+  pointer-events: none;
+}
+
+.album-image-container:hover .hover-buttons {
+  @apply opacity-100;
+  pointer-events: auto;
+}
+
+.hover-btn {
+  @apply absolute p-2 rounded-full transition-all duration-200;
+  @apply shadow-lg hover:shadow-xl;
+  @apply border-2 border-white;
+}
+
+.yes-btn {
+  @apply top-2 right-2;
+  @apply bg-green-500 hover:bg-green-600;
+  @apply text-white;
+}
+
+.no-btn {
+  @apply top-2 left-2;
+  @apply bg-gray-500 hover:bg-gray-600;
+  @apply text-white;
+}
+
+.remove-btn {
+  @apply bottom-2 left-2;
+  @apply bg-red-500 hover:bg-red-600;
+  @apply text-white;
 }
 
 .album-info {
