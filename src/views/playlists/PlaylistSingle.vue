@@ -36,6 +36,7 @@ const updating = ref(false);
 const albumData = ref([]);
 const playlistName = ref('');
 const playlistDoc = ref(null);
+const totalTracks = ref(0);
 
 // Store the full album data with dates and sorted album IDs
 const albumsWithDates = ref([]);
@@ -329,6 +330,7 @@ async function loadPlaylistPage() {
     if (!playlistName.value) {
       const playlistResponse = await getPlaylist(id.value);
       playlistName.value = playlistResponse.name;
+      totalTracks.value = playlistResponse.tracks?.total || 0;
     }
     
     // The album data is already loaded by applySortingAndReload in fetchAlbumIdList
@@ -387,6 +389,12 @@ const handleAddAlbum = async () => {
     // Clear cache and reload the playlist to show the new album
     await handleClearCache();
     
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
+    
   } catch (err) {
     console.error('Error adding album:', err);
     spotifyApiError.value = err.message || 'Failed to add album to playlist';
@@ -412,6 +420,12 @@ const handleRemoveAlbum = async (album) => {
     
     // Clear cache and reload the playlist to reflect the removal
     await handleClearCache();
+    
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
     
   } catch (err) {
     console.error('Error removing album:', err);
@@ -482,6 +496,12 @@ const handleProcessAlbum = async ({ album, action }) => {
     // Clear cache and reload the playlist to reflect the changes
     await handleClearCache();
     
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
+    
   } catch (err) {
     console.error('Error processing album:', err);
     spotifyApiError.value = err.message || 'Failed to process album';
@@ -523,7 +543,8 @@ const handleProcessAlbum = async ({ album, action }) => {
       Cache cleared! Reloading playlist...
     </p>
 
-    <p class="text-lg mb-6">Total unique albums: {{ totalAlbums }}</p>
+    <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
+    <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
