@@ -132,15 +132,16 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   <li class="album-item">
     <div class="album-image-container">
       <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
-                    <div v-if="showProcessingButtons" class="hover-buttons">
-         <button 
-           @click="handleYesClick"
-           class="hover-btn yes-btn"
-           title="Yes"
-         >
-                       <MusicalNoteIcon v-if="currentPlaylist?.pipelineRole === 'source'" class="h-4 w-4" />
+                    <div v-if="showProcessingButtons || showRemoveButton" class="hover-buttons">
+                   <button 
+            v-if="currentPlaylist?.nextStagePlaylistId"
+            @click="handleYesClick"
+            class="hover-btn yes-btn"
+            title="Yes"
+          >
+            <MusicalNoteIcon v-if="currentPlaylist?.pipelineRole === 'source'" class="h-4 w-4" />
             <HandThumbUpIcon v-else class="h-4 w-4" />
-         </button>
+          </button>
                    <button 
             v-if="hasTerminationPlaylist"
             @click="handleNoClick"

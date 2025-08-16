@@ -539,7 +539,7 @@ const handleProcessAlbum = async ({ album, action }) => {
 
            :inCollection="!!inCollectionMap[album.id]"
            :needsUpdate="needsUpdateMap[album.id]"
-                       :showRemoveButton="userData?.spotifyConnected && playlistDoc?.data()?.pipelineRole === 'source'"
+                       :showRemoveButton="userData?.spotifyConnected"
                         :showProcessingButtons="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
             :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
             :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
