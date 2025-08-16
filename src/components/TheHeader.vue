@@ -8,14 +8,14 @@ const { user, userData } = useUserData();
 
 <template>
   <header class="bg-mint h-[64px] flex border-b-4 border-delft-blue">
-    <div class="container mx-auto grid grid-cols-12 gap-5">
-      <div class="flex items-center justify-between col-span-10">
-        <h1
-          class="text-[32px] leading-[32px] -tracking-[0.08em] italic font-black text-delft-blue"
-        >
-          aufoo
-        </h1>
-        <ul class="flex gap-6">
+    <div class="container mx-auto px-4 flex items-center justify-between">
+      <h1
+        class="text-[32px] leading-[32px] -tracking-[0.08em] italic font-black text-delft-blue"
+      >
+        aufoo
+      </h1>
+      <nav class="flex items-center gap-8">
+        <ul class="flex gap-8">
           <li>
             <RouterLink to="/">Home</RouterLink>
           </li>
@@ -26,8 +26,6 @@ const { user, userData } = useUserData();
             <RouterLink to="/search">Search</RouterLink>
           </li>
         </ul>
-      </div>
-      <div class="flex items-center justify-end col-span-2">
         <div v-if="!user">
           <RouterLink to="/login">Login</RouterLink>
         </div>
@@ -36,7 +34,7 @@ const { user, userData } = useUserData();
             {{ userData?.displayName || user.email }}
           </RouterLink>
         </div>
-      </div>
+      </nav>
     </div>
   </header>
 </template>
