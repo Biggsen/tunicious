@@ -23,7 +23,7 @@ const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
-const { addAlbumToPlaylist, removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
+const { addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
 
 // Processing state
 const processingAlbum = ref(null);
