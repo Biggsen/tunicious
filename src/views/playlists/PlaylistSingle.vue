@@ -8,7 +8,7 @@ import { useUserData } from "@composables/useUserData";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
-import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
+
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
@@ -20,7 +20,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
-const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
+
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
 const { addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
 
@@ -164,7 +164,7 @@ async function loadCurrentPage() {
     }
   });
   await updateNeedsUpdateMap();
-  await checkAlbumMovements();
+
 }
 
 async function handleClearCache() {
@@ -260,58 +260,9 @@ const previousPage = async () => {
   }
 };
 
-const checkAlbumMovements = async () => {
-  for (const album of albumData.value) {
-    try {
-      const userData = albumDbDataMap.value[album.id];
-      if (userData && userData.playlistHistory) {
-        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-        if (currentEntry && currentEntry.playlistId !== id.value) {
-          album.hasMoved = true;
-        } else {
-          album.hasMoved = false;
-        }
-      } else {
-        album.hasMoved = false;
-      }
-    } catch (err) {
-      album.hasMoved = false;
-    }
-  }
-};
 
-watch([() => albumData.value, id], () => {
-  console.log('Album data or playlist ID changed, rechecking movements');
-  checkAlbumMovements();
-}, { immediate: true });
 
-const handleUpdatePlaylist = async (album) => {
-  try {
-    error.value = null;
-    
-    // Get the current playlist data
-    const playlistData = {
-      playlistId: id.value,
-      name: playlistName.value,
-      ...playlistDoc.value.data()
-    };
 
-    const success = await updateAlbumPlaylist(album.id, playlistData, album.addedAt);
-    if (success) {
-      // Refresh the album's moved status
-      album.hasMoved = false;
-      
-      // Clear the cache for this album to ensure fresh data on future page loads
-      if (user.value) {
-        const albumDbCacheKey = `albumDbData_${album.id}_${user.value.uid}`;
-        await clearCache(albumDbCacheKey);
-      }
-    }
-  } catch (err) {
-    console.error('Error updating playlist:', err);
-    error.value = moveError.value || 'Failed to update playlist location';
-  }
-};
 
 const refreshInCollectionForAlbum = async (albumId) => {
   // Refresh both collection status AND root details for the album
@@ -585,7 +536,7 @@ const handleProcessAlbum = async ({ album, action }) => {
            :currentPlaylist="{ playlistId: id }"
            :ratingData="album.ratingData"
            :isMappedAlbum="false"
-           :hasMoved="album.hasMoved"
+
            :inCollection="!!inCollectionMap[album.id]"
            :needsUpdate="needsUpdateMap[album.id]"
                        :showRemoveButton="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
@@ -593,7 +544,7 @@ const handleProcessAlbum = async ({ album, action }) => {
             :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
             :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
             :isProcessing="processingAlbum === album.id"
-           @update-playlist="handleUpdatePlaylist"
+
            @added-to-collection="refreshInCollectionForAlbum"
            @update-album="handleUpdateAlbumDetails"
            @remove-album="handleRemoveAlbum"

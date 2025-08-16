@@ -12,7 +12,7 @@ import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 
 const router = useRouter();
-const emit = defineEmits(['updatePlaylist', 'added-to-collection', 'update-album', 'remove-album', 'process-album']);
+const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album']);
 
 const props = defineProps({
   album: {
@@ -35,10 +35,7 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  hasMoved: {
-    type: Boolean,
-    default: false
-  },
+
   inCollection: {
     type: Boolean,
     default: true
@@ -73,7 +70,7 @@ const props = defineProps({
   }
 });
 
-console.log('AlbumItem hasMoved prop:', props.hasMoved, 'for album:', props.album.name);
+
 
 const displayYear = (date) => {
   return date.substring(0, 4);
@@ -83,9 +80,7 @@ const navigateToArtist = (artistId) => {
   router.push({ name: 'artist', params: { id: artistId } });
 };
 
-const handleUpdatePlaylist = () => {
-  emit('updatePlaylist', props.album);
-};
+
 
 const saving = ref(false);
 const error = ref(null);
@@ -126,15 +121,9 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 </script>
 
 <template>
-  <li :class="['album-item', { 'has-moved': hasMoved }]">
+  <li class="album-item">
     <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
-    <div v-if="hasMoved" class="moved-indicator">
-      <span class="text-xs text-orange-600 mb-1 block">Moved</span>
-      <BaseButton @click="handleUpdatePlaylist" :disabled="disabled" customClass="update-playlist-btn">
-        Update playlist
-      </BaseButton>
-    </div>
-    <div v-else-if="!inCollection" class="add-indicator">
+    <div v-if="!inCollection" class="add-indicator">
       <BaseButton @click="handleAddToCollection" :disabled="saving" customClass="add-to-collection-btn">
         <template #icon-left v-if="!saving"><PlusIcon class="h-4 w-4" /></template>
         <span v-if="saving">Adding...</span>
@@ -235,9 +224,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   height: 100%;
 }
 
-.album-item.has-moved {
-  @apply border-orange-500 border-2;
-}
+
 
 .album-image {
   @apply w-full object-cover;
@@ -288,15 +275,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   display: inline;
 }
 
-.moved-indicator {
-  @apply absolute top-2 right-2 flex flex-col items-center;
-  z-index: 10;
-}
 
-.update-playlist-btn {
-  @apply text-xs bg-orange-500 text-white px-2 py-1 rounded-md hover:bg-orange-600 transition-colors duration-200;
-  white-space: nowrap;
-}
 
 .add-to-collection-btn {
   @apply text-xs bg-mint text-delft-blue border border-delft-blue px-2 py-1 rounded-md hover:bg-celadon transition-colors duration-200;
