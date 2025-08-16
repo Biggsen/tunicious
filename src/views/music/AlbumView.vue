@@ -15,7 +15,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
-import { usePlaylistMovement } from '@composables/usePlaylistMovement';
+
 import { clearCache } from '@utils/cache';
 
 const route = useRoute();
@@ -26,7 +26,7 @@ const { getUserLovedTracks } = useLastFmApi();
 const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
-const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
+
 
 const album = ref(null);
 const tracks = ref([]);
@@ -69,15 +69,7 @@ const checkIfNeedsUpdate = async () => {
   needsUpdate.value = !albumData.albumCover || !albumData.artistId || !albumData.releaseYear;
 };
 
-const hasMoved = computed(() => {
-  // If there's no playlistId in the URL or no current playlist info, return false
-  if (!playlistId.value || !currentPlaylistInfo.value) {
-    return false;
-  }
 
-  // Return true if the current playlist ID doesn't match the URL query playlistId
-  return currentPlaylistInfo.value.playlistId !== playlistId.value;
-});
 
 const playlistId = computed(() => route.query.playlistId);
 const isFromPlaylist = computed(() => !!playlistId.value);
@@ -137,99 +129,9 @@ const saveAlbum = async () => {
   }
 };
 
-const updateAlbumData = async () => {
-  if (!user.value || !album.value || !playlistId.value) return;
-  
-  try {
-    updating.value = true;
-    error.value = null;
-    
-    const albumRef = doc(db, 'albums', album.value.id);
-    
-    // Get existing album data
-    const albumDoc = await getDoc(albumRef);
-    if (!albumDoc.exists()) {
-      throw new Error('Album data not found');
-    }
-    
-    const albumData = albumDoc.data();
-    const existingData = albumData.userEntries?.[user.value.uid];
-    if (!existingData) {
-      throw new Error('User album data not found');
-    }
-    
-    // Get the current playlist data
-    const playlistsRef = collection(db, 'playlists');
-    const q = query(playlistsRef, where('playlistId', '==', playlistId.value));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error('Playlist not found');
-    }
-    
-    const playlistDoc = querySnapshot.docs[0];
-    const playlistData = playlistDoc.data();
-    
-    // Get the Spotify added date for this album
-    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
-    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
-    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
-    
-    // Update the album's playlist history
-    const success = await updateAlbumPlaylist(album.value.id, playlistData, spotifyAddedAt);
-    if (success) {
-      // Refresh the current playlist info
-      currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-    }
-  } catch (err) {
-    console.error('Error updating album data:', err);
-    error.value = err.message || 'Failed to update album data';
-  } finally {
-    updating.value = false;
-  }
-};
 
-const updatePlaylist = async () => {
-  if (!user.value || !album.value || !playlistId.value) return;
-  
-  try {
-    updating.value = true;
-    error.value = null;
-    
-    // Get the current playlist data
-    const playlistsRef = collection(db, 'playlists');
-    const q = query(playlistsRef, where('playlistId', '==', playlistId.value));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error('Playlist not found');
-    }
-    
-    const playlistData = querySnapshot.docs[0].data();
-    
-    // Get the Spotify added date for this album (match PlaylistSingle.vue logic)
-    const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId.value);
-    const albumWithDate = albumsWithDates.find(a => a.id === album.value.id);
-    const spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
-    
-    const success = await updateAlbumPlaylist(album.value.id, playlistData, spotifyAddedAt);
-    if (success) {
-      // Refresh the current playlist info
-      currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-      
-      // Clear the cache for this album to ensure fresh data on future page loads
-      if (user.value) {
-        const albumDbCacheKey = `albumDbData_${album.value.id}_${user.value.uid}`;
-        await clearCache(albumDbCacheKey);
-      }
-    }
-  } catch (err) {
-    console.error('Error updating playlist:', err);
-    error.value = moveError.value || 'Failed to update playlist';
-  } finally {
-    updating.value = false;
-  }
-};
+
+
 
 const handleUpdateAlbumDetails = async () => {
   if (!user.value || !album.value) return;
@@ -414,18 +316,16 @@ onMounted(async () => {
             class="w-full rounded-xl shadow-lg"
           />
           
-          <!-- Playlist Status -->
-          <PlaylistStatus
-            v-if="isFromPlaylist"
-            :current-playlist-info="currentPlaylistInfo"
-            :needs-update="needsUpdate"
-            :has-moved="hasMoved"
-            :updating="updating"
-            :saving="saving"
-            @update="handleUpdateAlbumDetails"
-            @save="saveAlbum"
-            @update-playlist="updatePlaylist"
-          />
+                     <!-- Playlist Status -->
+           <PlaylistStatus
+             v-if="isFromPlaylist"
+             :current-playlist-info="currentPlaylistInfo"
+             :needs-update="needsUpdate"
+             :updating="updating"
+             :saving="saving"
+             @update="handleUpdateAlbumDetails"
+             @save="saveAlbum"
+           />
           
           <!-- Album Details Update for non-playlist albums -->
           <div v-if="!isFromPlaylist && albumExists && needsUpdate" class="mt-6">

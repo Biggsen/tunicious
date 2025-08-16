@@ -355,12 +355,15 @@ export function useAlbumsData() {
       const albumRef = doc(db, 'albums', album.id);
       // Get existing album data
       const existingData = await fetchUserAlbumData(album.id);
-      // Prepare the new playlist history entry using playlist data
+             // Prepare the new playlist history entry using playlist data
+       // Always use group field to populate type, fallback to type if group doesn't exist
+       const entryType = _playlistData.group || _playlistData.type || 'unknown';
+      
       const newEntry = {
         playlistId: _playlistData.playlistId,
         playlistName: _playlistData.name,
         category: _playlistData.category,
-        type: _playlistData.type,
+        type: entryType,
         priority: _playlistData.priority,
         addedAt: _spotifyAddedAt,
         removedAt: null
@@ -478,6 +481,81 @@ export function useAlbumsData() {
     return { priority, category, type, playlistId };
   };
 
+  /**
+   * Removes an album from a playlist by marking the current entry as removed
+   * @param {string} albumId - The Spotify album ID
+   * @param {string} playlistId - The Spotify playlist ID to remove from
+   * @returns {Promise<boolean>} True if successfully removed, false if not found
+   */
+  const removeAlbumFromPlaylist = async (albumId, playlistId) => {
+    if (!user.value || !albumId || !playlistId) {
+      throw new Error('Missing required parameters');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const albumRef = doc(db, 'albums', albumId);
+      const albumDoc = await getDoc(albumRef);
+
+      if (!albumDoc.exists()) {
+        console.log(`Album ${albumId} not found`);
+        return false;
+      }
+
+      const data = albumDoc.data();
+      const userEntry = data.userEntries?.[user.value.uid];
+
+      if (!userEntry || !Array.isArray(userEntry.playlistHistory)) {
+        console.log(`No user entry or playlist history found for album ${albumId}`);
+        return false;
+      }
+
+      // Find the current entry for this playlist (where removedAt is null)
+      const currentEntryIndex = userEntry.playlistHistory.findIndex(
+        entry => entry.playlistId === playlistId && !entry.removedAt
+      );
+
+      if (currentEntryIndex === -1) {
+        console.log(`No current entry found for playlist ${playlistId} in album ${albumId}`);
+        return false;
+      }
+
+      // Create updated playlist history with the current entry marked as removed
+      const updatedPlaylistHistory = [...userEntry.playlistHistory];
+      updatedPlaylistHistory[currentEntryIndex] = {
+        ...updatedPlaylistHistory[currentEntryIndex],
+        removedAt: new Date()
+      };
+
+      // Update the album document
+      await setDoc(albumRef, {
+        userEntries: {
+          [user.value.uid]: {
+            ...userEntry,
+            playlistHistory: updatedPlaylistHistory,
+            updatedAt: serverTimestamp()
+          }
+        }
+      }, { merge: true });
+
+      // Clear cache for this album to ensure fresh data on next fetch
+      const cacheKey = `albumDbData_${albumId}_${user.value.uid}`;
+      await import("@utils/cache").then(({ clearCache }) => clearCache(cacheKey));
+
+      console.log(`Successfully removed album ${albumId} from playlist ${playlistId}`);
+      return true;
+
+    } catch (e) {
+      console.error('Error removing album from playlist:', e);
+      error.value = e.message || 'Failed to remove album from playlist';
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     albumData,
     loading,
@@ -488,6 +566,7 @@ export function useAlbumsData() {
     searchAlbumsByTitleAndArtist,
     searchAlbumsByTitleAndArtistFuzzy,
     addAlbumToCollection,
+    removeAlbumFromPlaylist,
     searchAlbumsByTitlePrefix,
     searchAlbumsByArtistPrefix,
     fetchAlbumDetails,

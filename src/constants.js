@@ -12,3 +12,14 @@ export const ApiUrl = {
   playlists: "https://api.spotify.com/v1/playlists",
   lastfm: "https://ws.audioscrobbler.com/2.0/",
 };
+
+export const SpotifyAuth = {
+  REDIRECT_URI: import.meta.env.PROD 
+    ? 'https://yourdomain.com/spotify-callback'
+    : 'http://localhost:5173/spotify-callback',
+  SCOPES: [
+    'playlist-modify-public',
+    'playlist-modify-private', 
+    'playlist-read-private'
+  ].join(' ')
+};

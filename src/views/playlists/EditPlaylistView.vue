@@ -1,0 +1,499 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { useUserData } from '@composables/useUserData';
+import { usePlaylistData } from '@composables/usePlaylistData';
+import BackButton from '@components/common/BackButton.vue';
+import BaseButton from '@components/common/BaseButton.vue';
+import ErrorMessage from '@components/common/ErrorMessage.vue';
+import LoadingMessage from '@components/common/LoadingMessage.vue';
+
+const route = useRoute();
+const router = useRouter();
+const { user } = useUserData();
+const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
+
+const playlistId = computed(() => route.params.id);
+const loading = ref(true);
+const saving = ref(false);
+const error = ref(null);
+const successMessage = ref('');
+
+const playlist = ref(null);
+const availablePlaylists = ref([]);
+
+// Form data
+const form = ref({
+  name: '',
+  type: 'known',
+  category: 'queued',
+  priority: 0,
+  group: 'known',
+  pipelineRole: 'source',
+  nextStagePlaylistId: '',
+  terminationPlaylistId: ''
+});
+
+// Validation
+const formErrors = ref({});
+
+const pipelineRoles = [
+  { value: 'source', label: 'Source (Entry Point)' },
+  { value: 'transient', label: 'Transient (Evaluation Point)' },
+  { value: 'terminal', label: 'Terminal (Final Destination)' },
+  { value: 'sink', label: 'Sink (Termination Point)' }
+];
+
+const pipelineRoleFields = computed(() => {
+  switch (form.value.pipelineRole) {
+    case 'source':
+      return ['nextStagePlaylistId'];
+    case 'transient':
+      return ['nextStagePlaylistId', 'terminationPlaylistId'];
+    case 'terminal':
+    case 'sink':
+      return [];
+    default:
+      return [];
+  }
+});
+
+const availableNextStages = computed(() => {
+  if (!availablePlaylists.value) return [];
+  
+  return availablePlaylists.value.filter(p => 
+    p.firebaseId !== playlistId.value && 
+    p.group === form.value.group &&
+    p.pipelineRole !== 'sink'
+  );
+});
+
+const availableTerminations = computed(() => {
+  if (!availablePlaylists.value) return [];
+  
+  return availablePlaylists.value.filter(p => 
+    p.firebaseId !== playlistId.value && 
+    p.group === form.value.group &&
+    p.pipelineRole === 'sink'
+  );
+});
+
+async function loadPlaylist() {
+  if (!user.value || !playlistId.value) return;
+  
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    // Get playlist document directly by Firebase document ID
+    const playlistRef = doc(db, 'playlists', playlistId.value);
+    const playlistDoc = await getDoc(playlistRef);
+    
+    if (!playlistDoc.exists()) {
+      throw new Error('Playlist not found');
+    }
+    
+    const playlistData = playlistDoc.data();
+    
+    // Check if user owns this playlist
+    if (playlistData.userId !== user.value.uid) {
+      throw new Error('You do not have permission to edit this playlist');
+    }
+    
+    playlist.value = {
+      id: playlistDoc.id,
+      ...playlistData
+    };
+    
+    // Populate form with existing data
+    form.value = {
+      name: playlistData.name || '',
+      type: playlistData.type || 'known',
+      category: playlistData.category || 'queued',
+      priority: playlistData.priority || 0,
+      group: playlistData.group || playlistData.type || 'known',
+      pipelineRole: playlistData.pipelineRole || 'source',
+      nextStagePlaylistId: playlistData.nextStagePlaylistId || '',
+      terminationPlaylistId: playlistData.terminationPlaylistId || ''
+    };
+    
+    // Load available playlists for connections
+    await loadAvailablePlaylists();
+    
+  } catch (err) {
+    console.error('Error loading playlist:', err);
+    error.value = err.message || 'Failed to load playlist';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadAvailablePlaylists() {
+  if (!user.value) return;
+  
+  try {
+    // Get all playlists for this user from Firebase
+    const playlistsRef = collection(db, 'playlists');
+    const q = query(
+      playlistsRef,
+      where('userId', '==', user.value.uid)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const allPlaylists = [];
+    querySnapshot.forEach((doc) => {
+      const playlistData = doc.data();
+      allPlaylists.push({
+        id: playlistData.playlistId, // Spotify playlist ID
+        firebaseId: doc.id, // Firebase document ID
+        name: playlistData.name || `${playlistData.type} ${playlistData.category}`, // Use Firebase name, fallback to generated
+        type: playlistData.type,
+        category: playlistData.category,
+        priority: playlistData.priority,
+        group: playlistData.group || playlistData.type,
+        pipelineRole: playlistData.pipelineRole || 'transient'
+      });
+    });
+    
+    availablePlaylists.value = allPlaylists;
+  } catch (err) {
+    console.error('Error loading available playlists:', err);
+  }
+}
+
+function validateForm() {
+  const errors = {};
+  
+  if (!form.value.name.trim()) {
+    errors.name = 'Playlist name is required';
+  }
+  
+  if (!form.value.group.trim()) {
+    errors.group = 'Group is required';
+  }
+  
+  if (!form.value.category.trim()) {
+    errors.category = 'Category is required';
+  }
+  
+  // Validate pipeline role specific fields
+  if (pipelineRoleFields.value.includes('nextStagePlaylistId') && !form.value.nextStagePlaylistId) {
+    errors.nextStagePlaylistId = 'Next stage playlist is required for this pipeline role';
+  }
+  
+  if (pipelineRoleFields.value.includes('terminationPlaylistId') && !form.value.terminationPlaylistId) {
+    errors.terminationPlaylistId = 'Termination playlist is required for this pipeline role';
+  }
+  
+  formErrors.value = errors;
+  return Object.keys(errors).length === 0;
+}
+
+async function savePlaylist() {
+  if (!user.value || !playlist.value) return;
+  
+  if (!validateForm()) {
+    return;
+  }
+  
+  try {
+    saving.value = true;
+    error.value = null;
+    successMessage.value = '';
+    
+    const playlistRef = doc(db, 'playlists', playlist.value.id);
+    
+    const updateData = {
+      name: form.value.name.trim(),
+      type: form.value.type,
+      category: form.value.category,
+      priority: form.value.priority,
+      group: form.value.group,
+      pipelineRole: form.value.pipelineRole,
+      updatedAt: serverTimestamp()
+    };
+    
+    // Add pipeline connection fields based on role
+    if (pipelineRoleFields.value.includes('nextStagePlaylistId')) {
+      updateData.nextStagePlaylistId = form.value.nextStagePlaylistId;
+    } else {
+      updateData.nextStagePlaylistId = null;
+    }
+    
+    if (pipelineRoleFields.value.includes('terminationPlaylistId')) {
+      updateData.terminationPlaylistId = form.value.terminationPlaylistId;
+    } else {
+      updateData.terminationPlaylistId = null;
+    }
+    
+    await updateDoc(playlistRef, updateData);
+    
+    successMessage.value = 'Playlist updated successfully!';
+    
+    // Update local playlist data
+    playlist.value = {
+      ...playlist.value,
+      ...updateData
+    };
+    
+  } catch (err) {
+    console.error('Error saving playlist:', err);
+    error.value = err.message || 'Failed to save playlist';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function handlePipelineRoleChange() {
+  // Clear connection fields when role changes
+  if (!pipelineRoleFields.value.includes('nextStagePlaylistId')) {
+    form.value.nextStagePlaylistId = '';
+  }
+  if (!pipelineRoleFields.value.includes('terminationPlaylistId')) {
+    form.value.terminationPlaylistId = '';
+  }
+}
+
+onMounted(async () => {
+  await loadPlaylist();
+});
+</script>
+
+<template>
+  <main class="max-w-4xl mx-auto p-6">
+    <div class="mb-6">
+      <BackButton :to="`/playlists`" text="Back to Playlists" />
+    </div>
+    
+    <h1 class="h2 pb-6">Edit Playlist</h1>
+    
+    <!-- Success Message -->
+    <div v-if="successMessage" class="mb-6 p-4 bg-green-50 text-green-700 rounded-md border border-green-200">
+      {{ successMessage }}
+    </div>
+    
+    <LoadingMessage v-if="loading" />
+    <ErrorMessage v-else-if="error" :message="error" />
+    
+    <div v-else-if="playlist" class="space-y-8">
+      <!-- Basic Information -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Basic Information</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+              Playlist Name
+            </label>
+            <input 
+              type="text" 
+              id="name" 
+              v-model="form.name"
+              :class="[
+                'form-input w-full',
+                formErrors.name ? 'border-red-500' : 'border-gray-300'
+              ]"
+              placeholder="Enter playlist name"
+            />
+            <p v-if="formErrors.name" class="text-red-500 text-sm mt-1">
+              {{ formErrors.name }}
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">
+              Priority
+            </label>
+            <input 
+              type="number" 
+              id="priority" 
+              v-model="form.priority"
+              class="form-input w-full border-gray-300"
+              placeholder="0"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pipeline Configuration -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Pipeline Configuration</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="group" class="block text-sm font-medium text-gray-700 mb-1">
+              Group
+            </label>
+            <input 
+              type="text" 
+              id="group" 
+              v-model="form.group"
+              :class="[
+                'form-input w-full',
+                formErrors.group ? 'border-red-500' : 'border-gray-300'
+              ]"
+              placeholder="e.g., rock, jazz, 90s"
+            />
+            <p v-if="formErrors.group" class="text-red-500 text-sm mt-1">
+              {{ formErrors.group }}
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <input 
+              type="text" 
+              id="category" 
+              v-model="form.category"
+              :class="[
+                'form-input w-full',
+                formErrors.category ? 'border-red-500' : 'border-gray-300'
+              ]"
+              placeholder="e.g., queued, checking, nice"
+            />
+            <p v-if="formErrors.category" class="text-red-500 text-sm mt-1">
+              {{ formErrors.category }}
+            </p>
+          </div>
+        </div>
+        
+        <div class="mt-4">
+          <label for="pipelineRole" class="block text-sm font-medium text-gray-700 mb-1">
+            Pipeline Role
+          </label>
+          <select 
+            id="pipelineRole" 
+            v-model="form.pipelineRole"
+            @change="handlePipelineRoleChange"
+            class="form-input w-full border-gray-300"
+          >
+            <option v-for="role in pipelineRoles" :key="role.value" :value="role.value">
+              {{ role.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Pipeline Connections -->
+      <div v-if="pipelineRoleFields.length > 0" class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Pipeline Connections</h2>
+        
+        <div class="space-y-4">
+          <div v-if="pipelineRoleFields.includes('nextStagePlaylistId')" class="form-group">
+            <label for="nextStagePlaylistId" class="block text-sm font-medium text-gray-700 mb-1">
+              Next Stage Playlist
+            </label>
+            <select 
+              id="nextStagePlaylistId" 
+              v-model="form.nextStagePlaylistId"
+              :class="[
+                'form-input w-full',
+                formErrors.nextStagePlaylistId ? 'border-red-500' : 'border-gray-300'
+              ]"
+            >
+              <option value="">Select next stage playlist</option>
+                             <option 
+                 v-for="playlist in availableNextStages" 
+                 :key="playlist.firebaseId" 
+                 :value="playlist.firebaseId"
+               >
+                 {{ playlist.name }}
+               </option>
+            </select>
+            <p v-if="formErrors.nextStagePlaylistId" class="text-red-500 text-sm mt-1">
+              {{ formErrors.nextStagePlaylistId }}
+            </p>
+          </div>
+          
+          <div v-if="pipelineRoleFields.includes('terminationPlaylistId')" class="form-group">
+            <label for="terminationPlaylistId" class="block text-sm font-medium text-gray-700 mb-1">
+              Termination Playlist
+            </label>
+            <select 
+              id="terminationPlaylistId" 
+              v-model="form.terminationPlaylistId"
+              :class="[
+                'form-input w-full',
+                formErrors.terminationPlaylistId ? 'border-red-500' : 'border-gray-300'
+              ]"
+            >
+              <option value="">Select termination playlist</option>
+                             <option 
+                 v-for="playlist in availableTerminations" 
+                 :key="playlist.firebaseId" 
+                 :value="playlist.firebaseId"
+               >
+                 {{ playlist.name }}
+               </option>
+            </select>
+            <p v-if="formErrors.terminationPlaylistId" class="text-red-500 text-sm mt-1">
+              {{ formErrors.terminationPlaylistId }}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Legacy Fields (Backward Compatibility) -->
+      <div class="bg-gray-50 shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-600">Legacy Fields</h2>
+        <p class="text-sm text-gray-500 mb-4">
+          These fields are maintained for backward compatibility with existing playlists.
+        </p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="type" class="block text-sm font-medium text-gray-700 mb-1">
+              Type (Legacy)
+            </label>
+            <select 
+              id="type" 
+              v-model="form.type"
+              class="form-input w-full border-gray-300"
+            >
+              <option value="known">Known</option>
+              <option value="new">New</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex gap-4">
+        <BaseButton 
+          @click="savePlaylist"
+          :disabled="saving"
+          customClass="btn-primary"
+        >
+          {{ saving ? 'Saving...' : 'Save Changes' }}
+        </BaseButton>
+        
+        <BaseButton 
+          @click="router.push(`/playlist/${playlistId}`)"
+          customClass="btn-secondary"
+        >
+          Cancel
+        </BaseButton>
+      </div>
+      
+      
+    </div>
+  </main>
+</template>
+
+<style scoped>
+.form-input {
+  @apply block w-full rounded-md border px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-delft-blue sm:text-sm sm:leading-6;
+}
+
+.btn-primary {
+  @apply bg-delft-blue text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400;
+}
+</style>

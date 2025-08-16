@@ -25,7 +25,7 @@ src/
 │   ├───useForm.js
 │   ├───usePagination.js
 │   ├───usePlaylistData.js
-│   ├───usePlaylistMovement.js
+
 │   ├───useSorting.js
 │   ├───useSpotifyApi.js
 │   └───useUserData.js

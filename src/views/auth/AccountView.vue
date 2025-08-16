@@ -9,9 +9,11 @@ import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import CacheManager from '@components/common/CacheManager.vue';
 import LastFmStats from '@components/LastFmStats.vue';
+import { useSpotifyAuth } from '@composables/useSpotifyAuth';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
+const { initiateSpotifyLogin } = useSpotifyAuth();
 
 const { form, isSubmitting, error: formError, handleSubmit } = useForm({
   displayName: '',
@@ -67,9 +69,26 @@ const handleLogout = async () => {
           <h2 class="text-lg font-semibold">Last.fm Username</h2>
           <span class="text-gray-600">{{ userData.lastFmUserName || 'Not set' }}</span>
         </div>
+        
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Spotify Connection</h2>
+          <div class="flex items-center space-x-2">
+            <span v-if="userData.spotifyConnected" class="text-green-600">✅ Connected</span>
+            <span v-else class="text-gray-500">❌ Not Connected</span>
+          </div>
+        </div>
       </div>
       
-      <div class="mt-8">
+      <div class="mt-8 space-y-4">
+        <div v-if="!userData.spotifyConnected">
+          <BaseButton 
+            @click="initiateSpotifyLogin" 
+            customClass="spotify-connect-button"
+          >
+            Connect Spotify Account
+          </BaseButton>
+        </div>
+        
         <BaseButton 
           @click="handleLogout" 
           :disabled="authLoading"
@@ -146,6 +165,10 @@ const handleLogout = async () => {
 
 .logout-button {
   @apply w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.spotify-connect-button {
+  @apply px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200;
 }
 
 .form-group {

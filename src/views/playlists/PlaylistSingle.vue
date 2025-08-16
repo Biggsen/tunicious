@@ -8,19 +8,25 @@ import { useUserData } from "@composables/useUserData";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
-import { usePlaylistMovement } from '../../composables/usePlaylistMovement';
+
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
+import AlbumSearch from '@components/AlbumSearch.vue';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 
 const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
-const { updateAlbumPlaylist, error: moveError } = usePlaylistMovement();
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData } = useAlbumsData();
+
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
+const { addAlbumToPlaylist, removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
+
+// Processing state
+const processingAlbum = ref(null);
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
@@ -31,6 +37,7 @@ const updating = ref(false);
 const albumData = ref([]);
 const playlistName = ref('');
 const playlistDoc = ref(null);
+const totalTracks = ref(0);
 
 // Store the full album data with dates and sorted album IDs
 const albumsWithDates = ref([]);
@@ -278,7 +285,6 @@ async function loadCurrentPage() {
     }
   });
   await updateNeedsUpdateMap();
-  await checkAlbumMovements();
   
   // Load loved track percentages progressively
   if (userData.value?.lastFmUserName) {
@@ -396,58 +402,9 @@ const previousPage = async () => {
   }
 };
 
-const checkAlbumMovements = async () => {
-  for (const album of albumData.value) {
-    try {
-      const userData = albumDbDataMap.value[album.id];
-      if (userData && userData.playlistHistory) {
-        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-        if (currentEntry && currentEntry.playlistId !== id.value) {
-          album.hasMoved = true;
-        } else {
-          album.hasMoved = false;
-        }
-      } else {
-        album.hasMoved = false;
-      }
-    } catch (err) {
-      album.hasMoved = false;
-    }
-  }
-};
 
-watch([() => albumData.value, id], () => {
-  console.log('Album data or playlist ID changed, rechecking movements');
-  checkAlbumMovements();
-}, { immediate: true });
 
-const handleUpdatePlaylist = async (album) => {
-  try {
-    error.value = null;
-    
-    // Get the current playlist data
-    const playlistData = {
-      playlistId: id.value,
-      name: playlistName.value,
-      ...playlistDoc.value.data()
-    };
 
-    const success = await updateAlbumPlaylist(album.id, playlistData, album.addedAt);
-    if (success) {
-      // Refresh the album's moved status
-      album.hasMoved = false;
-      
-      // Clear the cache for this album to ensure fresh data on future page loads
-      if (user.value) {
-        const albumDbCacheKey = `albumDbData_${album.id}_${user.value.uid}`;
-        await clearCache(albumDbCacheKey);
-      }
-    }
-  } catch (err) {
-    console.error('Error updating playlist:', err);
-    error.value = moveError.value || 'Failed to update playlist location';
-  }
-};
 
 const refreshInCollectionForAlbum = async (albumId) => {
   // Refresh both collection status AND root details for the album
@@ -514,6 +471,7 @@ async function loadPlaylistPage() {
     if (!playlistName.value) {
       const playlistResponse = await getPlaylist(id.value);
       playlistName.value = playlistResponse.name;
+      totalTracks.value = playlistResponse.tracks?.total || 0;
     }
     
     // The album data is already loaded by applySortingAndReload in fetchAlbumIdList
@@ -539,6 +497,159 @@ onMounted(async () => {
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
 });
+
+// Add album to playlist state
+const selectedAlbum = ref(null);
+const successMessage = ref('');
+
+const handleAddAlbum = async () => {
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    
+    if (!selectedAlbum.value) {
+      throw new Error('Please select an album first');
+    }
+    
+    // Add album to Spotify playlist
+    await addAlbumToPlaylist(id.value, selectedAlbum.value.id);
+    
+    // Add album to Firebase collection
+    await addAlbumToCollection({
+      album: selectedAlbum.value,
+      playlistId: id.value,
+      playlistData: playlistDoc.value?.data(),
+      spotifyAddedAt: new Date()
+    });
+    
+    successMessage.value = `"${selectedAlbum.value.name}" added to playlist and collection successfully!`;
+    
+    // Reset form
+    selectedAlbum.value = null;
+    
+    // Clear cache and reload the playlist to show the new album
+    await handleClearCache();
+    
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
+    
+  } catch (err) {
+    console.error('Error adding album:', err);
+    spotifyApiError.value = err.message || 'Failed to add album to playlist';
+  }
+};
+
+const handleRemoveAlbum = async (album) => {
+  if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {
+    return;
+  }
+  
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    
+    // Remove from Spotify playlist
+    await removeFromSpotify(id.value, album);
+    
+    // Remove from Firebase collection
+    await removeAlbumFromPlaylist(album.id, id.value);
+    
+    successMessage.value = `"${album.name}" removed from playlist and collection successfully!`;
+    
+    // Clear cache and reload the playlist to reflect the removal
+    await handleClearCache();
+    
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
+    
+  } catch (err) {
+    console.error('Error removing album:', err);
+    spotifyApiError.value = err.message || 'Failed to remove album from playlist';
+  }
+};
+
+const handleProcessAlbum = async ({ album, action }) => {
+  if (action !== 'yes' && action !== 'no') return;
+  
+  try {
+    spotifyApiError.value = null;
+    successMessage.value = '';
+    processingAlbum.value = album.id;
+    
+    // Get the current playlist data
+    const currentPlaylistData = playlistDoc.value?.data();
+    
+    let targetPlaylistId, targetPlaylistData, targetSpotifyPlaylistId;
+    
+    if (action === 'yes') {
+      if (!currentPlaylistData?.nextStagePlaylistId) {
+        throw new Error('No next stage playlist configured for this source playlist');
+      }
+      
+      // Fetch the target playlist document
+      const targetPlaylistDoc = await getDoc(doc(db, 'playlists', currentPlaylistData.nextStagePlaylistId));
+      if (!targetPlaylistDoc.exists()) {
+        throw new Error('Target playlist not found');
+      }
+      
+      targetPlaylistData = targetPlaylistDoc.data();
+      targetSpotifyPlaylistId = targetPlaylistData.playlistId;
+      
+    } else if (action === 'no') {
+      if (!currentPlaylistData?.terminationPlaylistId) {
+        throw new Error('No termination playlist configured for this source playlist');
+      }
+      
+      // Fetch the termination playlist document
+      const terminationPlaylistDoc = await getDoc(doc(db, 'playlists', currentPlaylistData.terminationPlaylistId));
+      if (!terminationPlaylistDoc.exists()) {
+        throw new Error('Termination playlist not found');
+      }
+      
+      targetPlaylistData = terminationPlaylistDoc.data();
+      targetSpotifyPlaylistId = targetPlaylistData.playlistId;
+    }
+    
+    // 1. Remove album from current playlist
+    await removeFromSpotify(id.value, album);
+    await removeAlbumFromPlaylist(album.id, id.value);
+    
+    // 2. Add album to target Spotify playlist
+    await addAlbumToPlaylist(targetSpotifyPlaylistId, album.id);
+    
+    // 3. Add album to target playlist in Firebase collection
+    await addAlbumToCollection({
+      album: album,
+      playlistId: targetSpotifyPlaylistId,
+      playlistData: targetPlaylistData,
+      spotifyAddedAt: new Date()
+    });
+    
+    const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
+    successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
+    
+    // Clear cache and reload the playlist to reflect the changes
+    await handleClearCache();
+    
+    // Also clear the PlaylistView cache to update track counts
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      await clearCache(playlistViewCacheKey);
+    }
+    
+  } catch (err) {
+    console.error('Error processing album:', err);
+    spotifyApiError.value = err.message || 'Failed to process album';
+  } finally {
+    processingAlbum.value = null;
+  }
+};
 </script>
 
 <template>
@@ -573,7 +684,8 @@ onMounted(async () => {
       Cache cleared! Reloading playlist...
     </p>
 
-    <p class="text-lg mb-6">Total unique albums: {{ totalAlbums }}</p>
+    <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
+    <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
@@ -583,16 +695,21 @@ onMounted(async () => {
           :key="album.id" 
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
-          :currentPlaylist="{ playlistId: id }"
+          :currentPlaylist="playlistDoc?.data() || { playlistId: id }"
           :ratingData="album.ratingData"
           :isMappedAlbum="false"
-          :hasMoved="album.hasMoved"
           :inCollection="!!inCollectionMap[album.id]"
           :needsUpdate="needsUpdateMap[album.id]"
           :lovedTrackData="albumLovedData[album.id]"
-          @update-playlist="handleUpdatePlaylist"
+          :showRemoveButton="userData?.spotifyConnected"
+          :showProcessingButtons="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
+          :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
+          :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
+          :isProcessing="processingAlbum === album.id"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
+          @remove-album="handleRemoveAlbum"
+          @process-album="handleProcessAlbum"
         />
       </ul>
 
@@ -613,6 +730,44 @@ onMounted(async () => {
       </div>
     </template>
     <p v-else class="no-data-message">No albums found in this playlist.</p>
+
+    <!-- Add Album to Playlist Section -->
+    <div v-if="userData?.spotifyConnected" class="mt-8 bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
+      
+      <form @submit.prevent="handleAddAlbum" class="space-y-4">
+        <div class="form-group">
+          <AlbumSearch v-model="selectedAlbum" />
+        </div>
+        
+        <div class="flex gap-4">
+          <BaseButton 
+            type="submit" 
+            :disabled="spotifyApiLoading || !selectedAlbum"
+            customClass="btn-primary"
+          >
+            {{ spotifyApiLoading ? 'Adding...' : 'Add Album to Playlist' }}
+          </BaseButton>
+        </div>
+      </form>
+
+      <!-- Error Messages -->
+      <ErrorMessage v-if="spotifyApiError" :message="spotifyApiError" class="mt-4" />
+      
+      <!-- Success Messages -->
+      <div v-if="successMessage" class="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
+        {{ successMessage }}
+      </div>
+    </div>
+
+    <!-- Spotify Connection Required Message -->
+    <div v-else class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <p class="text-yellow-800">
+        <strong>Spotify Connection Required:</strong> Please connect your Spotify account in your 
+        <router-link to="/account" class="text-yellow-900 underline">Account Settings</router-link> 
+        to add albums to playlists.
+      </p>
+    </div>
   </main>
 </template>
 
@@ -642,5 +797,13 @@ onMounted(async () => {
 
 .pagination-info {
   @apply text-gray-700 text-sm;
+}
+
+.form-group {
+  @apply space-y-2;
+}
+
+.btn-primary {
+  @apply px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 </style>
