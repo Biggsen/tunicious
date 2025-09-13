@@ -120,7 +120,7 @@ export function useUserSpotifyApi() {
       const endpointPath = endpoint.replace('https://api.spotify.com/v1', '');
       return await spotifyApiCall(endpointPath, options.method || 'GET', options.body, accessToken);
     } catch (err) {
-      error.value = err;
+      error.value = err.message || err.toString();
       throw err;
     } finally {
       loading.value = false;
@@ -147,7 +147,7 @@ export function useUserSpotifyApi() {
 
     return makeUserRequest(`https://api.spotify.com/v1/users/${profile.id}/playlists`, {
       method: 'POST',
-      body: JSON.stringify(playlistData)
+      body: playlistData
     });
   };
 
@@ -157,9 +157,9 @@ export function useUserSpotifyApi() {
   const addTracksToPlaylist = async (playlistId, trackUris) => {
     return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         uris: trackUris
-      })
+      }
     });
   };
 
@@ -197,7 +197,7 @@ export function useUserSpotifyApi() {
   const updatePlaylist = async (playlistId, updates) => {
     return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}`, {
       method: 'PUT',
-      body: JSON.stringify(updates)
+      body: updates
     });
   };
 
@@ -304,7 +304,7 @@ export function useUserSpotifyApi() {
     
     return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
       method: 'DELETE',
-      body: JSON.stringify(requestBody)
+      body: requestBody
     });
   };
 

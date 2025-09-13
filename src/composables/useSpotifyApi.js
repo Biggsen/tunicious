@@ -47,7 +47,7 @@ export function useSpotifyApi() {
       
       return token.value;
     } catch (err) {
-      error.value = err;
+      error.value = err.message || err.toString();
       throw err;
     } finally {
       loading.value = false;
@@ -77,7 +77,7 @@ export function useSpotifyApi() {
 
       return await response.json();
     } catch (err) {
-      error.value = err;
+      error.value = err.message || err.toString();
       throw err;
     } finally {
       loading.value = false;
