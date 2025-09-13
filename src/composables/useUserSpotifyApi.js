@@ -422,6 +422,7 @@ export function useUserSpotifyApi() {
   return {
     loading,
     error,
+    makeUserRequest,
     createPlaylist,
     addTracksToPlaylist,
     addAlbumToPlaylist,

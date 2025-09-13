@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, onUnmounted } from 'vue';
 import { useAuth } from "@composables/useAuth";
 import { useUserData } from "@composables/useUserData";
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -9,6 +10,7 @@ import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import CacheManager from '@components/common/CacheManager.vue';
 import LastFmStats from '@components/LastFmStats.vue';
+import SpotifyDiagnostic from '@components/SpotifyDiagnostic.vue';
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
@@ -43,6 +45,21 @@ const handleLogout = async () => {
     console.error("Error signing out:", err);
   }
 };
+
+// Listen for token clearing events to refresh user data
+const handleTokensCleared = () => {
+  if (user.value) {
+    fetchUserData(user.value.uid);
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('spotify-tokens-cleared', handleTokensCleared);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('spotify-tokens-cleared', handleTokensCleared);
+});
 </script>
 
 <template>
@@ -103,6 +120,11 @@ const handleLogout = async () => {
     <div v-if="userData?.lastFmUserName" class="mt-8">
       <h2 class="text-xl font-semibold text-delft-blue mb-4">Your Last.fm Stats</h2>
       <LastFmStats :username="userData.lastFmUserName" />
+    </div>
+    
+    <!-- Spotify Diagnostic Section -->
+    <div v-if="userData" class="mt-8">
+      <SpotifyDiagnostic />
     </div>
     
     <!-- Cache Management Section -->
