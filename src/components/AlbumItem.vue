@@ -4,7 +4,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import { ref, computed } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumsData } from '@composables/useAlbumsData';
-import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
 import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon, MusicalNoteIcon, TrashIcon } from '@heroicons/vue/24/solid';

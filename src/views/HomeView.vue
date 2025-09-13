@@ -1,11 +1,7 @@
 <script setup>
-import { useToken } from "@utils/auth";
 import { useCurrentUser } from 'vuefire';
-import ErrorMessage from '@components/common/ErrorMessage.vue';
-import LoadingMessage from '@components/common/LoadingMessage.vue';
 import LatestMovements from '@components/LatestMovements.vue';
 
-const { loading, error } = useToken();
 const user = useCurrentUser();
 </script>
 
@@ -20,10 +16,7 @@ const user = useCurrentUser();
       </p>
     </div>
 
-    <LoadingMessage v-if="loading" />
-    <ErrorMessage v-else-if="error" :message="error" />
-    
-    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Latest Movements Section -->
       <div class="lg:col-span-2">
         <LatestMovements :limit="8" />

@@ -1,11 +1,13 @@
 export const Client = {
   ID: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
-  SECRET: import.meta.env.VITE_SPOTIFY_CLIENT_SECRET,
+  // SECRET removed - now handled securely by backend
 };
 
 export const LastFmClient = {
-  API_KEY: import.meta.env.VITE_LASTFM_API_KEY,
-  API_SECRET: import.meta.env.VITE_LASTFM_API_SECRET,
+  API_KEY: import.meta.env.PROD 
+    ? import.meta.env.VITE_LASTFM_API_KEY_PROD
+    : import.meta.env.VITE_LASTFM_API_KEY_DEV,
+  // API_SECRET removed - now handled securely by backend
 };
 
 export const ApiUrl = {

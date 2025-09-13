@@ -4,33 +4,19 @@ import { useRouter } from 'vue-router';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { Client, SpotifyAuth } from '@/constants';
+import { SpotifyAuth } from '@/constants';
+import { useBackendApi } from '@/composables/useBackendApi';
 
 const router = useRouter();
 const currentUser = useCurrentUser();
 const loading = ref(true);
 const error = ref(null);
+const { exchangeSpotifyCode } = useBackendApi();
 
 const exchangeCodeForTokens = async (code) => {
   try {
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + btoa(`${Client.ID}:${Client.SECRET}`)
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: SpotifyAuth.REDIRECT_URI
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to exchange code for tokens');
-    }
-
-    return await response.json();
+    // Use our secure backend instead of direct API call
+    return await exchangeSpotifyCode(code, SpotifyAuth.REDIRECT_URI);
   } catch (err) {
     console.error('Token exchange error:', err);
     throw err;
@@ -44,9 +30,9 @@ const storeTokens = async (tokens) => {
 
   await setDoc(doc(db, 'users', currentUser.value.uid), {
     spotifyTokens: {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: Date.now() + (tokens.expires_in * 1000)
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: Date.now() + (tokens.expiresIn * 1000)
     },
     spotifyConnected: true,
     updatedAt: serverTimestamp()

@@ -1,5 +1,5 @@
 import { useLastFmApi } from '@composables/useLastFmApi';
-import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { getCache, setCache } from './cache';
 
 /**
@@ -81,7 +81,7 @@ export async function getCachedAlbumTracks(albumId) {
   }
   
   try {
-    const { getAlbumTracks } = useSpotifyApi();
+    const { getAlbumTracks } = useUserSpotifyApi();
     let allTracks = [];
     let offset = 0;
     const limit = 50;

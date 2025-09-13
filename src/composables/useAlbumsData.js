@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
 import { albumTitleSimilarity } from '../utils/fuzzyMatch';
-import { useSpotifyApi } from '@/composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
 import { setCache, getCache } from "@utils/cache";
 
 /**
@@ -347,7 +347,7 @@ export function useAlbumsData() {
       // Get the Spotify added date for this album if not provided
       let _spotifyAddedAt = spotifyAddedAt;
       if (!_spotifyAddedAt) {
-        const { getPlaylistAlbumsWithDates } = useSpotifyApi();
+        const { getPlaylistAlbumsWithDates } = useUserSpotifyApi();
         const albumsWithDates = await getPlaylistAlbumsWithDates(playlistId);
         const albumWithDate = albumsWithDates.find(a => a.id === album.id);
         _spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();

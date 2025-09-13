@@ -6,7 +6,7 @@ import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
 import BackButton from '@components/common/BackButton.vue';
 import { useRoute } from 'vue-router';
-import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -15,7 +15,7 @@ const { user, userData, fetchUserData } = useUserData();
 const { playlists: userPlaylists, fetchUserPlaylists, getAvailableCategories, getAvailableGroups } = usePlaylistData();
 
 const route = useRoute();
-const { getPlaylist} = useSpotifyApi();
+const { getPlaylist} = useUserSpotifyApi();
 
 const loading = ref(true);
 const error = ref(null);

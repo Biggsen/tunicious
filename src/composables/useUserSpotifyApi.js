@@ -2,11 +2,13 @@ import { ref } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { useBackendApi } from '@/composables/useBackendApi';
 
 export function useUserSpotifyApi() {
   const user = useCurrentUser();
   const loading = ref(false);
   const error = ref(null);
+  const { refreshSpotifyToken, spotifyApiCall } = useBackendApi();
 
   /**
    * Gets the user's Spotify tokens from Firestore
@@ -54,49 +56,20 @@ export function useUserSpotifyApi() {
         throw new Error('Spotify not connected or missing refresh token');
       }
 
-      const response = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: userData.spotifyTokens.refreshToken,
-          client_id: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
-        }),
-      });
-
-             if (!response.ok) {
-         const errorData = await response.json().catch(() => ({}));
-         console.error('Token refresh failed:', response.status, errorData);
-         
-         // Handle specific Spotify error cases
-         if (response.status === 400) {
-           if (errorData.error === 'invalid_grant') {
-             throw new Error('Spotify session expired - please reconnect your account');
-           } else {
-             throw new Error('Invalid refresh token - please reconnect your account');
-           }
-         } else if (response.status === 401) {
-           throw new Error('Unauthorized - please reconnect your account');
-         } else {
-           throw new Error(`Failed to refresh token: ${response.status} - ${errorData.error_description || 'Unknown error'}`);
-         }
-       }
-
-      const result = await response.json();
+      // Use our secure backend for token refresh
+      const result = await refreshSpotifyToken(userData.spotifyTokens.refreshToken);
       
       // Update tokens in Firestore
       await setDoc(doc(db, 'users', user.value.uid), {
         spotifyTokens: {
-          accessToken: result.access_token,
-          refreshToken: result.refresh_token || userData.spotifyTokens.refreshToken, // Keep old refresh token if not provided
-          expiresAt: Date.now() + (result.expires_in * 1000)
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken || userData.spotifyTokens.refreshToken, // Keep old refresh token if not provided
+          expiresAt: Date.now() + (result.expiresIn * 1000)
         },
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      return result.access_token;
+      return result.accessToken;
     } catch (err) {
       console.error('Token refresh error:', err);
       throw err;
@@ -143,29 +116,9 @@ export function useUserSpotifyApi() {
          }
        }
 
-      const response = await fetch(endpoint, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-             if (!response.ok) {
-         const errorText = await response.text();
-         console.error('Spotify API error:', response.status, response.statusText, errorText);
-         throw new Error(`Spotify API error: ${response.status} - ${response.statusText}`);
-       }
-
-       // Check if response has content before trying to parse JSON
-       const contentType = response.headers.get('content-type');
-       if (contentType && contentType.includes('application/json')) {
-         return await response.json();
-       } else {
-         // For endpoints that return empty responses (like PUT requests)
-         return { success: true };
-       }
+      // Use our secure backend proxy instead of direct API call
+      const endpointPath = endpoint.replace('https://api.spotify.com/v1', '');
+      return await spotifyApiCall(endpointPath, options.method || 'GET', options.body, accessToken);
     } catch (err) {
       error.value = err;
       throw err;
@@ -370,6 +323,102 @@ export function useUserSpotifyApi() {
     return playlist.description && playlist.description.includes('[AudioFoodie]');
   };
 
+  /**
+   * Fetches album IDs and their added dates from a playlist
+   * @param {string} playlistId - The Spotify playlist ID
+   * @returns {Promise<Array<{id: string, addedAt: string}>>} Array of objects containing album ID and when it was added
+   */
+  const getPlaylistAlbumsWithDates = async (playlistId) => {
+    let albumData = new Map(); // Using Map to handle duplicate albums (keep earliest date)
+    let offset = 0;
+    const limit = 100; // Maximum allowed by Spotify
+    let total;
+
+    do {
+      const data = await makeUserRequest(
+        `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(added_at,track(album(id))),total&limit=${limit}&offset=${offset}`
+      );
+
+      data.items.forEach((item) => {
+        if (item.track?.album?.id) {
+          const albumId = item.track.album.id;
+          // Only add if not already present (keeps earliest addition date)
+          if (!albumData.has(albumId)) {
+            albumData.set(albumId, {
+              id: albumId,
+              addedAt: item.added_at
+            });
+          }
+        }
+      });
+
+      total = data.total;
+      offset += limit;
+    } while (offset < total);
+
+    return Array.from(albumData.values());
+  };
+
+  /**
+   * Fetches multiple albums in a batch
+   */
+  const getAlbumsBatch = async (albumIds) => {
+    // Spotify allows up to 20 albums per request
+    return makeUserRequest(
+      `https://api.spotify.com/v1/albums?ids=${albumIds.join(',')}`
+    );
+  };
+
+  /**
+   * Loads albums in batches with rate limiting
+   */
+  const loadAlbumsBatched = async (albumIds) => {
+    const batchSize = 20;
+    const albums = [];
+    
+    for (let i = 0; i < albumIds.length; i += batchSize) {
+      const batch = albumIds.slice(i, i + batchSize);
+      const response = await getAlbumsBatch(batch);
+      albums.push(...response.albums);
+      // Add small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return albums;
+  };
+
+  /**
+   * Fetches an album by ID
+   */
+  const getAlbum = async (albumId) => {
+    return makeUserRequest(`https://api.spotify.com/v1/albums/${albumId}`);
+  };
+
+  /**
+   * Fetches tracks from an album
+   */
+  const getAlbumTracks = async (albumId, limit = 50, offset = 0) => {
+    return makeUserRequest(
+      `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=${limit}&offset=${offset}`
+    );
+  };
+
+  /**
+   * Fetches albums by an artist
+   */
+  const getArtistAlbums = async (artistId, limit = 50, offset = 0) => {
+    return makeUserRequest(
+      `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album&limit=${limit}&offset=${offset}`
+    );
+  };
+
+  /**
+   * Fetches artist details
+   */
+  const getArtist = async (artistId) => {
+    return makeUserRequest(`https://api.spotify.com/v1/artists/${artistId}`);
+  };
+
   return {
     loading,
     error,
@@ -386,6 +435,13 @@ export function useUserSpotifyApi() {
     removeAlbumFromPlaylist,
     searchAlbums,
     isAudioFoodiePlaylist,
-    getUserTokens
+    getUserTokens,
+    getPlaylistAlbumsWithDates,
+    getAlbumsBatch,
+    loadAlbumsBatched,
+    getAlbum,
+    getAlbumTracks,
+    getArtistAlbums,
+    getArtist
   };
 }

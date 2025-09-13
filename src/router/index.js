@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { useToken } from "@utils/auth";
 import HomeView from '@views/HomeView.vue';
 import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
@@ -126,21 +125,6 @@ function getCurrentUser() {
   });
 }
 
-// Add Spotify token initialization guard
-router.beforeEach(async (to, from, next) => {
-  const { getValidToken } = useToken();
-  
-  try {
-    // Only initialize token for routes that need Spotify API access
-    if (to.matched.some(record => record.meta.requiresSpotify)) {
-      await getValidToken();
-    }
-    next();
-  } catch (error) {
-    console.error("Failed to initialize Spotify token:", error);
-    next();
-  }
-});
 
 // Keep existing auth guard
 router.beforeEach(async (to, from, next) => {

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useSpotifyApi } from '@composables/useSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
@@ -20,10 +19,9 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 
 const route = useRoute();
 const { user, userData } = useUserData();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, loading: spotifyLoading, error: spotifyError } = useSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
-const { addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyApiLoading, error: spotifyApiError } = useUserSpotifyApi();
 
 // Processing state
 const processingAlbum = ref(null);
@@ -504,7 +502,7 @@ const successMessage = ref('');
 
 const handleAddAlbum = async () => {
   try {
-    spotifyApiError.value = null;
+    spotifyError.value = null;
     successMessage.value = '';
     
     if (!selectedAlbum.value) {
@@ -538,7 +536,7 @@ const handleAddAlbum = async () => {
     
   } catch (err) {
     console.error('Error adding album:', err);
-    spotifyApiError.value = err.message || 'Failed to add album to playlist';
+    spotifyError.value = err.message || 'Failed to add album to playlist';
   }
 };
 
@@ -548,7 +546,7 @@ const handleRemoveAlbum = async (album) => {
   }
   
   try {
-    spotifyApiError.value = null;
+    spotifyError.value = null;
     successMessage.value = '';
     
     // Remove from Spotify playlist
@@ -570,7 +568,7 @@ const handleRemoveAlbum = async (album) => {
     
   } catch (err) {
     console.error('Error removing album:', err);
-    spotifyApiError.value = err.message || 'Failed to remove album from playlist';
+    spotifyError.value = err.message || 'Failed to remove album from playlist';
   }
 };
 
@@ -578,7 +576,7 @@ const handleProcessAlbum = async ({ album, action }) => {
   if (action !== 'yes' && action !== 'no') return;
   
   try {
-    spotifyApiError.value = null;
+    spotifyError.value = null;
     successMessage.value = '';
     processingAlbum.value = album.id;
     
@@ -645,7 +643,7 @@ const handleProcessAlbum = async ({ album, action }) => {
     
   } catch (err) {
     console.error('Error processing album:', err);
-    spotifyApiError.value = err.message || 'Failed to process album';
+    spotifyError.value = err.message || 'Failed to process album';
   } finally {
     processingAlbum.value = null;
   }
@@ -743,16 +741,16 @@ const handleProcessAlbum = async ({ album, action }) => {
         <div class="flex gap-4">
           <BaseButton 
             type="submit" 
-            :disabled="spotifyApiLoading || !selectedAlbum"
+            :disabled="spotifyLoading || !selectedAlbum"
             customClass="btn-primary"
           >
-            {{ spotifyApiLoading ? 'Adding...' : 'Add Album to Playlist' }}
+            {{ spotifyLoading ? 'Adding...' : 'Add Album to Playlist' }}
           </BaseButton>
         </div>
       </form>
 
       <!-- Error Messages -->
-      <ErrorMessage v-if="spotifyApiError" :message="spotifyApiError" class="mt-4" />
+      <ErrorMessage v-if="spotifyError" :message="spotifyError" class="mt-4" />
       
       <!-- Success Messages -->
       <div v-if="successMessage" class="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
