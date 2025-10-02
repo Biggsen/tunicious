@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useCurrentUser } from 'vuefire';
 import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
@@ -24,7 +24,7 @@ const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
 const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
-const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useSpotifyApi();
+const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 
 

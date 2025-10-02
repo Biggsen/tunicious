@@ -7,7 +7,7 @@ import { useUserData } from "@composables/useUserData";
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
 import BackButton from '@components/common/BackButton.vue';
-import { useSpotifyApi } from '@composables/useSpotifyApi';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { ArrowPathIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -18,7 +18,7 @@ const router = useRouter();
 const { userData } = useUserData();
 const { fetchAlbumsData, loading: albumsLoading, getAlbumRatingData } = useAlbumsData();
 const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
-const { getArtist, getArtistAlbums} = useSpotifyApi();
+const { getArtist, getArtistAlbums} = useUserSpotifyApi();
 
 const id = computed(() => route.params.id);
 const loading = ref(false);
