@@ -116,15 +116,15 @@ onUnmounted(() => {
       </div>
     </div>
     
+    <!-- Spotify Diagnostic Section -->
+    <div v-if="userData" class="mt-8">
+      <SpotifyDiagnostic />
+    </div>
+    
     <!-- Last.fm Stats Section -->
     <div v-if="userData?.lastFmUserName" class="mt-8">
       <h2 class="text-xl font-semibold text-delft-blue mb-4">Your Last.fm Stats</h2>
       <LastFmStats :username="userData.lastFmUserName" />
-    </div>
-    
-    <!-- Spotify Diagnostic Section -->
-    <div v-if="userData" class="mt-8">
-      <SpotifyDiagnostic />
     </div>
     
     <!-- Cache Management Section -->
