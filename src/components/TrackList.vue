@@ -108,6 +108,18 @@ const getTrackPlaycount = (trackName) => {
   return trackPlaycounts.value[trackName.toLowerCase()] || 0;
 };
 
+/**
+ * Calculate percentage of loved tracks
+ */
+const lovedTracksPercentage = computed(() => {
+  if (!props.tracks.length || !props.lovedTracks.length) {
+    return 0;
+  }
+  
+  const lovedCount = props.tracks.filter(track => isTrackLoved(track)).length;
+  return Math.round((lovedCount / props.tracks.length) * 100);
+});
+
 // Watch for changes in props that affect playcount fetching
 watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks], 
   () => {
@@ -117,6 +129,21 @@ watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks],
   },
   { immediate: true }
 );
+
+/**
+ * Computed property for tracks sorted by playcount (descending)
+ */
+const sortedTracks = computed(() => {
+  if (!props.lastFmUserName || Object.keys(trackPlaycounts.value).length === 0) {
+    return props.tracks;
+  }
+  
+  return [...props.tracks].sort((a, b) => {
+    const playcountA = getTrackPlaycount(a.name);
+    const playcountB = getTrackPlaycount(b.name);
+    return playcountB - playcountA; // Descending order (highest playcount first)
+  });
+});
 
 /**
  * Create a lookup map of loved tracks for better performance
@@ -191,15 +218,14 @@ const handleHeartClick = async (track, event) => {
 
 <template>
   <div class="bg-white border-2 border-delft-blue rounded-xl p-4">
-    <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Track List</h2>
+    <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Tracks</h2>
     <ul>
       <li 
-        v-for="(track, index) in tracks" 
+        v-for="track in sortedTracks" 
         :key="track.id"
         class="flex justify-between items-start text-delft-blue hover:bg-white/30 rounded pl-3 pr-2 py-1 transition-colors cursor-pointer"
       >
         <span class="flex items-start flex-1">
-          <span class="mr-2 flex-shrink-0 w-4 text-right">{{ index + 1 }}</span>
           <span class="flex-1">{{ track.name }}</span>
           <span v-if="lastFmUserName && !playcountLoading" class="ml-2 text-xs text-gray-500 flex-shrink-0">
             {{ formatPlaycount(getTrackPlaycount(track.name)) }}
@@ -231,5 +257,21 @@ const handleHeartClick = async (track, event) => {
         </svg>
       </li>
     </ul>
+    
+    <!-- Loved tracks progress bar -->
+    <div v-if="lastFmUserName && lovedTracksPercentage > 0" class="mt-3 px-3">
+      <div class="w-full bg-white rounded-full h-2">
+        <div 
+          class="bg-red-500 h-2 rounded-full transition-all duration-300" 
+          :style="{ width: `${lovedTracksPercentage}%` }"
+        ></div>
+      </div>
+      <div class="flex items-center justify-between mt-1">
+        <span class="text-xs text-gray-500">Loved tracks</span>
+        <span class="text-xs text-delft-blue font-medium">
+          {{ lovedTracksPercentage }}%
+        </span>
+      </div>
+    </div>
   </div>
 </template> 
