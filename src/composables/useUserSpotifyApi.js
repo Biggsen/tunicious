@@ -72,6 +72,19 @@ export function useUserSpotifyApi() {
       return result.accessToken;
     } catch (err) {
       console.error('Token refresh error:', err);
+      
+      // Check if this is a refresh token expiration error
+      if (err.message.includes('Failed to refresh token') || err.message.includes('400')) {
+        // Clear the invalid tokens from Firestore
+        await setDoc(doc(db, 'users', user.value.uid), {
+          spotifyTokens: null,
+          spotifyConnected: false,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        throw new Error('Spotify refresh token expired - please reconnect your account');
+      }
+      
       throw err;
     }
   };
@@ -100,7 +113,7 @@ export function useUserSpotifyApi() {
            } catch (refreshErr) {
              console.error('Token refresh failed:', refreshErr.message);
              // If refresh fails, clear the tokens and ask user to reconnect
-             if (refreshErr.message.includes('reconnect')) {
+             if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
                // Clear the invalid tokens from Firestore
                await setDoc(doc(db, 'users', user.value.uid), {
                  spotifyTokens: null,

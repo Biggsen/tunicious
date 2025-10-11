@@ -16,12 +16,14 @@ import LoadingMessage from '@components/common/LoadingMessage.vue';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
+import { useLastFmApi } from '@composables/useLastFmApi';
 
 const route = useRoute();
 const { user, userData } = useUserData();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
+const { loveTrack, unloveTrack } = useLastFmApi();
 
 // Processing state
 const processingAlbum = ref(null);
@@ -48,9 +50,76 @@ const sortDirectionLabel = computed(() => {
   return sortDirection.value === 'desc' ? 'Newest First' : 'Oldest First';
 });
 
+// Tracklist display state
+const showTracklists = ref(false);
+const albumTracks = ref({}); // Store tracks for each album
+const tracksLoading = ref(false);
+
 const toggleSort = async () => {
   sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc';
   await applySortingAndReload();
+};
+
+// Fetch tracks for all albums when tracklists are enabled
+const fetchAlbumTracks = async () => {
+  if (!showTracklists.value || !albumData.value.length) return;
+  
+  tracksLoading.value = true;
+  try {
+    const trackPromises = albumData.value.map(async (album) => {
+      if (!albumTracks.value[album.id]) {
+        try {
+          const response = await getAlbumTracks(album.id);
+          albumTracks.value[album.id] = response.items || [];
+        } catch (error) {
+          console.error(`Failed to fetch tracks for album ${album.id}:`, error);
+          albumTracks.value[album.id] = [];
+        }
+      }
+    });
+    
+    await Promise.all(trackPromises);
+  } finally {
+    tracksLoading.value = false;
+  }
+};
+
+// Watch for showTracklists changes
+watch(showTracklists, (newValue) => {
+  if (newValue) {
+    fetchAlbumTracks();
+  }
+});
+
+// Handle track loving/unloving
+const handleTrackLoved = async ({ album, track }) => {
+  if (!userData.value?.lastFmSessionKey) return;
+  
+  try {
+    await loveTrack(track.name, track.artists[0].name, userData.value.lastFmSessionKey);
+    
+    // Refresh loved tracks data
+    if (userData.value?.lastFmUserName) {
+      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    }
+  } catch (error) {
+    console.error('Error loving track:', error);
+  }
+};
+
+const handleTrackUnloved = async ({ album, track }) => {
+  if (!userData.value?.lastFmSessionKey) return;
+  
+  try {
+    await unloveTrack(track.name, track.artists[0].name, userData.value.lastFmSessionKey);
+    
+    // Refresh loved tracks data
+    if (userData.value?.lastFmUserName) {
+      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    }
+  } catch (error) {
+    console.error('Error unloving track:', error);
+  }
 };
 
 // Apply sorting to the full album list
@@ -676,6 +745,17 @@ const handleProcessAlbum = async ({ album, action }) => {
         </template>
         Sort: {{ sortDirectionLabel }}
       </BaseButton>
+      <BaseButton @click="showTracklists = !showTracklists" :class="{ 'bg-mint text-delft-blue': showTracklists }">
+        <template #icon-left>
+          <svg v-if="showTracklists" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+          </svg>
+          <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+          </svg>
+        </template>
+        {{ showTracklists ? 'Hide Tracklists' : 'Show Tracklists' }}
+      </BaseButton>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
@@ -684,6 +764,9 @@ const handleProcessAlbum = async ({ album, action }) => {
 
     <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
     <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
+    <div v-if="tracksLoading" class="mb-4 text-center">
+      <p class="text-delft-blue">Loading tracklists...</p>
+    </div>
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
@@ -704,10 +787,17 @@ const handleProcessAlbum = async ({ album, action }) => {
           :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
           :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
           :isProcessing="processingAlbum === album.id"
+          :tracks="albumTracks[album.id] || []"
+          :lovedTracks="lovedTracks"
+          :showTracklist="showTracklists"
+          :lastFmSessionKey="userData?.lastFmSessionKey || ''"
+          :allowTrackLoving="userData?.lastFmAuthenticated || false"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
           @remove-album="handleRemoveAlbum"
           @process-album="handleProcessAlbum"
+          @track-loved="handleTrackLoved"
+          @track-unloved="handleTrackUnloved"
         />
       </ul>
 

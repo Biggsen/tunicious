@@ -12,6 +12,7 @@ import ArtistView from '@views/music/ArtistView.vue';
 import AlbumView from '@views/music/AlbumView.vue';
 import SearchView from '@views/music/SearchView.vue';
 import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
+import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 
 const routes = [
   {
@@ -80,6 +81,12 @@ const routes = [
     path: '/spotify-callback',
     name: 'spotifyCallback',
     component: SpotifyCallbackView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/lastfm-callback',
+    name: 'lastfmCallback',
+    component: LastFmCallbackView,
     meta: { requiresAuth: true }
   },
   {

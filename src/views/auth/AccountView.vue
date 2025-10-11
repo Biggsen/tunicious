@@ -11,11 +11,14 @@ import LoadingMessage from '@components/common/LoadingMessage.vue';
 import CacheManager from '@components/common/CacheManager.vue';
 import LastFmStats from '@components/LastFmStats.vue';
 import SpotifyDiagnostic from '@components/SpotifyDiagnostic.vue';
+import LastFmDiagnostics from '@components/LastFmDiagnostics.vue';
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
+import { useLastFmApi } from '@composables/useLastFmApi';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
 const { initiateSpotifyLogin } = useSpotifyAuth();
+const { getAuthUrl } = useLastFmApi();
 
 const { form, isSubmitting, error: formError, handleSubmit } = useForm({
   displayName: '',
@@ -43,6 +46,16 @@ const handleLogout = async () => {
     await logout('/');
   } catch (err) {
     console.error("Error signing out:", err);
+  }
+};
+
+const initiateLastFmAuth = () => {
+  try {
+    const callbackUrl = `${window.location.origin}/lastfm-callback`;
+    const authUrl = getAuthUrl(callbackUrl);
+    window.location.href = authUrl;
+  } catch (err) {
+    console.error("Error initiating Last.fm auth:", err);
   }
 };
 
@@ -106,6 +119,18 @@ onUnmounted(() => {
           </BaseButton>
         </div>
         
+        <div v-if="!userData.lastFmAuthenticated && userData.lastFmUserName" class="mt-4">
+          <BaseButton 
+            @click="initiateLastFmAuth" 
+            customClass="lastfm-auth-button"
+          >
+            Enable Track Loving
+          </BaseButton>
+          <p class="text-sm text-gray-600 mt-2">
+            Allow AudioFoodie to love/unlove tracks on your Last.fm profile
+          </p>
+        </div>
+        
         <BaseButton 
           @click="handleLogout" 
           :disabled="authLoading"
@@ -119,6 +144,11 @@ onUnmounted(() => {
     <!-- Spotify Diagnostic Section -->
     <div v-if="userData" class="mt-8">
       <SpotifyDiagnostic />
+    </div>
+    
+    <!-- Last.fm Diagnostics Section -->
+    <div v-if="userData" class="mt-8">
+      <LastFmDiagnostics />
     </div>
     
     <!-- Last.fm Stats Section -->
@@ -191,6 +221,10 @@ onUnmounted(() => {
 
 .spotify-connect-button {
   @apply px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200;
+}
+
+.lastfm-auth-button {
+  @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200;
 }
 
 .form-group {

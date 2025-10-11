@@ -1,6 +1,6 @@
 import { ref, onMounted } from 'vue';
 import { useCurrentUser } from 'vuefire';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export function useUserData() {
@@ -41,11 +41,32 @@ export function useUserData() {
     }
   });
 
+  async function clearLastFmAuth() {
+    if (!user.value) {
+      throw new Error('No authenticated user');
+    }
+
+    try {
+      await setDoc(doc(db, 'users', user.value.uid), {
+        lastFmSessionKey: null,
+        lastFmAuthenticated: false,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Refresh user data to reflect the changes
+      await fetchUserData(user.value.uid);
+    } catch (error) {
+      console.error('Error clearing Last.fm auth:', error);
+      throw error;
+    }
+  }
+
   return {
     user,
     userData,
     loading,
     error,
-    fetchUserData
+    fetchUserData,
+    clearLastFmAuth
   };
 } 

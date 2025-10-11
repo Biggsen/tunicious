@@ -19,6 +19,7 @@ export async function getCachedLovedTracks(lastFmUserName) {
   
   // Fetch loved tracks from Last.fm
   try {
+    console.log('lastFmUtils: Fetching loved tracks for user:', lastFmUserName);
     const { getUserLovedTracks } = useLastFmApi();
     let allLovedTracks = [];
     let page = 1;
@@ -26,9 +27,12 @@ export async function getCachedLovedTracks(lastFmUserName) {
     const maxPages = 10; // Limit to first 10,000 loved tracks for performance
     
     while (page <= maxPages) {
+      console.log(`lastFmUtils: Fetching page ${page} of loved tracks`);
       const response = await getUserLovedTracks(lastFmUserName, limit, page);
+      console.log('lastFmUtils: Response from getUserLovedTracks:', response);
       
       if (!response.lovedtracks) {
+        console.log('lastFmUtils: No lovedtracks in response, breaking');
         break;
       }
       

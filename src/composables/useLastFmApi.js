@@ -1,9 +1,11 @@
 import { ref } from 'vue';
 import { LastFmClient, ApiUrl } from '../constants';
+import { useBackendApi } from './useBackendApi';
 
 export function useLastFmApi() {
   const loading = ref(false);
   const error = ref(null);
+  const { lastfmApiCall } = useBackendApi();
 
   /**
    * Makes a request to the Last.fm API
@@ -16,36 +18,48 @@ export function useLastFmApi() {
       loading.value = true;
       error.value = null;
 
-      if (!LastFmClient.API_KEY) {
-        throw new Error('Last.fm API key not configured');
-      }
-
-      const url = new URL(ApiUrl.lastfm);
-      url.searchParams.append('method', method);
-      url.searchParams.append('api_key', LastFmClient.API_KEY);
-      url.searchParams.append('format', 'json');
-
-      // Add additional parameters
-      Object.keys(params).forEach(key => {
-        if (params[key] !== undefined && params[key] !== null) {
-          url.searchParams.append(key, params[key]);
+      // Check if this is an authenticated method that requires the backend API
+      const authenticatedMethods = ['track.love', 'track.unlove', 'track.scrobble', 'auth.getSession'];
+      
+      if (authenticatedMethods.includes(method)) {
+        // Use backend API for authenticated methods
+        return await lastfmApiCall(method, params);
+      } else {
+        // Use direct API for read-only methods
+        if (!LastFmClient.API_KEY) {
+          throw new Error('Last.fm API key not configured');
         }
-      });
 
-      const response = await fetch(url.toString());
+        const url = new URL(ApiUrl.lastfm);
+        url.searchParams.append('method', method);
+        url.searchParams.append('api_key', LastFmClient.API_KEY);
+        url.searchParams.append('format', 'json');
 
-      if (!response.ok) {
-        throw new Error(`Last.fm API error: ${response.status}`);
+        // Add additional parameters
+        Object.keys(params).forEach(key => {
+          if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.append(key, params[key]);
+          }
+        });
+
+        console.log('useLastFmApi: Making direct API call to:', url.toString());
+        const response = await fetch(url.toString());
+
+        if (!response.ok) {
+          throw new Error(`Last.fm API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('useLastFmApi: API response data:', data);
+
+        // Check for Last.fm API errors
+        if (data.error) {
+          console.error('useLastFmApi: API error:', data.error, data.message);
+          throw new Error(`Last.fm API error: ${data.message}`);
+        }
+
+        return data;
       }
-
-      const data = await response.json();
-
-      // Check for Last.fm API errors
-      if (data.error) {
-        throw new Error(`Last.fm API error: ${data.message}`);
-      }
-
-      return data;
     } catch (err) {
       error.value = err.message;
       throw err;
@@ -199,6 +213,79 @@ export function useLastFmApi() {
     });
   };
 
+  /**
+   * Love a track on Last.fm
+   * @param {string} trackName - The name of the track
+   * @param {string} artistName - The name of the artist
+   * @param {string} sessionKey - User's Last.fm session key
+   * @returns {Promise<Object>} API response
+   */
+  const loveTrack = async (trackName, artistName, sessionKey) => {
+    return makeRequest('track.love', {
+      track: trackName,
+      artist: artistName,
+      session_key: sessionKey
+    });
+  };
+
+  /**
+   * Unlove a track on Last.fm
+   * @param {string} trackName - The name of the track
+   * @param {string} artistName - The name of the artist
+   * @param {string} sessionKey - User's Last.fm session key
+   * @returns {Promise<Object>} API response
+   */
+  const unloveTrack = async (trackName, artistName, sessionKey) => {
+    return makeRequest('track.unlove', {
+      track: trackName,
+      artist: artistName,
+      session_key: sessionKey
+    });
+  };
+
+  /**
+   * Validate if a Last.fm session is still valid
+   * @param {string} sessionKey - User's Last.fm session key
+   * @returns {Promise<Object>} Validation result
+   */
+  const validateSession = async (sessionKey) => {
+    try {
+      // Try to get user info using the session key to validate it
+      const result = await makeRequest('user.getinfo', { 
+        sk: sessionKey 
+      });
+      return {
+        valid: true,
+        username: result.user?.name,
+        message: 'Session is valid'
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        username: null,
+        message: error.message || 'Session validation failed'
+      };
+    }
+  };
+
+  /**
+   * Get the Last.fm authorization URL
+   * @param {string} callbackUrl - The callback URL for after authorization
+   * @returns {string} The authorization URL
+   */
+  const getAuthUrl = (callbackUrl) => {
+    if (!LastFmClient.API_KEY) {
+      throw new Error('Last.fm API key not configured');
+    }
+
+    const params = new URLSearchParams({
+      api_key: LastFmClient.API_KEY,
+      cb: callbackUrl
+    });
+
+    return `https://www.last.fm/api/auth?${params.toString()}`;
+  };
+
   return {
     loading,
     error,
@@ -214,5 +301,9 @@ export function useLastFmApi() {
     searchAlbums,
     searchArtists,
     getUserLovedTracks,
+    loveTrack,
+    unloveTrack,
+    validateSession,
+    getAuthUrl,
   };
 } 

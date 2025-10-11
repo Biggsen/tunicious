@@ -121,7 +121,16 @@ exports.refreshToken = onRequest({
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}));
       logger.error("Spotify token refresh failed", {status: tokenResponse.status, error: errorData});
-      res.status(400).json({error: "Failed to refresh token"});
+      
+      // Provide more specific error messages based on the response
+      let errorMessage = "Failed to refresh token";
+      if (tokenResponse.status === 400) {
+        errorMessage = "Refresh token expired or invalid - please reconnect your Spotify account";
+      } else if (tokenResponse.status === 401) {
+        errorMessage = "Invalid client credentials";
+      }
+      
+      res.status(400).json({error: errorMessage});
       return;
     }
 

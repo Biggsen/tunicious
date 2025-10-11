@@ -10,9 +10,10 @@ import { getRateYourMusicLink } from '@utils/musicServiceLinks';
 import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon, MusicalNoteIcon, TrashIcon } from '@heroicons/vue/24/solid';
 import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
+import TrackList from '@components/TrackList.vue';
 
 const router = useRouter();
-const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album']);
+const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album', 'track-loved', 'track-unloved']);
 
 const props = defineProps({
   album: {
@@ -71,6 +72,26 @@ const props = defineProps({
   hasTerminationPlaylist: {
     type: Boolean,
     default: false
+  },
+  tracks: {
+    type: Array,
+    default: () => []
+  },
+  lovedTracks: {
+    type: Array,
+    default: () => []
+  },
+  showTracklist: {
+    type: Boolean,
+    default: false
+  },
+  lastFmSessionKey: {
+    type: String,
+    default: ''
+  },
+  allowTrackLoving: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -127,6 +148,14 @@ const handleYesClick = () => {
 
 const handleNoClick = () => {
   handleProcessAlbum('no');
+};
+
+const handleTrackLoved = (track) => {
+  emit('track-loved', { album: props.album, track });
+};
+
+const handleTrackUnloved = (track) => {
+  emit('track-unloved', { album: props.album, track });
 };
 
 const fallbackImage = '/placeholder.png'; // You can replace this with your own placeholder path
@@ -224,6 +253,19 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
                 {{ lovedTrackData.percentage }}% loved ({{ lovedTrackData.lovedCount }}/{{ lovedTrackData.totalCount }})
               </span>
             </div>
+          </div>
+
+          <!-- Tracklist -->
+          <div v-if="showTracklist && tracks.length > 0" class="tracklist-container mt-3">
+            <TrackList 
+              :tracks="tracks" 
+              :lovedTracks="lovedTracks"
+              :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
+              :sessionKey="lastFmSessionKey"
+              :allowLoving="allowTrackLoving"
+              @track-loved="handleTrackLoved"
+              @track-unloved="handleTrackUnloved"
+            />
           </div>
         </div>
       </div>
@@ -372,5 +414,37 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .btn-terminate {
   @apply px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 text-sm font-bold;
+}
+
+.tracklist-container {
+  @apply p-0;
+}
+
+.tracklist-container :deep(.bg-white) {
+  @apply bg-transparent;
+}
+
+.tracklist-container :deep(.border-2) {
+  @apply border-0;
+}
+
+.tracklist-container :deep(.rounded-xl) {
+  @apply rounded-none;
+}
+
+.tracklist-container :deep(.p-4) {
+  @apply p-0;
+}
+
+.tracklist-container :deep(h2) {
+  @apply text-sm font-semibold mb-2 text-delft-blue;
+}
+
+.tracklist-container :deep(.space-y-2) {
+  @apply space-y-1;
+}
+
+.tracklist-container :deep(li) {
+  @apply text-xs;
 }
 </style>
