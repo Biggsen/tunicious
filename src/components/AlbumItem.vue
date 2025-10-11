@@ -206,68 +206,70 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         Update
       </BaseButton>
     </div>
-    <div class="album-info">
-      <div class="flex justify-between items-start">
-        <div class="flex-1">
-          <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
-            {{ album.releaseYear || displayYear(album.release_date) }}
-          </p>
-          <a
-            class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-            :href="router.resolve({ 
-              name: 'album', 
-              params: { id: album.id },
-              query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
-            }).href"
-          >
-            {{ album.name || album.albumTitle || 'Unknown Album' }}
-          </a>
-          <a
-            v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
-            class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-            :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
-          >
-            {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-          </a>
-          <span
-            v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
-            class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
-          >
-            {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-          </span>
-          
-          <!-- Last.fm loved tracks percentage -->
-          <div v-if="lastFmUserName && lovedTrackData" class="loved-tracks-info mt-2">
-            <div v-if="lovedTrackData.isLoading" class="text-xs text-gray-500 flex items-center gap-1">
-              <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Loading...</span>
+    <div class="album-details">
+      <div class="album-info">
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
+              {{ album.releaseYear || displayYear(album.release_date) }}
+            </p>
+            <a
+              class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+              :href="router.resolve({ 
+                name: 'album', 
+                params: { id: album.id },
+                query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
+              }).href"
+            >
+              {{ album.name || album.albumTitle || 'Unknown Album' }}
+            </a>
+            <a
+              v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
+              class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+              :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
+            >
+              {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
+            </a>
+            <span
+              v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
+              class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
+            >
+              {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
+            </span>
+            
+            <!-- Last.fm loved tracks percentage -->
+            <div v-if="lastFmUserName && lovedTrackData" class="loved-tracks-info mt-2">
+              <div v-if="lovedTrackData.isLoading" class="text-xs text-gray-500 flex items-center gap-1">
+                <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Loading...</span>
+              </div>
+              <div v-else-if="lovedTrackData.percentage > 0" class="flex items-center gap-1">
+                <svg class="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-xs text-delft-blue font-medium">
+                  {{ lovedTrackData.percentage }}% loved ({{ lovedTrackData.lovedCount }}/{{ lovedTrackData.totalCount }})
+                </span>
+              </div>
             </div>
-            <div v-else-if="lovedTrackData.percentage > 0" class="flex items-center gap-1">
-              <svg class="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-              </svg>
-              <span class="text-xs text-delft-blue font-medium">
-                {{ lovedTrackData.percentage }}% loved ({{ lovedTrackData.lovedCount }}/{{ lovedTrackData.totalCount }})
-              </span>
-            </div>
-          </div>
-
-          <!-- Tracklist -->
-          <div v-if="showTracklist && tracks.length > 0" class="tracklist-container mt-3">
-            <TrackList 
-              :tracks="tracks" 
-              :lovedTracks="lovedTracks"
-              :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
-              :sessionKey="lastFmSessionKey"
-              :allowLoving="allowTrackLoving"
-              @track-loved="handleTrackLoved"
-              @track-unloved="handleTrackUnloved"
-            />
           </div>
         </div>
+      </div>
+      
+      <!-- Tracklist -->
+      <div v-if="showTracklist && tracks.length > 0" class="pb-3">
+        <TrackList 
+          :tracks="tracks" 
+          :lovedTracks="lovedTracks"
+          :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
+          :sessionKey="lastFmSessionKey"
+          :allowLoving="allowTrackLoving"
+          @track-loved="handleTrackLoved"
+          @track-unloved="handleTrackUnloved"
+        />
       </div>
     </div>
     <!-- Simulated rating bars -->
@@ -344,8 +346,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   @apply text-white;
 }
 
+.album-details {
+  @apply flex-grow flex flex-col;
+}
+
 .album-info {
-  @apply p-3 flex-grow;
+  @apply p-3;
 }
 
 .album-year {
@@ -416,35 +422,32 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   @apply px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 text-sm font-bold;
 }
 
-.tracklist-container {
-  @apply p-0;
-}
-
-.tracklist-container :deep(.bg-white) {
+/* TrackList styling within AlbumItem */
+.album-details :deep(.bg-white) {
   @apply bg-transparent;
 }
 
-.tracklist-container :deep(.border-2) {
+.album-details :deep(.border-2) {
   @apply border-0;
 }
 
-.tracklist-container :deep(.rounded-xl) {
+.album-details :deep(.rounded-xl) {
   @apply rounded-none;
 }
 
-.tracklist-container :deep(.p-4) {
+.album-details :deep(.p-4) {
   @apply p-0;
 }
 
-.tracklist-container :deep(h2) {
+.album-details :deep(h2) {
   @apply text-sm font-semibold mb-2 text-delft-blue;
 }
 
-.tracklist-container :deep(.space-y-2) {
+.album-details :deep(.space-y-2) {
   @apply space-y-1;
 }
 
-.tracklist-container :deep(li) {
+.album-details :deep(li) {
   @apply text-xs;
 }
 </style>

@@ -31,12 +31,6 @@ const emit = defineEmits(['track-loved', 'track-unloved']);
  * Create a lookup map of loved tracks for better performance
  */
 const lovedTracksLookup = computed(() => {
-  console.log('TrackList: Creating loved tracks lookup', {
-    lovedTracksCount: props.lovedTracks.length,
-    albumArtist: props.albumArtist,
-    lovedTracks: props.lovedTracks.slice(0, 3) // Show first 3 for debugging
-  });
-  
   if (!props.lovedTracks.length) return new Set();
   
   const lookup = new Set();
@@ -55,8 +49,6 @@ const lovedTracksLookup = computed(() => {
     }
   });
   
-  console.log('TrackList: Created lookup with keys', Array.from(lookup).slice(0, 5)); // Show first 5 keys
-  
   return lookup;
 });
 
@@ -65,11 +57,6 @@ const lovedTracksLookup = computed(() => {
  */
 const isTrackLoved = (track) => {
   if (!lovedTracksLookup.value.size || !props.albumArtist) {
-    console.log('TrackList: No loved tracks lookup or album artist', {
-      lookupSize: lovedTracksLookup.value.size,
-      albumArtist: props.albumArtist,
-      trackName: track.name
-    });
     return false;
   }
 
@@ -80,38 +67,14 @@ const isTrackLoved = (track) => {
   // Check against album artist first (most common case)
   const albumArtistKey = `${trackName}|${albumArtistLower}`;
   if (lovedTracksLookup.value.has(albumArtistKey)) {
-    console.log('TrackList: Track is loved (album artist match)', {
-      trackName: track.name,
-      albumArtist: props.albumArtist,
-      key: albumArtistKey
-    });
     return true;
   }
 
   // Check against all track artists
-  const trackArtistMatches = trackArtists.some(artistName => {
+  return trackArtists.some(artistName => {
     const key = `${trackName}|${artistName}`;
-    const isMatch = lovedTracksLookup.value.has(key);
-    if (isMatch) {
-      console.log('TrackList: Track is loved (track artist match)', {
-        trackName: track.name,
-        artistName,
-        key
-      });
-    }
-    return isMatch;
+    return lovedTracksLookup.value.has(key);
   });
-
-  if (!trackArtistMatches) {
-    console.log('TrackList: Track is not loved', {
-      trackName: track.name,
-      albumArtist: props.albumArtist,
-      trackArtists,
-      lookupKeys: Array.from(lovedTracksLookup.value)
-    });
-  }
-
-  return trackArtistMatches;
 };
 
 /**
@@ -137,20 +100,20 @@ const handleHeartClick = async (track, event) => {
 
 <template>
   <div class="bg-white border-2 border-delft-blue rounded-xl p-4">
-    <h2 class="text-xl font-bold text-delft-blue mb-4">Track List</h2>
-    <ul class="space-y-2">
+    <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Track List</h2>
+    <ul>
       <li 
         v-for="(track, index) in tracks" 
         :key="track.id"
-        class="flex justify-between items-center text-delft-blue"
+        class="flex justify-between items-start text-delft-blue hover:bg-white/30 rounded pl-3 pr-2 py-1 transition-colors cursor-pointer"
       >
-        <span class="flex items-center">
-          <span class="mr-2">{{ index + 1 }}.</span>
+        <span class="flex items-start">
+          <span class="mr-2 flex-shrink-0 w-4 text-right">{{ index + 1 }}</span>
           <span class="flex-1">{{ track.name }}</span>
         </span>
         <svg 
           v-if="isTrackLoved(track)" 
-          class="w-4 h-4 text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors" 
+          class="w-4 h-4 text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors ml-2" 
           fill="currentColor" 
           viewBox="0 0 20 20"
           :title="allowLoving ? 'Click to unlike' : 'Loved on Last.fm'"
@@ -160,7 +123,7 @@ const handleHeartClick = async (track, event) => {
         </svg>
         <svg 
           v-else-if="allowLoving && sessionKey" 
-          class="w-4 h-4 text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors" 
+          class="w-4 h-4 text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors ml-2" 
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"

@@ -2,12 +2,14 @@ import { ref, onMounted } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useUserSpotifyApi } from './useUserSpotifyApi';
 
 export function useUserData() {
   const user = useCurrentUser();
   const userData = ref(null);
   const loading = ref(true);
   const error = ref(null);
+  const { checkConnectionStatus } = useUserSpotifyApi();
 
   async function fetchUserData(uid) {
     try {
@@ -19,6 +21,30 @@ export function useUserData() {
       if (userDoc.exists()) {
         userData.value = userDoc.data();
         console.log('User data fetched:', userData.value);
+        
+        // Check Spotify connection status if user has Spotify connected
+        if (userData.value.spotifyConnected) {
+          try {
+            console.log('Checking Spotify connection status...');
+            const connectionStatus = await checkConnectionStatus();
+            console.log('Spotify connection status:', connectionStatus);
+            
+            // If connection failed and we couldn't recover, update the user data
+            if (!connectionStatus.connected) {
+              console.warn('Spotify connection lost, updating user data');
+              await setDoc(doc(db, 'users', uid), {
+                spotifyConnected: false,
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+              
+              // Update local userData to reflect the change
+              userData.value.spotifyConnected = false;
+            }
+          } catch (connectionError) {
+            console.error('Error checking Spotify connection:', connectionError);
+            // Don't fail the entire user data fetch for connection check errors
+          }
+        }
       } else {
         console.log('No user document found for UID:', uid);
         userData.value = null;

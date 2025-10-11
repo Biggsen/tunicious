@@ -50,8 +50,9 @@ const sortDirectionLabel = computed(() => {
   return sortDirection.value === 'desc' ? 'Newest First' : 'Oldest First';
 });
 
-// Tracklist display state
-const showTracklists = ref(false);
+// Tracklist display state - initialize from localStorage
+const TRACKLIST_STORAGE_KEY = 'audiofoodie_showTracklists';
+const showTracklists = ref(localStorage.getItem(TRACKLIST_STORAGE_KEY) === 'true');
 const albumTracks = ref({}); // Store tracks for each album
 const tracksLoading = ref(false);
 
@@ -84,41 +85,139 @@ const fetchAlbumTracks = async () => {
   }
 };
 
-// Watch for showTracklists changes
+// Watch for showTracklists changes - fetch tracks and persist to localStorage
 watch(showTracklists, (newValue) => {
+  // Save to localStorage
+  localStorage.setItem(TRACKLIST_STORAGE_KEY, String(newValue));
+  
+  // Fetch tracks if enabled
   if (newValue) {
     fetchAlbumTracks();
   }
 });
 
-// Handle track loving/unloving
+// Handle track loving/unloving with optimistic cache updates
 const handleTrackLoved = async ({ album, track }) => {
-  if (!userData.value?.lastFmSessionKey) return;
+  if (!userData.value?.lastFmSessionKey || !userData.value?.lastFmUserName) return;
   
   try {
+    // Optimistically add track to loved tracks
+    const lovedTrack = {
+      name: track.name,
+      artist: { name: track.artists[0].name },
+      date: { uts: Math.floor(Date.now() / 1000).toString() }
+    };
+    lovedTracks.value = [...lovedTracks.value, lovedTrack];
+    
+    // Update cache with new loved tracks
+    const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+    await setCache(cacheKey, lovedTracks.value);
+    
+    // Make API call
     await loveTrack(track.name, track.artists[0].name, userData.value.lastFmSessionKey);
     
-    // Refresh loved tracks data
-    if (userData.value?.lastFmUserName) {
-      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    // Recalculate loved track percentage for this album
+    if (albumLovedData.value[album.id]) {
+      const result = await calculateLovedTrackPercentage(album, lovedTracks.value, albumTracks.value[album.id]);
+      albumLovedData.value[album.id] = {
+        ...result,
+        isLoading: false
+      };
     }
+    
   } catch (error) {
     console.error('Error loving track:', error);
+    
+    // On error, refetch from Last.fm to get accurate state
+    if (userData.value?.lastFmUserName) {
+      await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
+      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+      
+      // Recalculate percentages after refetch
+      if (albumLovedData.value[album.id]) {
+        const result = await calculateLovedTrackPercentage(album, lovedTracks.value, albumTracks.value[album.id]);
+        albumLovedData.value[album.id] = {
+          ...result,
+          isLoading: false
+        };
+      }
+    }
   }
 };
 
 const handleTrackUnloved = async ({ album, track }) => {
-  if (!userData.value?.lastFmSessionKey) return;
+  if (!userData.value?.lastFmSessionKey || !userData.value?.lastFmUserName) return;
   
   try {
+    // Optimistically remove track from loved tracks
+    lovedTracks.value = lovedTracks.value.filter(lovedTrack => {
+      const trackNameMatch = lovedTrack.name?.toLowerCase() === track.name.toLowerCase();
+      const artistMatch = lovedTrack.artist?.name?.toLowerCase() === track.artists[0].name.toLowerCase();
+      return !(trackNameMatch && artistMatch);
+    });
+    
+    // Update cache with new loved tracks
+    const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+    await setCache(cacheKey, lovedTracks.value);
+    
+    // Make API call
     await unloveTrack(track.name, track.artists[0].name, userData.value.lastFmSessionKey);
     
-    // Refresh loved tracks data
-    if (userData.value?.lastFmUserName) {
-      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    // Recalculate loved track percentage for this album
+    if (albumLovedData.value[album.id]) {
+      const result = await calculateLovedTrackPercentage(album, lovedTracks.value, albumTracks.value[album.id]);
+      albumLovedData.value[album.id] = {
+        ...result,
+        isLoading: false
+      };
     }
+    
   } catch (error) {
     console.error('Error unloving track:', error);
+    
+    // On error, refetch from Last.fm to get accurate state
+    if (userData.value?.lastFmUserName) {
+      await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
+      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+      
+      // Recalculate percentages after refetch
+      if (albumLovedData.value[album.id]) {
+        const result = await calculateLovedTrackPercentage(album, lovedTracks.value, albumTracks.value[album.id]);
+        albumLovedData.value[album.id] = {
+          ...result,
+          isLoading: false
+        };
+      }
+    }
+  }
+};
+
+// Manual refresh of loved tracks from Last.fm
+const refreshingLovedTracks = ref(false);
+const refreshLovedTracks = async () => {
+  if (!userData.value?.lastFmUserName) return;
+  
+  try {
+    refreshingLovedTracks.value = true;
+    
+    // Clear cache and refetch from Last.fm
+    await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
+    lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    
+    // Recalculate all loved track percentages
+    for (const album of albumData.value) {
+      if (albumLovedData.value[album.id] && albumTracks.value[album.id]) {
+        const result = await calculateLovedTrackPercentage(album, lovedTracks.value, albumTracks.value[album.id]);
+        albumLovedData.value[album.id] = {
+          ...result,
+          isLoading: false
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error refreshing loved tracks:', error);
+  } finally {
+    refreshingLovedTracks.value = false;
   }
 };
 
@@ -559,6 +658,16 @@ async function loadPlaylistPage() {
 onMounted(async () => {
   try {
     await loadPlaylistPage();
+    
+    // Load loved tracks from cache if user has Last.fm connected
+    if (userData.value?.lastFmUserName) {
+      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    }
+    
+    // If tracklists were shown on last visit, fetch them
+    if (showTracklists.value && albumData.value.length > 0) {
+      fetchAlbumTracks();
+    }
   } catch (e) {
     console.error("Error in PlaylistSingle:", e);
     error.value = e.message || "An unexpected error occurred. Please try again.";
@@ -755,6 +864,19 @@ const handleProcessAlbum = async ({ album, action }) => {
           </svg>
         </template>
         {{ showTracklists ? 'Hide Tracklists' : 'Show Tracklists' }}
+      </BaseButton>
+      <BaseButton 
+        v-if="userData?.lastFmUserName && showTracklists"
+        @click="refreshLovedTracks"
+        :disabled="refreshingLovedTracks"
+        title="Sync loved tracks with Last.fm"
+      >
+        <template #icon-left>
+          <svg class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+          </svg>
+        </template>
+        {{ refreshingLovedTracks ? 'Syncing...' : 'Sync Loved Tracks' }}
       </BaseButton>
     </div>
 

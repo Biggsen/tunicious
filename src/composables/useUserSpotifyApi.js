@@ -28,8 +28,9 @@ export function useUserSpotifyApi() {
       throw new Error('Spotify not connected');
     }
 
-    // Check if token is expired
-    if (userData.spotifyTokens.expiresAt < Date.now()) {
+    // Check if token is expired (with 5 minute buffer to refresh proactively)
+    const bufferTime = 5 * 60 * 1000; // 5 minutes
+    if (userData.spotifyTokens.expiresAt < (Date.now() + bufferTime)) {
       throw new Error('Spotify token expired - please reconnect');
     }
 
@@ -69,6 +70,7 @@ export function useUserSpotifyApi() {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
+      console.log('Token refreshed successfully, new expiry:', new Date(Date.now() + (result.expiresIn * 1000)));
       return result.accessToken;
     } catch (err) {
       console.error('Token refresh error:', err);
@@ -90,6 +92,101 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Proactively refresh token if it's close to expiration (within 10 minutes)
+   */
+  const ensureTokenFresh = async () => {
+    try {
+      if (!user.value) {
+        return null;
+      }
+
+      const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+      if (!userDoc.exists()) {
+        return null;
+      }
+
+      const userData = userDoc.data();
+      if (!userData.spotifyTokens || !userData.spotifyTokens.refreshToken) {
+        return null;
+      }
+
+      // Check if token expires within 10 minutes
+      const tenMinutes = 10 * 60 * 1000;
+      const timeUntilExpiry = userData.spotifyTokens.expiresAt - Date.now();
+      
+      if (timeUntilExpiry < tenMinutes) {
+        console.log('Token expires soon, refreshing proactively...');
+        return await refreshUserToken();
+      }
+
+      return userData.spotifyTokens.accessToken;
+    } catch (err) {
+      console.error('Error in ensureTokenFresh:', err);
+      return null;
+    }
+  };
+
+  /**
+   * Check and recover Spotify connection status
+   */
+  const checkConnectionStatus = async () => {
+    try {
+      if (!user.value) {
+        return { connected: false, error: 'User not authenticated' };
+      }
+
+      const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+      if (!userDoc.exists()) {
+        return { connected: false, error: 'User profile not found' };
+      }
+
+      const userData = userDoc.data();
+      if (!userData.spotifyTokens) {
+        return { connected: false, error: 'Spotify not connected' };
+      }
+
+      if (!userData.spotifyTokens.refreshToken) {
+        return { connected: false, error: 'No refresh token available' };
+      }
+
+      // Check if token is expired
+      if (userData.spotifyTokens.expiresAt < Date.now()) {
+        console.log('Token expired, attempting refresh...');
+        try {
+          await refreshUserToken();
+          return { connected: true, error: null, refreshed: true };
+        } catch (refreshErr) {
+          console.error('Token refresh failed:', refreshErr);
+          return { connected: false, error: 'Token refresh failed - please reconnect' };
+        }
+      }
+
+      // Test the connection with a simple API call
+      try {
+        await makeUserRequest('/me');
+        return { connected: true, error: null, refreshed: false };
+      } catch (apiErr) {
+        console.error('API test failed:', apiErr);
+        
+        // If API call fails, try refreshing the token
+        if (apiErr.message.includes('401') || apiErr.message.includes('expired')) {
+          try {
+            await refreshUserToken();
+            return { connected: true, error: null, refreshed: true };
+          } catch (refreshErr) {
+            return { connected: false, error: 'Connection test failed - please reconnect' };
+          }
+        }
+        
+        return { connected: false, error: 'Connection test failed' };
+      }
+    } catch (err) {
+      console.error('Error checking connection status:', err);
+      return { connected: false, error: 'Failed to check connection status' };
+    }
+  };
+
+  /**
    * Makes an authenticated request to the Spotify API using user's token
    */
   const makeUserRequest = async (endpoint, options = {}) => {
@@ -102,38 +199,54 @@ export function useUserSpotifyApi() {
         const tokens = await getUserTokens();
         accessToken = tokens.accessToken;
         console.log('Using existing token, expires at:', new Date(tokens.expiresAt));
-             } catch (err) {
-         console.log('Token error:', err.message);
-         // Try to refresh token if expired
-         if (err.message.includes('expired') || err.message.includes('reconnect')) {
-           console.log('Attempting token refresh...');
-           try {
-             accessToken = await refreshUserToken();
-             console.log('Token refreshed successfully');
-           } catch (refreshErr) {
-             console.error('Token refresh failed:', refreshErr.message);
-             // If refresh fails, clear the tokens and ask user to reconnect
-             if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
-               // Clear the invalid tokens from Firestore
-               await setDoc(doc(db, 'users', user.value.uid), {
-                 spotifyTokens: null,
-                 spotifyConnected: false,
-                 updatedAt: serverTimestamp()
-               }, { merge: true });
-               throw new Error('Spotify connection lost - please reconnect your account');
-             }
-             throw refreshErr;
-           }
-         } else {
-           throw err;
-         }
-       }
+      } catch (err) {
+        console.log('Token error:', err.message);
+        
+        // Try to refresh token if expired or about to expire
+        if (err.message.includes('expired') || err.message.includes('reconnect')) {
+          console.log('Attempting token refresh...');
+          try {
+            accessToken = await refreshUserToken();
+            console.log('Token refreshed successfully');
+          } catch (refreshErr) {
+            console.error('Token refresh failed:', refreshErr.message);
+            
+            // If refresh fails, clear the tokens and ask user to reconnect
+            if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
+              // Clear the invalid tokens from Firestore
+              await setDoc(doc(db, 'users', user.value.uid), {
+                spotifyTokens: null,
+                spotifyConnected: false,
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+              throw new Error('Spotify connection lost - please reconnect your account');
+            }
+            throw refreshErr;
+          }
+        } else {
+          throw err;
+        }
+      }
 
       // Use our secure backend proxy instead of direct API call
       const endpointPath = endpoint.replace('https://api.spotify.com/v1', '');
       return await spotifyApiCall(endpointPath, options.method || 'GET', options.body, accessToken);
     } catch (err) {
       error.value = err.message || err.toString();
+      
+      // Provide more specific error messages for common issues
+      if (err.message.includes('Failed to refresh token') || err.message.includes('400')) {
+        throw new Error('Spotify connection lost - please reconnect your account');
+      } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        throw new Error('Spotify authentication expired - please reconnect your account');
+      } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+        throw new Error('Spotify access denied - please reconnect your account');
+      } else if (err.message.includes('429') || err.message.includes('rate limit')) {
+        throw new Error('Spotify rate limit exceeded - please try again in a moment');
+      } else if (err.message.includes('network') || err.message.includes('fetch')) {
+        throw new Error('Network error connecting to Spotify - please check your connection and try again');
+      }
+      
       throw err;
     } finally {
       loading.value = false;
@@ -450,6 +563,9 @@ export function useUserSpotifyApi() {
     searchAlbums,
     isAudioFoodiePlaylist,
     getUserTokens,
+    refreshUserToken,
+    ensureTokenFresh,
+    checkConnectionStatus,
     getPlaylistAlbumsWithDates,
     getAlbumsBatch,
     loadAlbumsBatched,

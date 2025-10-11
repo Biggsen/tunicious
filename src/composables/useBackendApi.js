@@ -27,12 +27,37 @@ export function useBackendApi() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        
+        // Provide more specific error messages based on the response
+        let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        
+        // Handle specific HTTP status codes
+        if (response.status === 400) {
+          if (errorMessage.includes('refresh token')) {
+            errorMessage = 'Spotify refresh token expired - please reconnect your account';
+          }
+        } else if (response.status === 401) {
+          errorMessage = 'Spotify authentication failed - please reconnect your account';
+        } else if (response.status === 403) {
+          errorMessage = 'Spotify access denied - please reconnect your account';
+        } else if (response.status === 429) {
+          errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
+        } else if (response.status >= 500) {
+          errorMessage = 'Spotify service temporarily unavailable - please try again later';
+        }
+        
+        throw new Error(errorMessage);
       }
 
       return await response.json();
     } catch (err) {
       error.value = err.message;
+      
+      // Distinguish between network errors and API errors
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Network error - please check your internet connection and try again');
+      }
+      
       throw err;
     } finally {
       loading.value = false;
