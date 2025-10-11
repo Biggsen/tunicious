@@ -265,8 +265,10 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
           :tracks="tracks" 
           :lovedTracks="lovedTracks"
           :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
+          :albumTitle="album.name || album.albumTitle || ''"
           :sessionKey="lastFmSessionKey"
           :allowLoving="allowTrackLoving"
+          :lastFmUserName="lastFmUserName"
           @track-loved="handleTrackLoved"
           @track-unloved="handleTrackUnloved"
         />

@@ -164,18 +164,17 @@ export function useLastFmApi() {
   };
 
   /**
-   * Gets user's scrobbles for a specific album
-   * @param {string} username - The Last.fm username
+   * Gets track information including user playcount
+   * @param {string} track - The track name
    * @param {string} artist - The artist name
-   * @param {string} album - The album name
-   * @returns {Promise<Object>} User's album scrobble data
+   * @param {string} username - The Last.fm username (optional, for user-specific data)
+   * @returns {Promise<Object>} Track information
    */
-  const getUserAlbumTracks = async (username, artist, album) => {
-    return makeRequest('user.getalbumtracks', { 
-      user: username, 
-      artist, 
-      album 
-    });
+  const getTrackInfo = async (track, artist, username = null) => {
+    const params = { track, artist };
+    if (username) params.username = username;
+    
+    return makeRequest('track.getinfo', params);
   };
 
   /**
@@ -297,7 +296,7 @@ export function useLastFmApi() {
     getAlbumInfo,
     getArtistInfo,
     getUserArtistTracks,
-    getUserAlbumTracks,
+    getTrackInfo,
     searchAlbums,
     searchArtists,
     getUserLovedTracks,

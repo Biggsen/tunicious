@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { useLastFmApi } from '@composables/useLastFmApi';
 
 const props = defineProps({
   tracks: {
@@ -14,6 +15,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  albumTitle: {
+    type: String,
+    default: ''
+  },
   sessionKey: {
     type: String,
     default: ''
@@ -21,11 +26,97 @@ const props = defineProps({
   allowLoving: {
     type: Boolean,
     default: false
+  },
+  lastFmUserName: {
+    type: String,
+    default: ''
   }
 });
 
 const emit = defineEmits(['track-loved', 'track-unloved']);
 
+// Last.fm API for playcount data
+const { getTrackInfo } = useLastFmApi();
+const trackPlaycounts = ref({});
+const playcountLoading = ref(false);
+
+/**
+ * Format playcount number for display
+ */
+const formatPlaycount = (count) => {
+  if (!count || count === 0) return '0';
+  const num = parseInt(count);
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`;
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toString();
+};
+
+/**
+ * Fetch playcount data for tracks
+ */
+const fetchTrackPlaycounts = async () => {
+  if (!props.lastFmUserName || !props.albumArtist || !props.tracks.length) {
+    return;
+  }
+
+  try {
+    playcountLoading.value = true;
+    const playcountMap = {};
+    
+    // Fetch playcount for each track individually
+    const trackPromises = props.tracks.map(async (track) => {
+      try {
+        const response = await getTrackInfo(track.name, props.albumArtist, props.lastFmUserName);
+        if (response.track && response.track.userplaycount !== undefined) {
+          return {
+            trackName: track.name.toLowerCase(),
+            playcount: parseInt(response.track.userplaycount) || 0
+          };
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch playcount for track "${track.name}":`, error);
+      }
+      return {
+        trackName: track.name.toLowerCase(),
+        playcount: 0
+      };
+    });
+    
+    const results = await Promise.allSettled(trackPromises);
+    
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        playcountMap[result.value.trackName] = result.value.playcount;
+      }
+    });
+    
+    trackPlaycounts.value = playcountMap;
+  } catch (error) {
+    console.error('Error fetching track playcounts:', error);
+  } finally {
+    playcountLoading.value = false;
+  }
+};
+
+/**
+ * Get playcount for a specific track
+ */
+const getTrackPlaycount = (trackName) => {
+  return trackPlaycounts.value[trackName.toLowerCase()] || 0;
+};
+
+// Watch for changes in props that affect playcount fetching
+watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks], 
+  () => {
+    if (props.lastFmUserName && props.albumArtist && props.tracks.length) {
+      fetchTrackPlaycounts();
+    }
+  },
+  { immediate: true }
+);
 
 /**
  * Create a lookup map of loved tracks for better performance
@@ -107,9 +198,15 @@ const handleHeartClick = async (track, event) => {
         :key="track.id"
         class="flex justify-between items-start text-delft-blue hover:bg-white/30 rounded pl-3 pr-2 py-1 transition-colors cursor-pointer"
       >
-        <span class="flex items-start">
+        <span class="flex items-start flex-1">
           <span class="mr-2 flex-shrink-0 w-4 text-right">{{ index + 1 }}</span>
           <span class="flex-1">{{ track.name }}</span>
+          <span v-if="lastFmUserName && !playcountLoading" class="ml-2 text-xs text-gray-500 flex-shrink-0">
+            {{ formatPlaycount(getTrackPlaycount(track.name)) }}
+          </span>
+          <span v-else-if="playcountLoading" class="ml-2 text-xs text-gray-400 flex-shrink-0">
+            ...
+          </span>
         </span>
         <svg 
           v-if="isTrackLoved(track)" 
