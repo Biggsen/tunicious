@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
@@ -17,6 +17,7 @@ import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/last
 import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
+import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 
 const route = useRoute();
 const { user, userData } = useUserData();
@@ -24,6 +25,9 @@ const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPl
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
 const { loveTrack, unloveTrack } = useLastFmApi();
+
+// Initialize current playing track tracking
+const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack(userData.value?.lastFmUserName);
 
 // Processing state
 const processingAlbum = ref(null);
@@ -192,7 +196,7 @@ const handleTrackUnloved = async ({ album, track }) => {
   }
 };
 
-// Manual refresh of loved tracks from Last.fm
+// Manual refresh of loved tracks and playcounts from Last.fm
 const refreshingLovedTracks = ref(false);
 const refreshLovedTracks = async () => {
   if (!userData.value?.lastFmUserName) return;
@@ -200,7 +204,7 @@ const refreshLovedTracks = async () => {
   try {
     refreshingLovedTracks.value = true;
     
-    // Clear cache and refetch from Last.fm
+    // Clear cache and refetch loved tracks from Last.fm
     await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
     lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
     
@@ -214,8 +218,23 @@ const refreshLovedTracks = async () => {
         };
       }
     }
+    
+    // If tracklists are shown, also refresh playcounts for all visible albums
+    if (showTracklists.value && albumData.value.length > 0) {
+      // Trigger playcount refresh for all albums by re-fetching their tracks
+      // This will cause TrackList components to refetch playcounts
+      const albumIds = albumData.value.map(album => album.id);
+      
+      // Clear any cached track data to force fresh playcount fetches
+      for (const albumId of albumIds) {
+        await clearCache(`albumTracks_${albumId}`);
+      }
+      
+      // Re-fetch tracks for all albums to trigger playcount refresh
+      await fetchAlbumTracks();
+    }
   } catch (error) {
-    console.error('Error refreshing loved tracks:', error);
+    console.error('Error refreshing loved tracks and playcounts:', error);
   } finally {
     refreshingLovedTracks.value = false;
   }
@@ -664,6 +683,11 @@ onMounted(async () => {
       lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
     }
     
+    // Start polling for current playing track if user has Last.fm connected
+    if (userData.value?.lastFmUserName) {
+      startCurrentTrackPolling();
+    }
+    
     // If tracklists were shown on last visit, fetch them
     if (showTracklists.value && albumData.value.length > 0) {
       fetchAlbumTracks();
@@ -672,6 +696,11 @@ onMounted(async () => {
     console.error("Error in PlaylistSingle:", e);
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
+});
+
+onUnmounted(() => {
+  // Stop polling for current playing track when component is unmounted
+  stopCurrentTrackPolling();
 });
 
 // Add album to playlist state
@@ -869,14 +898,14 @@ const handleProcessAlbum = async ({ album, action }) => {
         v-if="userData?.lastFmUserName && showTracklists"
         @click="refreshLovedTracks"
         :disabled="refreshingLovedTracks"
-        title="Sync loved tracks with Last.fm"
+        title="Refresh loved tracks and playcounts with Last.fm"
       >
         <template #icon-left>
           <svg class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
           </svg>
         </template>
-        {{ refreshingLovedTracks ? 'Syncing...' : 'Sync Loved Tracks' }}
+        {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh Tracks' }}
       </BaseButton>
     </div>
 

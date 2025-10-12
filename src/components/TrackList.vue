@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
 import { useLastFmApi } from '@composables/useLastFmApi';
+import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
+import { PlayIcon } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
   tracks: {
@@ -29,7 +31,8 @@ const props = defineProps({
   },
   lastFmUserName: {
     type: String,
-    default: ''
+    default: '',
+    description: 'Last.fm username for fetching playcounts and current playing track'
   }
 });
 
@@ -39,6 +42,9 @@ const emit = defineEmits(['track-loved', 'track-unloved']);
 const { getTrackInfo } = useLastFmApi();
 const trackPlaycounts = ref({});
 const playcountLoading = ref(false);
+
+// Current playing track functionality
+const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack(props.lastFmUserName);
 
 /**
  * Format playcount number for display
@@ -217,15 +223,24 @@ const handleHeartClick = async (track, event) => {
 </script>
 
 <template>
-  <div class="bg-white border-2 border-delft-blue rounded-xl p-4">
+  <div class="bg-white border-2 border-delft-blue p-4">
     <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Tracks</h2>
     <ul>
       <li 
         v-for="track in sortedTracks" 
         :key="track.id"
-        class="flex justify-between items-start text-delft-blue hover:bg-white/30 rounded pl-3 pr-2 py-1 transition-colors cursor-pointer"
+        :class="[
+          'flex justify-between items-start text-delft-blue hover:bg-white/30 pl-3 pr-2 py-1 transition-colors cursor-pointer',
+          {
+            'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist),
+            'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist)
+          }
+        ]"
       >
-        <span class="flex items-start flex-1">
+        <span class="flex items-center flex-1">
+          <span v-if="isTrackCurrentlyPlaying(track.name, albumArtist)" class="mr-1 text-delft-blue flex-shrink-0" title="Now Playing">
+            <PlayIcon class="w-3 h-3" />
+          </span>
           <span class="flex-1">{{ track.name }}</span>
           <span v-if="lastFmUserName && !playcountLoading" class="ml-2 text-xs text-gray-500 flex-shrink-0">
             {{ formatPlaycount(getTrackPlaycount(track.name)) }}
