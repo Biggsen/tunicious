@@ -316,6 +316,15 @@ const showMismatchReport = ref(false);
 const mismatchCheckStartTime = ref(null);
 const mismatchCheckProgress = ref({ current: 0, total: 0, currentArtist: null });
 
+// Invalid albums checking state
+const checkingInvalid = ref(false);
+const invalidAlbumsReport = ref({
+  nullAlbums: [],
+  notInDb: [],
+  noArtistId: []
+});
+const showInvalidReport = ref(false);
+
 // Last.fm loved tracks data
 const lovedTracks = ref([]);
 const lovedTracksLoadingStarted = ref(false);
@@ -1074,6 +1083,10 @@ async function checkForIdMismatches() {
     const albumIdToPlaylistAlbum = new Map();
     
     for (const playlistAlbum of allAlbumsFromPlaylist) {
+      if (!playlistAlbum || !playlistAlbum.id) {
+        continue; // Skip null or invalid albums
+      }
+      
       albumIdToPlaylistAlbum.set(playlistAlbum.id, playlistAlbum);
       const dbAlbumData = await fetchAlbumsData([playlistAlbum.id]);
       
@@ -1225,6 +1238,135 @@ async function checkForIdMismatches() {
   }
 }
 
+async function checkForInvalidAlbums() {
+  if (!sortedAlbumIds.value.length || !user.value) {
+    return;
+  }
+
+  checkingInvalid.value = true;
+  invalidAlbumsReport.value = {
+    nullAlbums: [],
+    notInDb: [],
+    noArtistId: []
+  };
+  showInvalidReport.value = false;
+  error.value = null;
+  successMessage.value = '';
+
+  try {
+    // Mirror the exact logic from checkForIdMismatches
+    // Step 1: Load all albums from the playlist
+    currentlyProcessingAlbum.value = 'Loading playlist albums...';
+    const allAlbumsFromPlaylist = await loadAlbumsBatched(sortedAlbumIds.value);
+    
+    // Create a map of album ID -> album object from the loaded albums
+    const loadedAlbumsMap = new Map();
+    for (const album of allAlbumsFromPlaylist) {
+      if (album && album.id) {
+        loadedAlbumsMap.set(album.id, album);
+      }
+    }
+    
+    // Step 2: Check which original album IDs are missing from the loaded results
+    // These are albums that failed to load from Spotify
+    for (const originalAlbumId of sortedAlbumIds.value) {
+      if (!loadedAlbumsMap.has(originalAlbumId)) {
+        invalidAlbumsReport.value.nullAlbums.push({
+          id: originalAlbumId,
+          error: 'Failed to load from Spotify'
+        });
+      }
+    }
+    
+    // Step 3: Now mirror the exact checkForIdMismatches logic
+    // Identify which albums exist in the database (same as mismatch check)
+    currentlyProcessingAlbum.value = 'Checking which albums are in database...';
+    const albumsInDb = [];
+    const albumIdToPlaylistAlbum = new Map();
+    
+    // This is the EXACT same loop as in checkForIdMismatches
+    for (const playlistAlbum of allAlbumsFromPlaylist) {
+      // THIS IS THE KEY CHECK - albums that fail this are the ones we need to track
+      if (!playlistAlbum || !playlistAlbum.id) {
+        // This album was filtered out - but we already caught it above in nullAlbums
+        // So we can continue here without tracking again
+        continue;
+      }
+      
+      albumIdToPlaylistAlbum.set(playlistAlbum.id, playlistAlbum);
+      const dbAlbumData = await fetchAlbumsData([playlistAlbum.id]);
+      
+      if (dbAlbumData[playlistAlbum.id] !== null) {
+        // Album exists in DB - this is what would be checked
+        albumsInDb.push(playlistAlbum);
+      } else {
+        // Album not in database
+        invalidAlbumsReport.value.notInDb.push({
+          id: playlistAlbum.id,
+          name: playlistAlbum.name,
+          artist: playlistAlbum.artists?.[0]?.name || 'Unknown Artist',
+          cover: playlistAlbum.images?.[1]?.url || playlistAlbum.images?.[0]?.url || ''
+        });
+      }
+    }
+    
+    // Step 4: Group albums by artist (same as mismatch check)
+    // This is where albums without artistId get filtered out
+    const artistMap = new Map();
+    
+    for (const album of albumsInDb) {
+      const artistId = album.artists[0]?.id;
+      const artistName = album.artists[0]?.name || 'Unknown Artist';
+      
+      if (artistId) {
+        // Album has artistId - would be included in mismatch check
+        if (!artistMap.has(artistId)) {
+          artistMap.set(artistId, {
+            artistId,
+            artistName,
+            albums: []
+          });
+        }
+        artistMap.get(artistId).albums.push(album);
+      } else {
+        // Album doesn't have artistId - gets filtered out in mismatch check
+        invalidAlbumsReport.value.noArtistId.push({
+          id: album.id,
+          name: album.name,
+          artist: artistName,
+          cover: album.images?.[1]?.url || album.images?.[0]?.url || ''
+        });
+      }
+    }
+    
+    // Log for debugging
+    console.log('Total albums in playlist:', sortedAlbumIds.value.length);
+    console.log('Albums loaded from Spotify:', allAlbumsFromPlaylist.length);
+    console.log('Albums that failed to load (null/missing):', invalidAlbumsReport.value.nullAlbums.length);
+    console.log('Albums in database:', albumsInDb.length);
+    console.log('Albums with artistId (would be checked):', Array.from(artistMap.values()).reduce((sum, artist) => sum + artist.albums.length, 0));
+    console.log('Albums without artistId (filtered out):', invalidAlbumsReport.value.noArtistId.length);
+    
+    showInvalidReport.value = true;
+    
+    const totalInvalid = invalidAlbumsReport.value.nullAlbums.length + 
+                         invalidAlbumsReport.value.notInDb.length + 
+                         invalidAlbumsReport.value.noArtistId.length;
+    
+    if (totalInvalid === 0) {
+      successMessage.value = 'No invalid albums found! All albums are valid.';
+    } else {
+      successMessage.value = `Found ${totalInvalid} invalid album(s). See report below.`;
+    }
+  } catch (err) {
+    console.error('Error checking for invalid albums:', err);
+    error.value = err.message || 'Failed to check for invalid albums';
+  } finally {
+    checkingInvalid.value = false;
+    currentlyProcessingAlbum.value = null;
+  }
+}
+
 const handleCreateMapping = async (mismatch) => {
   try {
     error.value = null;
@@ -1365,6 +1507,16 @@ const handleUpdateYear = async (mismatch) => {
           <ArrowPathIcon v-if="checkingMismatches" class="h-5 w-5 animate-spin" />
         </template>
         {{ checkingMismatches ? 'Checking...' : 'Check for ID Mismatches' }}
+      </BaseButton>
+      <BaseButton 
+        @click="checkForInvalidAlbums"
+        :disabled="checkingInvalid || loading || batchProcessingAlbums"
+        customClass="bg-red-600 text-white hover:bg-red-700"
+      >
+        <template #icon-left>
+          <ArrowPathIcon v-if="checkingInvalid" class="h-5 w-5 animate-spin" />
+        </template>
+        {{ checkingInvalid ? 'Checking...' : 'Check Invalid' }}
       </BaseButton>
     </div>
 
@@ -1510,6 +1662,113 @@ const handleUpdateYear = async (mismatch) => {
       <p class="mt-4 text-sm text-yellow-700">
         These albums have the same title and artist but different Spotify IDs. 
         You may want to create album mappings to link them together.
+      </p>
+    </div>
+
+    <!-- Invalid Albums Report -->
+    <div v-if="showInvalidReport && (invalidAlbumsReport.nullAlbums.length > 0 || invalidAlbumsReport.notInDb.length > 0 || invalidAlbumsReport.noArtistId.length > 0)" class="mb-6 bg-red-50 border-2 border-red-400 rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4 text-red-800">
+        Invalid Albums Report
+      </h2>
+      
+      <!-- Failed to Load from Spotify -->
+      <div v-if="invalidAlbumsReport.nullAlbums.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold mb-3 text-red-700">
+          Failed to Load from Spotify ({{ invalidAlbumsReport.nullAlbums.length }})
+        </h3>
+        <div class="bg-white rounded-lg p-4 border border-red-300">
+          <ul class="space-y-2">
+            <li v-for="(album, index) in invalidAlbumsReport.nullAlbums" :key="index" class="text-sm">
+              <span class="font-mono text-gray-600">{{ album.id }}</span>
+              <span class="text-gray-500 ml-2">- {{ album.error }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <!-- Not in Database -->
+      <div v-if="invalidAlbumsReport.notInDb.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold mb-3 text-red-700">
+          Not in Database ({{ invalidAlbumsReport.notInDb.length }})
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div 
+            v-for="(album, index) in invalidAlbumsReport.notInDb" 
+            :key="index"
+            class="bg-white rounded-lg p-4 border border-red-300"
+          >
+            <div class="mb-3">
+              <img 
+                v-if="album.cover" 
+                :src="album.cover" 
+                :alt="album.name"
+                class="w-full h-auto rounded object-cover mb-2 shadow-sm"
+              />
+              <div v-else class="w-full h-48 bg-gray-200 rounded flex items-center justify-center mb-2">
+                <span class="text-gray-400 text-xs">No Cover</span>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">Artist</p>
+                <p class="text-sm font-semibold text-gray-900">{{ album.artist }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">Title</p>
+                <p class="text-sm font-semibold text-gray-900">{{ album.name }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">ID</p>
+                <p class="text-xs font-mono text-gray-600 break-all">{{ album.id }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- No Artist ID -->
+      <div v-if="invalidAlbumsReport.noArtistId.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold mb-3 text-red-700">
+          Missing Artist ID ({{ invalidAlbumsReport.noArtistId.length }})
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div 
+            v-for="(album, index) in invalidAlbumsReport.noArtistId" 
+            :key="index"
+            class="bg-white rounded-lg p-4 border border-red-300"
+          >
+            <div class="mb-3">
+              <img 
+                v-if="album.cover" 
+                :src="album.cover" 
+                :alt="album.name"
+                class="w-full h-auto rounded object-cover mb-2 shadow-sm"
+              />
+              <div v-else class="w-full h-48 bg-gray-200 rounded flex items-center justify-center mb-2">
+                <span class="text-gray-400 text-xs">No Cover</span>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">Artist</p>
+                <p class="text-sm font-semibold text-gray-900">{{ album.artist }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">Title</p>
+                <p class="text-sm font-semibold text-gray-900">{{ album.name }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-0.5">ID</p>
+                <p class="text-xs font-mono text-gray-600 break-all">{{ album.id }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <p class="mt-4 text-sm text-red-700">
+        These albums have issues that prevent them from being processed in the ID mismatch check.
+        Albums not in database may need to be added. Albums without artist IDs may have data issues.
       </p>
     </div>
     <div v-if="tracksLoading" class="mb-4 text-center">
