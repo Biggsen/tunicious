@@ -3,6 +3,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlayIcon, PauseIcon } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
@@ -34,6 +35,31 @@ const props = defineProps({
     type: String,
     default: '',
     description: 'Last.fm username for fetching playcounts and current playing track'
+  },
+  albumId: {
+    type: String,
+    default: '',
+    description: 'Spotify album ID for finding next album in playlist'
+  },
+  playlistId: {
+    type: String,
+    default: '',
+    description: 'Spotify playlist ID for finding next album'
+  },
+  playlistName: {
+    type: String,
+    default: '',
+    description: 'Playlist name for tracking context'
+  },
+  albumsList: {
+    type: Array,
+    default: () => [],
+    description: 'List of albums in the playlist, ordered by addedAt'
+  },
+  sortByPlaycount: {
+    type: Boolean,
+    default: true,
+    description: 'Whether to sort tracks by playcount (descending)'
   }
 });
 
@@ -55,8 +81,12 @@ const {
   playTrack,
   togglePlayback,
   isTrackPlaying,
+  addToQueue,
   error: playerError
 } = useSpotifyPlayer();
+
+// Spotify API for fetching next album tracks
+const { getAlbumTracks } = useUserSpotifyApi();
 
 /**
  * Format playcount number for display
@@ -152,6 +182,11 @@ watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks],
  * Computed property for tracks sorted by playcount (descending)
  */
 const sortedTracks = computed(() => {
+  // If sorting is disabled, return tracks in original order
+  if (!props.sortByPlaycount) {
+    return props.tracks;
+  }
+  
   if (!props.lastFmUserName || Object.keys(trackPlaycounts.value).length === 0) {
     return props.tracks;
   }
@@ -234,6 +269,126 @@ const handleHeartClick = async (track, event) => {
 };
 
 /**
+ * Find all remaining albums in the playlist sequence (from current to end)
+ */
+const findRemainingAlbums = () => {
+  if (!props.playlistId || !props.albumsList.length || !props.albumId) {
+    return [];
+  }
+
+  const currentIndex = props.albumsList.findIndex(album => album.id === props.albumId);
+  if (currentIndex === -1 || currentIndex === props.albumsList.length - 1) {
+    return [];
+  }
+
+  // Return all albums from current + 1 to the end
+  return props.albumsList.slice(currentIndex + 1);
+};
+
+/**
+ * Get playcount for a track from Last.fm
+ */
+const getTrackPlaycountFromLastFm = async (trackName, artistName) => {
+  if (!props.lastFmUserName || !artistName) {
+    return 0;
+  }
+
+  try {
+    const response = await getTrackInfo(trackName, artistName, props.lastFmUserName);
+    if (response.track && response.track.userplaycount !== undefined) {
+      return parseInt(response.track.userplaycount) || 0;
+    }
+  } catch (error) {
+    console.warn(`Failed to fetch playcount for track "${trackName}":`, error);
+  }
+  return 0;
+};
+
+/**
+ * Fetch all tracks from an album (handles pagination)
+ */
+const fetchAllAlbumTracks = async (albumId) => {
+  let allTracks = [];
+  let offset = 0;
+  const limit = 50; // Maximum allowed by Spotify API
+  
+  while (true) {
+    try {
+      const response = await getAlbumTracks(albumId, limit, offset);
+      if (response.items && response.items.length > 0) {
+        allTracks = [...allTracks, ...response.items];
+        
+        if (response.items.length < limit) {
+          break; // No more tracks to fetch
+        }
+        
+        offset += limit;
+      } else {
+        break; // No more tracks
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch tracks for album ${albumId} at offset ${offset}:`, error);
+      break; // Stop fetching on error
+    }
+  }
+  
+  return allTracks;
+};
+
+/**
+ * Select the next track to queue from the next album
+ */
+const selectNextTrackToQueue = async (nextAlbum) => {
+  if (!nextAlbum || !props.lastFmUserName) {
+    return null;
+  }
+
+  try {
+    // Fetch all tracks from the next album (handles pagination)
+    const nextAlbumTracks = await fetchAllAlbumTracks(nextAlbum.id);
+
+    if (nextAlbumTracks.length === 0) {
+      return null;
+    }
+
+    // Get playcounts for all tracks
+    const tracksWithPlaycounts = await Promise.all(
+      nextAlbumTracks.map(async (track) => {
+        const playcount = await getTrackPlaycountFromLastFm(
+          track.name,
+          nextAlbum.artists?.[0]?.name || nextAlbum.artistName || ''
+        );
+        return {
+          ...track,
+          playcount,
+          uri: track.uri || `spotify:track:${track.id}`
+        };
+      })
+    );
+
+    // Find the minimum playcount (lowest, including 0)
+    const minPlaycount = Math.min(...tracksWithPlaycounts.map(t => t.playcount));
+    
+    // Filter tracks with the minimum playcount and sort by track number
+    const tracksWithMinPlaycount = tracksWithPlaycounts
+      .filter(t => t.playcount === minPlaycount)
+      .sort((a, b) => {
+        // Sort by track number (preserve album order)
+        return a.track_number - b.track_number;
+      });
+
+    // Take the last 3 tracks with minimum playcount, then select the last one
+    const last3Tracks = tracksWithMinPlaycount.slice(-3);
+    const selectedTrack = last3Tracks[last3Tracks.length - 1];
+    
+    return selectedTrack ? selectedTrack.uri : null;
+  } catch (error) {
+    console.error('Error selecting next track to queue:', error);
+    return null;
+  }
+};
+
+/**
  * Handle track play/pause click
  */
 const handleTrackClick = async (track) => {
@@ -251,7 +406,33 @@ const handleTrackClick = async (track) => {
   } else {
     // Play this track
     try {
-      await playTrack(trackUri);
+      // Create context if playing from a playlist
+      const context = props.playlistId ? {
+        type: 'playlist',
+        id: props.playlistId,
+        name: props.playlistName || 'Unknown Playlist'
+      } : null;
+      
+      await playTrack(trackUri, context);
+      
+      // After playing, try to add tracks from all remaining albums to queue
+      if (props.playlistId && props.albumsList.length > 0 && props.albumId) {
+        const remainingAlbums = findRemainingAlbums();
+        
+        // Queue tracks from all remaining albums
+        for (const nextAlbum of remainingAlbums) {
+          try {
+            const nextTrackUri = await selectNextTrackToQueue(nextAlbum);
+            if (nextTrackUri) {
+              await addToQueue(nextTrackUri);
+              console.log('Added track to queue:', nextTrackUri);
+            }
+          } catch (queueError) {
+            // Continue with next album even if one fails - don't interrupt playback
+            console.warn('Failed to add track to queue:', queueError);
+          }
+        }
+      }
     } catch (err) {
       console.error('Error playing track:', err);
     }

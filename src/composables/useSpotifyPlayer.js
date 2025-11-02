@@ -7,6 +7,7 @@ const deviceId = ref(null);
 const isReady = ref(false);
 const isPlaying = ref(false);
 const currentTrack = ref(null);
+const playingFrom = ref(null);
 const position = ref(0);
 const duration = ref(0);
 const loading = ref(false);
@@ -94,6 +95,7 @@ export function useSpotifyPlayer() {
             if (!state) {
               isPlaying.value = false;
               currentTrack.value = null;
+              playingFrom.value = null;
               return;
             }
 
@@ -152,7 +154,7 @@ export function useSpotifyPlayer() {
   /**
    * Play a track by URI
    */
-  const playTrack = async (trackUri) => {
+  const playTrack = async (trackUri, context = null) => {
     if (!player.value || !isReady.value || !deviceId.value) {
       error.value = 'Player not ready. Please ensure Spotify is open and you have Premium.';
       return;
@@ -175,6 +177,9 @@ export function useSpotifyPlayer() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error?.message || `Failed to play track: ${response.status}`);
       }
+
+      // Store the context after successful play
+      playingFrom.value = context;
     } catch (err) {
       console.error('Error playing track:', err);
       error.value = err.message || 'Failed to play track';
@@ -185,7 +190,7 @@ export function useSpotifyPlayer() {
   /**
    * Play an album by URI
    */
-  const playAlbum = async (albumUri, offset = 0) => {
+  const playAlbum = async (albumUri, offset = 0, context = null) => {
     if (!player.value || !isReady.value || !deviceId.value) {
       error.value = 'Player not ready. Please ensure Spotify is open and you have Premium.';
       return;
@@ -211,6 +216,9 @@ export function useSpotifyPlayer() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error?.message || `Failed to play album: ${response.status}`);
       }
+
+      // Store the context after successful play
+      playingFrom.value = context;
     } catch (err) {
       console.error('Error playing album:', err);
       error.value = err.message || 'Failed to play album';
@@ -300,6 +308,38 @@ export function useSpotifyPlayer() {
   };
 
   /**
+   * Add a track to the queue
+   */
+  const addToQueue = async (trackUri) => {
+    if (!player.value || !isReady.value || !deviceId.value) {
+      error.value = 'Player not ready. Please ensure Spotify is open and you have Premium.';
+      return;
+    }
+
+    try {
+      const tokens = await getUserTokens();
+      const accessToken = tokens.accessToken;
+
+      const response = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(trackUri)}&device_id=${deviceId.value}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to add track to queue: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('Error adding track to queue:', err);
+      error.value = err.message || 'Failed to add track to queue';
+      throw err;
+    }
+  };
+
+  /**
    * Check if a specific track is currently playing
    */
   const isTrackPlaying = (trackUri) => {
@@ -365,6 +405,7 @@ export function useSpotifyPlayer() {
     isReady,
     isPlaying,
     currentTrack,
+    playingFrom,
     position,
     duration,
     loading,
@@ -377,6 +418,7 @@ export function useSpotifyPlayer() {
     resume,
     seek,
     setVolume,
+    addToQueue,
     isTrackPlaying,
     disconnect
   };

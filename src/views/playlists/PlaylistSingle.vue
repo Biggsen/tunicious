@@ -288,6 +288,44 @@ const totalPages = computed(() => Math.ceil(sortedAlbumIds.value.length / itemsP
 
 const showPagination = computed(() => totalAlbums.value > itemsPerPage.value);
 
+// Compute full sorted album list for queue functionality
+const sortedAlbumsList = computed(() => {
+  // Sort albumsWithDates by addedAt based on sortDirection
+  const sorted = [...albumsWithDates.value].sort((a, b) => {
+    const dateA = new Date(a.addedAt);
+    const dateB = new Date(b.addedAt);
+    return sortDirection.value === 'desc' 
+      ? dateB - dateA 
+      : dateA - dateB;
+  });
+  
+  // Map to album objects with id, artists, artistName from albumData or albumRootDataMap
+  return sorted.map(albumWithDate => {
+    // Try to find album in current page data first
+    const albumInPage = albumData.value.find(a => a.id === albumWithDate.id);
+    if (albumInPage) {
+      return albumInPage;
+    }
+    
+    // Fallback to root data map
+    const rootData = albumRootDataMap.value[albumWithDate.id];
+    if (rootData) {
+      return {
+        id: albumWithDate.id,
+        artists: rootData.artists || [],
+        artistName: rootData.artistName || rootData.artists?.[0]?.name || ''
+      };
+    }
+    
+    // Last resort: return minimal object with id
+    return {
+      id: albumWithDate.id,
+      artists: [],
+      artistName: ''
+    };
+  });
+});
+
 // Update cache keys
 const albumIdListCacheKey = computed(() => `playlist_${id.value}_albumsWithDates`);
 const pageCacheKey = (page) => `playlist_${id.value}_page_${page}_${sortDirection.value}`;
@@ -1799,6 +1837,8 @@ const handleUpdateYear = async (mismatch) => {
           :showTracklist="showTracklists"
           :lastFmSessionKey="userData?.lastFmSessionKey || ''"
           :allowTrackLoving="userData?.lastFmAuthenticated || false"
+          :playlistId="id"
+          :albumsList="sortedAlbumsList"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
           @remove-album="handleRemoveAlbum"
