@@ -10,6 +10,7 @@ import { useAlbumMappings } from '@composables/useAlbumMappings';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserData } from '@composables/useUserData';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
+import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
@@ -277,6 +278,24 @@ watch([tracks], async () => {
   }
 });
 
+// Computed properties for music service links
+const lastFmLink = computed(() => {
+  if (!userData.value?.lastFmUserName || !album.value) return '#';
+  return getLastFmLink({
+    lastFmUserName: userData.value.lastFmUserName,
+    artist: album.value.artists?.[0]?.name || '',
+    album: album.value.name || ''
+  });
+});
+
+const rymLink = computed(() => {
+  if (!album.value) return '#';
+  return getRateYourMusicLink({
+    artist: album.value.artists?.[0]?.name || '',
+    album: album.value.name || ''
+  });
+});
+
 onMounted(async () => {
   try {
     loading.value = true;
@@ -390,7 +409,26 @@ onMounted(async () => {
             class="text-2xl text-delft-blue mb-4 cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
             @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
           >{{ album.artists[0].name }}</p>
-          <p class="text-xl text-delft-blue mb-6 font-bold">{{ album.release_date.substring(0, 4) }}</p>
+          <p class="text-xl text-delft-blue mb-4 font-bold">{{ album.release_date.substring(0, 4) }}</p>
+          
+          <!-- Music Service Links -->
+          <div class="mb-6 flex gap-4">
+            <a
+              v-if="userData?.lastFmUserName"
+              :href="lastFmLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+            >
+              Last.fm
+            </a>
+            <a
+              :href="rymLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+            >
+              RYM
+            </a>
+          </div>
           
           <!-- Last.fm Loved Tracks Info -->
           <div v-if="userData?.lastFmUserName" class="mb-6">
