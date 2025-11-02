@@ -13,6 +13,7 @@ import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import ProgressModal from '@components/common/ProgressModal.vue';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
@@ -272,6 +273,13 @@ const paginatedAlbums = computed(() => {
 // Update totalAlbums to use sortedAlbumIds
 const totalAlbums = computed(() => sortedAlbumIds.value.length);
 
+// Compute missing albums count
+const missingAlbumsCount = computed(() => {
+  if (totalAlbums.value === 0) return 0;
+  const missing = totalAlbums.value - albumsInDbCount.value;
+  return missing > 0 ? missing : 0;
+});
+
 // Update totalPages calculation
 const totalPages = computed(() => Math.ceil(sortedAlbumIds.value.length / itemsPerPage.value));
 
@@ -286,6 +294,17 @@ const needsUpdateMap = ref({});
 
 const albumDbDataMap = ref({});
 const albumRootDataMap = ref({});
+
+// Count of albums in database
+const albumsInDbCount = ref(0);
+
+// Batch processing state
+const batchProcessingAlbums = ref(false);
+const albumsToProcess = ref(0);
+const albumsProcessed = ref(0);
+const currentlyProcessingAlbum = ref(null);
+const batchProcessingStartTime = ref(null);
+const showProgressModal = ref(false);
 
 // Last.fm loved tracks data
 const lovedTracks = ref([]);
@@ -416,6 +435,26 @@ async function loadLovedTrackPercentagesForNewAlbums() {
   }
 }
 
+async function countAlbumsInDatabase() {
+  if (!sortedAlbumIds.value.length || !user.value) {
+    albumsInDbCount.value = 0;
+    return;
+  }
+  
+  // Batch check all albums from the playlist
+  const allAlbumIds = sortedAlbumIds.value;
+  albumsInDbCount.value = 0;
+  
+  // Process in batches to avoid overwhelming the database
+  const batchSize = 50;
+  for (let i = 0; i < allAlbumIds.length; i += batchSize) {
+    const batch = allAlbumIds.slice(i, i + batchSize);
+    const batchData = await fetchAlbumsData(batch);
+    const count = Object.values(batchData).filter(data => data !== null).length;
+    albumsInDbCount.value += count;
+  }
+}
+
 async function fetchAlbumIdList(playlistId) {
   let albumsWithDatesData = await getCache(albumIdListCacheKey.value);
   if (!albumsWithDatesData) {
@@ -426,6 +465,9 @@ async function fetchAlbumIdList(playlistId) {
   
   // Apply initial sorting
   await applySortingAndReload();
+  
+  // Count albums in database after loading all albums
+  await countAlbumsInDatabase();
   
   return sortedAlbumIds.value;
 }
@@ -508,6 +550,7 @@ async function handleClearCache() {
   albumsWithDates.value = [];
   sortedAlbumIds.value = [];
   playlistName.value = '';
+  albumsInDbCount.value = 0;
   
   // Clear loved tracks data
   lovedTracks.value = [];
@@ -735,6 +778,9 @@ const handleAddAlbum = async () => {
     // Clear cache and reload the playlist to show the new album
     await handleClearCache();
     
+    // Update count of albums in database
+    await countAlbumsInDatabase();
+    
     // Also clear the PlaylistView cache to update track counts
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
@@ -766,6 +812,9 @@ const handleRemoveAlbum = async (album) => {
     
     // Clear cache and reload the playlist to reflect the removal
     await handleClearCache();
+    
+    // Update count of albums in database
+    await countAlbumsInDatabase();
     
     // Also clear the PlaylistView cache to update track counts
     if (user.value) {
@@ -842,6 +891,9 @@ const handleProcessAlbum = async ({ album, action }) => {
     // Clear cache and reload the playlist to reflect the changes
     await handleClearCache();
     
+    // Update count of albums in database
+    await countAlbumsInDatabase();
+    
     // Also clear the PlaylistView cache to update track counts
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
@@ -854,6 +906,113 @@ const handleProcessAlbum = async ({ album, action }) => {
   } finally {
     processingAlbum.value = null;
   }
+};
+
+const batchAddAlbumsToDatabase = async () => {
+  if (!sortedAlbumIds.value.length || !user.value || !playlistDoc.value) {
+    return;
+  }
+
+  batchProcessingAlbums.value = true;
+  albumsProcessed.value = 0;
+  albumsToProcess.value = 0;
+  currentlyProcessingAlbum.value = null;
+  batchProcessingStartTime.value = Date.now();
+  showProgressModal.value = true;
+  
+  try {
+    spotifyError.value = null;
+    successMessage.value = '';
+    
+    // Step 1: Find which albums are NOT in the database
+    const allAlbumIds = sortedAlbumIds.value;
+    const missingAlbums = [];
+    
+    currentlyProcessingAlbum.value = 'Checking which albums need to be added...';
+    
+    const batchSize = 50;
+    for (let i = 0; i < allAlbumIds.length; i += batchSize) {
+      const batch = allAlbumIds.slice(i, i + batchSize);
+      const batchData = await fetchAlbumsData(batch);
+      
+      // Find albums that are NOT in the database (null means not found)
+      batch.forEach(albumId => {
+        if (!batchData[albumId]) {
+          missingAlbums.push(albumId);
+        }
+      });
+    }
+    
+    if (missingAlbums.length === 0) {
+      successMessage.value = 'All albums are already in the database!';
+      showProgressModal.value = false;
+      return;
+    }
+    
+    albumsToProcess.value = missingAlbums.length;
+    
+    // Step 2: Fetch full album details from Spotify
+    currentlyProcessingAlbum.value = 'Fetching album details from Spotify...';
+    const fullAlbums = await loadAlbumsBatched(missingAlbums);
+    
+    // Step 3: Get playlist data once
+    const playlistData = playlistDoc.value.data();
+    
+    // Step 4: Get albums with dates to preserve the added_at timestamps
+    const albumsWithDatesMap = new Map();
+    albumsWithDates.value.forEach(a => albumsWithDatesMap.set(a.id, a));
+    
+    // Step 5: Batch add all albums to database
+    for (let i = 0; i < fullAlbums.length; i++) {
+      const album = fullAlbums[i];
+      
+      try {
+        currentlyProcessingAlbum.value = `${album.name} - ${album.artists[0]?.name || 'Unknown Artist'}`;
+        
+        const albumWithDate = albumsWithDatesMap.get(album.id);
+        const spotifyAddedAt = albumWithDate?.addedAt 
+          ? new Date(albumWithDate.addedAt) 
+          : new Date();
+        
+        await addAlbumToCollection({
+          album: album,
+          playlistId: id.value,
+          playlistData: playlistData,
+          spotifyAddedAt: spotifyAddedAt
+        });
+        
+        albumsProcessed.value++;
+        
+        // Small delay to avoid overwhelming the database
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (err) {
+        console.error(`Error adding album ${album.id}:`, err);
+        albumsProcessed.value++; // Still increment on error to keep progress accurate
+      }
+    }
+    
+    successMessage.value = `Successfully added ${albumsProcessed.value} of ${albumsToProcess.value} albums to the database!`;
+    
+    // Keep modal open briefly to show completion, then auto-dismiss
+    setTimeout(() => {
+      showProgressModal.value = false;
+      handleClearCache();
+    }, 2000);
+    
+  } catch (err) {
+    console.error('Error batch processing albums:', err);
+    error.value = err.message || 'Failed to batch process albums';
+    showProgressModal.value = false;
+  } finally {
+    batchProcessingAlbums.value = false;
+    currentlyProcessingAlbum.value = null;
+  }
+};
+
+const cancelBatchProcessing = () => {
+  batchProcessingAlbums.value = false;
+  showProgressModal.value = false;
+  successMessage.value = 'Batch processing cancelled';
 };
 </script>
 
@@ -907,6 +1066,20 @@ const handleProcessAlbum = async ({ album, action }) => {
         </template>
         {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh Tracks' }}
       </BaseButton>
+      <BaseButton 
+        v-if="missingAlbumsCount > 0 && userData?.spotifyConnected"
+        @click="batchAddAlbumsToDatabase"
+        :disabled="batchProcessingAlbums || loading"
+        customClass="bg-mint text-delft-blue hover:bg-celadon"
+      >
+        <template #icon-left>
+          <ArrowPathIcon v-if="batchProcessingAlbums" class="h-5 w-5 animate-spin" />
+        </template>
+        {{ batchProcessingAlbums 
+          ? 'Processing...' 
+          : `Add ${missingAlbumsCount} Missing Albums to DB` 
+        }}
+      </BaseButton>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
@@ -914,6 +1087,7 @@ const handleProcessAlbum = async ({ album, action }) => {
     </p>
 
     <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
+    <p class="text-lg mb-2">Albums in database: {{ albumsInDbCount }}</p>
     <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
     <div v-if="tracksLoading" class="mb-4 text-center">
       <p class="text-delft-blue">Loading tracklists...</p>
@@ -1007,6 +1181,18 @@ const handleProcessAlbum = async ({ album, action }) => {
         to add albums to playlists.
       </p>
     </div>
+
+    <!-- Progress Modal -->
+    <ProgressModal
+      :visible="showProgressModal"
+      title="Adding Albums to Database"
+      :current="albumsProcessed"
+      :total="albumsToProcess"
+      :currentItem="currentlyProcessingAlbum"
+      :allowCancel="false"
+      :startTime="batchProcessingStartTime"
+      @dismiss="showProgressModal = false"
+    />
   </main>
 </template>
 
