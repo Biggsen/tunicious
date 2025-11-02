@@ -12,6 +12,7 @@ export function useUserSpotifyApi() {
 
   /**
    * Gets the user's Spotify tokens from Firestore
+   * Automatically refreshes the token if it's expired or about to expire
    */
   const getUserTokens = async () => {
     if (!user.value) {
@@ -28,16 +29,36 @@ export function useUserSpotifyApi() {
       throw new Error('Spotify not connected');
     }
 
+    if (!userData.spotifyTokens.refreshToken) {
+      throw new Error('Spotify not connected or missing refresh token');
+    }
+
     // Check if token is expired or about to expire
-    // Note: ensureTokenFresh() is called proactively in makeUserRequest,
-    // but this check is still useful for other callers
     const now = Date.now();
     const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
       ? userData.spotifyTokens.expiresAt 
       : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
     
-    if (!expiresAt || expiresAt <= now) {
-      throw new Error('Spotify token expired - please reconnect');
+    // If token is expired or expires within 10 minutes, refresh it
+    const tenMinutes = 10 * 60 * 1000;
+    const timeUntilExpiry = expiresAt ? (expiresAt - now) : 0;
+    
+    if (!expiresAt || expiresAt <= now || timeUntilExpiry < tenMinutes) {
+      // Try to refresh the token
+      try {
+        await refreshUserToken();
+        // After refresh, get the updated tokens
+        const updatedDoc = await getDoc(doc(db, 'users', user.value.uid));
+        const updatedData = updatedDoc.data();
+        if (!updatedData.spotifyTokens) {
+          throw new Error('Spotify token refresh failed - please reconnect');
+        }
+        return updatedData.spotifyTokens;
+      } catch (refreshErr) {
+        console.error('Token refresh failed in getUserTokens:', refreshErr);
+        // If refresh fails, throw an error indicating reconnection is needed
+        throw new Error('Spotify token expired - please reconnect');
+      }
     }
 
     return userData.spotifyTokens;
