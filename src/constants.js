@@ -22,6 +22,9 @@ export const SpotifyAuth = {
   SCOPES: [
     'playlist-modify-public',
     'playlist-modify-private', 
-    'playlist-read-private'
+    'playlist-read-private',
+    'streaming',
+    'user-read-playback-state',
+    'user-modify-playback-state'
   ].join(' ')
 };

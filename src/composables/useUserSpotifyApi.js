@@ -28,9 +28,15 @@ export function useUserSpotifyApi() {
       throw new Error('Spotify not connected');
     }
 
-    // Check if token is expired (with 5 minute buffer to refresh proactively)
-    const bufferTime = 5 * 60 * 1000; // 5 minutes
-    if (userData.spotifyTokens.expiresAt < (Date.now() + bufferTime)) {
+    // Check if token is expired or about to expire
+    // Note: ensureTokenFresh() is called proactively in makeUserRequest,
+    // but this check is still useful for other callers
+    const now = Date.now();
+    const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
+      ? userData.spotifyTokens.expiresAt 
+      : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
+    
+    if (!expiresAt || expiresAt <= now) {
       throw new Error('Spotify token expired - please reconnect');
     }
 
@@ -110,12 +116,25 @@ export function useUserSpotifyApi() {
         return null;
       }
 
+      // Handle Firestore timestamp types correctly
+      const now = Date.now();
+      const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
+        ? userData.spotifyTokens.expiresAt 
+        : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
+      
+      if (!expiresAt) {
+        return null;
+      }
+
       // Check if token expires within 10 minutes
       const tenMinutes = 10 * 60 * 1000;
-      const timeUntilExpiry = userData.spotifyTokens.expiresAt - Date.now();
+      const timeUntilExpiry = expiresAt - now;
       
       if (timeUntilExpiry < tenMinutes) {
-        console.log('Token expires soon, refreshing proactively...');
+        console.log('Token expires soon, refreshing proactively...', {
+          expiresAt: new Date(expiresAt),
+          timeUntilExpiry: Math.round(timeUntilExpiry / 1000 / 60) + ' minutes'
+        });
         return await refreshUserToken();
       }
 
@@ -149,8 +168,13 @@ export function useUserSpotifyApi() {
         return { connected: false, error: 'No refresh token available' };
       }
 
-      // Check if token is expired
-      if (userData.spotifyTokens.expiresAt < Date.now()) {
+      // Check if token is expired (handle Firestore timestamp types correctly)
+      const now = Date.now();
+      const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
+        ? userData.spotifyTokens.expiresAt 
+        : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
+      
+      if (expiresAt && expiresAt < now) {
         console.log('Token expired, attempting refresh...');
         try {
           await refreshUserToken();
@@ -194,38 +218,45 @@ export function useUserSpotifyApi() {
       loading.value = true;
       error.value = null;
 
-      let accessToken;
-      try {
-        const tokens = await getUserTokens();
-        accessToken = tokens.accessToken;
-        console.log('Using existing token, expires at:', new Date(tokens.expiresAt));
-      } catch (err) {
-        console.log('Token error:', err.message);
-        
-        // Try to refresh token if expired or about to expire
-        if (err.message.includes('expired') || err.message.includes('reconnect')) {
-          console.log('Attempting token refresh...');
-          try {
-            accessToken = await refreshUserToken();
-            console.log('Token refreshed successfully');
-          } catch (refreshErr) {
-            console.error('Token refresh failed:', refreshErr.message);
-            
-            // If refresh fails, clear the tokens and ask user to reconnect
-            if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
-              // Clear the invalid tokens from Firestore
-              await setDoc(doc(db, 'users', user.value.uid), {
-                spotifyTokens: null,
-                spotifyConnected: false,
-                updatedAt: serverTimestamp()
-              }, { merge: true });
-              throw new Error('Spotify connection lost - please reconnect your account');
+      // Proactively ensure token is fresh before making any request
+      let accessToken = await ensureTokenFresh();
+      
+      // If ensureTokenFresh returned null, try to get tokens directly
+      if (!accessToken) {
+        try {
+          const tokens = await getUserTokens();
+          accessToken = tokens.accessToken;
+          console.log('Using existing token, expires at:', new Date(tokens.expiresAt));
+        } catch (err) {
+          console.log('Token error:', err.message);
+          
+          // Try to refresh token if expired or about to expire
+          if (err.message.includes('expired') || err.message.includes('reconnect')) {
+            console.log('Attempting token refresh...');
+            try {
+              accessToken = await refreshUserToken();
+              console.log('Token refreshed successfully');
+            } catch (refreshErr) {
+              console.error('Token refresh failed:', refreshErr.message);
+              
+              // If refresh fails, clear the tokens and ask user to reconnect
+              if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
+                // Clear the invalid tokens from Firestore
+                await setDoc(doc(db, 'users', user.value.uid), {
+                  spotifyTokens: null,
+                  spotifyConnected: false,
+                  updatedAt: serverTimestamp()
+                }, { merge: true });
+                throw new Error('Spotify connection lost - please reconnect your account');
+              }
+              throw refreshErr;
             }
-            throw refreshErr;
+          } else {
+            throw err;
           }
-        } else {
-          throw err;
         }
+      } else {
+        console.log('Token was proactively refreshed, using fresh token');
       }
 
       // Use our secure backend proxy instead of direct API call

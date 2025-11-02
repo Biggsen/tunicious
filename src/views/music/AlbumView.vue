@@ -9,6 +9,7 @@ import { db } from '@/firebase';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserData } from '@composables/useUserData';
+import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
 import BackButton from '@components/common/BackButton.vue';
@@ -16,6 +17,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
+import { PlayIcon } from '@heroicons/vue/24/solid';
 
 import { clearCache } from '@utils/cache';
 
@@ -27,6 +29,7 @@ const { getUserLovedTracks } = useLastFmApi();
 const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
+const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
 
 
 const album = ref(null);
@@ -404,12 +407,26 @@ onMounted(async () => {
 
         <!-- Album Info -->
         <div class="md:w-1/2">
-          <h1 class="h2 mb-2">{{ album.name }}</h1>
+          <div class="flex items-center gap-3 mb-2">
+            <h1 class="h2 flex-1">{{ album.name }}</h1>
+            <button
+              v-if="playerReady"
+              @click="playAlbumTrack(`spotify:album:${album.id}`)"
+              class="flex items-center gap-2 px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-mint/80 transition-colors font-semibold"
+              title="Play album"
+            >
+              <PlayIcon class="w-5 h-5" />
+              <span>Play</span>
+            </button>
+          </div>
           <p 
             class="text-2xl text-delft-blue mb-4 cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
             @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
           >{{ album.artists[0].name }}</p>
           <p class="text-xl text-delft-blue mb-4 font-bold">{{ album.release_date.substring(0, 4) }}</p>
+          <div v-if="playerError && playerReady" class="mb-4 text-sm text-red-500">
+            {{ playerError }}
+          </div>
           
           <!-- Music Service Links -->
           <div class="mb-6 flex gap-4">

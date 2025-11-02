@@ -2,7 +2,8 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
-import { PlayIcon } from '@heroicons/vue/24/solid';
+import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { PlayIcon, PauseIcon } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
   tracks: {
@@ -45,6 +46,17 @@ const playcountLoading = ref(false);
 
 // Current playing track functionality
 const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack(props.lastFmUserName);
+
+// Spotify player functionality
+const { 
+  isReady: playerReady, 
+  isPlaying, 
+  currentTrack: playerCurrentTrack,
+  playTrack,
+  togglePlayback,
+  isTrackPlaying,
+  error: playerError
+} = useSpotifyPlayer();
 
 /**
  * Format playcount number for display
@@ -220,25 +232,75 @@ const handleHeartClick = async (track, event) => {
     emit('track-loved', track);
   }
 };
+
+/**
+ * Handle track play/pause click
+ */
+const handleTrackClick = async (track) => {
+  if (!playerReady.value) {
+    console.warn('Spotify player not ready');
+    return;
+  }
+
+  const trackUri = track.uri || `spotify:track:${track.id}`;
+  const isCurrentlyPlaying = isTrackPlaying(trackUri);
+
+  if (isCurrentlyPlaying && isPlaying.value) {
+    // If this track is playing, toggle pause
+    await togglePlayback();
+  } else {
+    // Play this track
+    try {
+      await playTrack(trackUri);
+    } catch (err) {
+      console.error('Error playing track:', err);
+    }
+  }
+};
 </script>
 
 <template>
   <div class="bg-white border-2 border-delft-blue p-4">
     <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Tracks</h2>
+    <div v-if="playerError && playerReady" class="mb-2 px-3 text-xs text-red-500">
+      {{ playerError }}
+    </div>
     <ul>
       <li 
         v-for="track in sortedTracks" 
         :key="track.id"
         :class="[
-          'flex justify-between items-start text-delft-blue hover:bg-white/30 pl-3 pr-2 py-1 transition-colors cursor-pointer',
+          'group flex justify-between items-start text-delft-blue hover:bg-white/30 pl-3 pr-2 py-1 transition-colors',
           {
-            'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist),
-            'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist)
+            'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
+            'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
+            'cursor-pointer': playerReady
           }
         ]"
+        @click="playerReady ? handleTrackClick(track) : null"
       >
         <span class="flex items-center flex-1">
-          <span v-if="isTrackCurrentlyPlaying(track.name, albumArtist)" class="mr-1 text-delft-blue flex-shrink-0" title="Now Playing">
+          <span 
+            v-if="playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)" 
+            class="mr-1 text-delft-blue flex-shrink-0 cursor-pointer" 
+            title="Now Playing - Click to pause"
+            @click.stop="togglePlayback()"
+          >
+            <PauseIcon v-if="isPlaying" class="w-3 h-3" />
+            <PlayIcon v-else class="w-3 h-3" />
+          </span>
+          <span 
+            v-else-if="isTrackCurrentlyPlaying(track.name, albumArtist)" 
+            class="mr-1 text-delft-blue flex-shrink-0" 
+            title="Now Playing (Last.fm)"
+          >
+            <PlayIcon class="w-3 h-3" />
+          </span>
+          <span 
+            v-else-if="playerReady" 
+            class="mr-1 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" 
+            title="Click to play"
+          >
             <PlayIcon class="w-3 h-3" />
           </span>
           <span class="flex-1">{{ track.name }}</span>

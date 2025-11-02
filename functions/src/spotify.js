@@ -138,6 +138,7 @@ exports.refreshToken = onRequest({
     
     res.json({
       accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token, // Spotify may optionally return a new refresh token
       expiresIn: tokenData.expires_in,
       tokenType: tokenData.token_type,
     });
