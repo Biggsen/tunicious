@@ -449,6 +449,80 @@ export function useAlbumsData() {
   };
 
   /**
+   * Fetches album details from DB for multiple album IDs in batch.
+   * Returns a map of albumId -> album details (transformed to Spotify format) or null if not found.
+   * @param {string[]} albumIds - Array of Spotify album IDs
+   * @returns {Promise<Object.<string, Object|null>>} Map of album IDs to their details (Spotify format) or null
+   */
+  const getAlbumsDetailsBatch = async (albumIds) => {
+    if (!albumIds || albumIds.length === 0) return {};
+    
+    try {
+      // Fetch all albums in parallel
+      const albumPromises = albumIds.map(async (albumId) => {
+        const cacheKey = `albumRootData_${albumId}`;
+        let cached = await getCache(cacheKey);
+        if (cached) {
+          // Transform cached DB format to Spotify format
+          return [albumId, transformDbAlbumToSpotifyFormat(albumId, cached)];
+        }
+        
+        const albumDoc = await getDoc(doc(db, 'albums', albumId));
+        if (!albumDoc.exists()) {
+          return [albumId, null];
+        }
+        
+        const data = albumDoc.data();
+        const { albumTitle, artistName, albumCover, artistId, releaseYear } = data;
+        
+        // Cache the raw DB format
+        const dbData = { albumTitle, artistName, albumCover, artistId, releaseYear };
+        await setCache(cacheKey, dbData);
+        
+        // Transform DB format to Spotify format for component compatibility
+        const spotifyFormat = transformDbAlbumToSpotifyFormat(albumId, dbData);
+        return [albumId, spotifyFormat];
+      });
+      
+      const results = await Promise.all(albumPromises);
+      return Object.fromEntries(results);
+    } catch (e) {
+      console.error('Error fetching album details in batch:', e);
+      return {};
+    }
+  };
+
+  /**
+   * Transforms DB album format to Spotify API format for component compatibility
+   * @param {string} albumId - The album ID
+   * @param {Object} dbData - DB album data with { albumTitle, artistName, albumCover, artistId, releaseYear }
+   * @returns {Object} Spotify-format album object
+   */
+  const transformDbAlbumToSpotifyFormat = (albumId, dbData) => {
+    if (!dbData || !dbData.albumTitle) return null;
+    
+    return {
+      id: albumId,
+      name: dbData.albumTitle,
+      albumTitle: dbData.albumTitle, // Keep for backward compatibility
+      artists: dbData.artistId ? [{
+        id: dbData.artistId,
+        name: dbData.artistName || ''
+      }] : [],
+      artistName: dbData.artistName, // Keep for backward compatibility
+      artistId: dbData.artistId, // Keep for backward compatibility
+      images: dbData.albumCover ? [
+        { url: dbData.albumCover }, // Small image
+        { url: dbData.albumCover }  // Medium image (use same for now)
+      ] : [],
+      albumCover: dbData.albumCover, // Keep for backward compatibility
+      release_date: dbData.releaseYear ? `${dbData.releaseYear}-01-01` : '',
+      releaseYear: dbData.releaseYear, // Keep for backward compatibility
+      release_date_precision: dbData.releaseYear ? 'year' : undefined
+    };
+  };
+
+  /**
    * Updates root-level album details (albumCover, artistId, releaseYear) for a given albumId in Firestore.
    * @param {string} albumId - The Spotify album ID
    * @param {Object} details - The details to update (albumCover, artistId, releaseYear)
@@ -571,6 +645,7 @@ export function useAlbumsData() {
     searchAlbumsByArtistPrefix,
     fetchAlbumDetails,
     getAlbumDetails,
+    getAlbumsDetailsBatch,
     updateAlbumDetails,
     getAlbumRatingData
   };

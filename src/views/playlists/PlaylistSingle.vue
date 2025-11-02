@@ -26,7 +26,7 @@ const route = useRoute();
 const { user, userData } = useUserData();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums } = useUserSpotifyApi();
 
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
 const { loveTrack, unloveTrack } = useLastFmApi();
 
@@ -486,11 +486,35 @@ async function fetchAlbumsForPage(albumIds, page) {
   const start = (page - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
   const pageAlbumIds = albumIds.slice(start, end);
+  
+  // Check cache first
   let pageAlbums = await getCache(pageCacheKey(page));
-  if (!pageAlbums) {
-    pageAlbums = await loadAlbumsBatched(pageAlbumIds);
-    await setCache(pageCacheKey(page), pageAlbums);
+  if (pageAlbums) {
+    return pageAlbums;
   }
+  
+  // Strategy: Check DB first, then Spotify API for missing albums
+  // 1. Get album details from DB (batched for efficiency)
+  const dbAlbumsMap = await getAlbumsDetailsBatch(pageAlbumIds);
+  
+  // 2. Identify which albums need to be fetched from Spotify
+  const missingFromDb = pageAlbumIds.filter(id => !dbAlbumsMap[id]);
+  
+  // 3. Fetch missing albums from Spotify API (only if needed)
+  let spotifyAlbums = [];
+  if (missingFromDb.length > 0) {
+    spotifyAlbums = await loadAlbumsBatched(missingFromDb);
+  }
+  
+  // 4. Combine DB albums and Spotify albums, maintaining order
+  pageAlbums = pageAlbumIds.map(id => {
+    // Prefer DB album if available, otherwise use Spotify album
+    return dbAlbumsMap[id] || spotifyAlbums.find(album => album.id === id) || null;
+  }).filter(album => album !== null); // Remove any null entries
+  
+  // Cache the combined result
+  await setCache(pageCacheKey(page), pageAlbums);
+  
   return pageAlbums;
 }
 
