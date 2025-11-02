@@ -480,6 +480,8 @@ onMounted(async () => {
             :tracks="tracks" 
             :lovedTracks="lovedTracks"
             :albumArtist="album.artists[0]?.name || ''"
+            :lastFmUserName="userData?.lastFmUserName || ''"
+            :sortByPlaycount="false"
           />
         </div>
       </div>

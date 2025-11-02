@@ -92,6 +92,14 @@ const props = defineProps({
   allowTrackLoving: {
     type: Boolean,
     default: false
+  },
+  playlistId: {
+    type: String,
+    default: ''
+  },
+  albumsList: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -269,6 +277,10 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
           :sessionKey="lastFmSessionKey"
           :allowLoving="allowTrackLoving"
           :lastFmUserName="lastFmUserName"
+          :albumId="album.id"
+          :playlistId="playlistId"
+          :playlistName="currentPlaylist?.name || ''"
+          :albumsList="albumsList"
           @track-loved="handleTrackLoved"
           @track-unloved="handleTrackUnloved"
         />

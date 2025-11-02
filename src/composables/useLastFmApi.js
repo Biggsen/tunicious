@@ -131,7 +131,12 @@ export function useLastFmApi() {
    * @returns {Promise<Object>} Album information
    */
   const getAlbumInfo = async (artist, album, username = null) => {
-    const params = { artist, album };
+    // Manually encode artist and album to ensure proper double-encoding for Last.fm
+    const params = { 
+      artist: encodeURIComponent(artist), 
+      album: encodeURIComponent(album), 
+      autocorrect: '1' 
+    };
     if (username) params.username = username;
     
     return makeRequest('album.getinfo', params);
@@ -144,7 +149,8 @@ export function useLastFmApi() {
    * @returns {Promise<Object>} Artist information
    */
   const getArtistInfo = async (artist, username = null) => {
-    const params = { artist };
+    // Manually encode artist to ensure proper double-encoding for Last.fm
+    const params = { artist: encodeURIComponent(artist), autocorrect: '1' };
     if (username) params.username = username;
     
     return makeRequest('artist.getinfo', params);
@@ -159,7 +165,7 @@ export function useLastFmApi() {
   const getUserArtistTracks = async (username, artist) => {
     return makeRequest('user.getartisttracks', { 
       user: username, 
-      artist 
+      artist: encodeURIComponent(artist)
     });
   };
 
@@ -171,7 +177,12 @@ export function useLastFmApi() {
    * @returns {Promise<Object>} Track information
    */
   const getTrackInfo = async (track, artist, username = null) => {
-    const params = { track, artist };
+    // Manually encode track and artist to ensure proper double-encoding for Last.fm
+    const params = { 
+      track: encodeURIComponent(track), 
+      artist: encodeURIComponent(artist), 
+      autocorrect: '1' 
+    };
     if (username) params.username = username;
     
     return makeRequest('track.getinfo', params);
@@ -184,7 +195,7 @@ export function useLastFmApi() {
    * @returns {Promise<Object>} Album search results
    */
   const searchAlbums = async (album, limit = 30) => {
-    return makeRequest('album.search', { album, limit });
+    return makeRequest('album.search', { album: encodeURIComponent(album), limit });
   };
 
   /**
@@ -194,7 +205,7 @@ export function useLastFmApi() {
    * @returns {Promise<Object>} Artist search results
    */
   const searchArtists = async (artist, limit = 30) => {
-    return makeRequest('artist.search', { artist, limit });
+    return makeRequest('artist.search', { artist: encodeURIComponent(artist), limit });
   };
 
   /**
