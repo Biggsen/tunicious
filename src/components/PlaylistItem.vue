@@ -2,8 +2,10 @@
 import { useRouter } from "vue-router";
 import { computed } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
+import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 
 const router = useRouter();
+const { playingFrom, isPlaying } = useSpotifyPlayer();
 
 const props = defineProps({
   playlist: Object,
@@ -34,6 +36,12 @@ const isSinkPlaylist = computed(() => {
   // Sink playlists are termination points (rejected albums)
   return props.playlist?.pipelineRole === 'sink';
 });
+
+const isCurrentlyPlaying = computed(() => {
+  return isPlaying.value && 
+         playingFrom.value?.type === 'playlist' && 
+         playingFrom.value.id === props.playlist.id;
+});
 </script>
 
 <template>
@@ -43,7 +51,8 @@ const isSinkPlaylist = computed(() => {
       'p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry pr-6 w-full min-w-[200px] relative group',
       isTerminalPlaylist ? 'bg-delft-blue text-sm max-w-[500px]' : 
       isSinkPlaylist ? 'bg-red-700 text-sm max-w-[460px]' : 
-      'bg-delft-blue max-w-[500px]'
+      'bg-delft-blue max-w-[500px]',
+      isCurrentlyPlaying ? 'ring-4 ring-mint shadow-lg' : ''
     ]"
     @click="navigateToPlaylist(playlist.id)"
   >
