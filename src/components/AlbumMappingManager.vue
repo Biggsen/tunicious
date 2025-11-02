@@ -22,10 +22,14 @@ const props = defineProps({
   primaryAlbumId: {
     type: String,
     default: null
+  },
+  currentAlbumYear: {
+    type: String,
+    default: null
   }
 });
 
-const emit = defineEmits(['check-existing', 'create-mapping', 'close']);
+const emit = defineEmits(['check-existing', 'create-mapping', 'close', 'update-year']);
 </script>
 
 <template>
@@ -69,11 +73,30 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close']);
           >
             <div class="font-medium">{{ result.albumTitle }}</div>
             <div class="text-sm text-gray-600">by {{ result.artistName }}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              Similarity: {{ Math.round(result.similarity * 100) }}%
+            <div class="flex flex-col gap-1 mt-1">
+              <div class="text-xs text-gray-500">
+                Similarity: {{ Math.round(result.similarity * 100) }}%
+              </div>
+              <div 
+                v-if="currentAlbumYear && result.releaseYear && parseInt(currentAlbumYear) !== parseInt(result.releaseYear)"
+                class="flex items-center gap-2"
+              >
+                <span class="text-xs font-medium text-orange-600">⚠️ Year Difference:</span>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                  DB: {{ result.releaseYear }} vs Spotify: {{ currentAlbumYear }} ({{ Math.abs(parseInt(currentAlbumYear) - parseInt(result.releaseYear)) }} years)
+                </span>
+              </div>
+            </div>
+            <div v-if="currentAlbumYear && result.releaseYear && parseInt(currentAlbumYear) !== parseInt(result.releaseYear)" class="mt-2">
+              <BaseButton 
+                @click="emit('update-year', result.id, currentAlbumYear)" 
+                customClass="w-full bg-yellow-500 text-white hover:bg-yellow-600 text-sm py-1.5 mb-2"
+              >
+                Update Year to {{ currentAlbumYear }} (from Spotify)
+              </BaseButton>
             </div>
             <BaseButton @click="emit('create-mapping', result.id)" customClass="mapping-btn">
-              Map to {{ result.name }}
+              Map to {{ result.albumTitle }}
             </BaseButton>
           </li>
         </ul>

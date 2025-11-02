@@ -206,6 +206,34 @@ const handleCloseDialog = () => {
   searchResults.value = [];
 };
 
+const handleUpdateYear = async (primaryId, spotifyYear) => {
+  if (!album.value || !spotifyYear) return;
+  
+  try {
+    updating.value = true;
+    searchError.value = null;
+    
+    // Update the database album's releaseYear to match Spotify catalog
+    await updateAlbumDetails(primaryId, {
+      releaseYear: parseInt(spotifyYear)
+    });
+    
+    // Update the search result to reflect the change
+    const resultIndex = searchResults.value.findIndex(r => r.id === primaryId);
+    if (resultIndex !== -1) {
+      searchResults.value[resultIndex].releaseYear = spotifyYear;
+    }
+    
+    // Show success (you might want to add a success message state)
+    console.log(`Year updated to ${spotifyYear} for album ${primaryId}`);
+  } catch (e) {
+    console.error('Error updating year:', e);
+    searchError.value = 'Failed to update year';
+  } finally {
+    updating.value = false;
+  }
+};
+
 /**
  * Fetches loved tracks and calculates percentage for the current album
  */
@@ -347,9 +375,11 @@ onMounted(async () => {
             :search-error="searchError"
             :is-mapped-album="isMappedAlbum"
             :primary-album-id="primaryAlbumId"
+            :current-album-year="album.release_date ? album.release_date.substring(0, 4) : null"
             @check-existing="handleCheckExistingAlbum"
             @create-mapping="handleCreateMapping"
             @close="handleCloseDialog"
+            @update-year="handleUpdateYear"
           />
         </div>
 

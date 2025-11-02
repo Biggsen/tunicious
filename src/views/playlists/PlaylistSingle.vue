@@ -9,12 +9,14 @@ import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
+import { useAlbumMappings } from "@composables/useAlbumMappings";
 import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ProgressModal from '@components/common/ProgressModal.vue';
 import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
+import { albumTitleSimilarity } from '@utils/fuzzyMatch';
 import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
@@ -22,9 +24,10 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 
 const route = useRoute();
 const { user, userData } = useUserData();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums } = useUserSpotifyApi();
 
-const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist } = useAlbumsData();
+const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
+const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
 const { loveTrack, unloveTrack } = useLastFmApi();
 
 // Initialize current playing track tracking
@@ -305,6 +308,13 @@ const albumsProcessed = ref(0);
 const currentlyProcessingAlbum = ref(null);
 const batchProcessingStartTime = ref(null);
 const showProgressModal = ref(false);
+
+// ID mismatch checking state
+const checkingMismatches = ref(false);
+const mismatchReport = ref([]);
+const showMismatchReport = ref(false);
+const mismatchCheckStartTime = ref(null);
+const mismatchCheckProgress = ref({ current: 0, total: 0, currentArtist: null });
 
 // Last.fm loved tracks data
 const lovedTracks = ref([]);
@@ -1014,6 +1024,248 @@ const cancelBatchProcessing = () => {
   showProgressModal.value = false;
   successMessage.value = 'Batch processing cancelled';
 };
+
+async function checkForIdMismatches() {
+  if (!sortedAlbumIds.value.length || !user.value) {
+    return;
+  }
+
+  checkingMismatches.value = true;
+  mismatchReport.value = [];
+  showMismatchReport.value = false;
+  showProgressModal.value = true;
+  error.value = null;
+  successMessage.value = '';
+  mismatchCheckStartTime.value = Date.now();
+  mismatchCheckProgress.value = { current: 0, total: 0, currentArtist: null };
+
+  try {
+    // Step 1: Load all albums from the playlist
+    currentlyProcessingAlbum.value = 'Loading playlist albums...';
+    const allAlbumsFromPlaylist = await loadAlbumsBatched(sortedAlbumIds.value);
+    
+    // Step 2: Identify which albums exist in the database
+    currentlyProcessingAlbum.value = 'Checking which albums are in database...';
+    const albumsInDb = [];
+    const albumIdToPlaylistAlbum = new Map();
+    
+    for (const playlistAlbum of allAlbumsFromPlaylist) {
+      albumIdToPlaylistAlbum.set(playlistAlbum.id, playlistAlbum);
+      const dbAlbumData = await fetchAlbumsData([playlistAlbum.id]);
+      
+      if (dbAlbumData[playlistAlbum.id] !== null) {
+        // Album exists in DB - this is what we want to check
+        albumsInDb.push(playlistAlbum);
+      }
+    }
+    
+    if (albumsInDb.length === 0) {
+      successMessage.value = 'No albums in playlist are in the database yet.';
+      showProgressModal.value = false;
+      return;
+    }
+    
+    // Step 3: Group albums by artist to minimize API calls
+    const artistMap = new Map(); // artistId -> { albums: [], artistName: string }
+    
+    for (const album of albumsInDb) {
+      const artistId = album.artists[0]?.id;
+      const artistName = album.artists[0]?.name || 'Unknown Artist';
+      
+      if (artistId) {
+        if (!artistMap.has(artistId)) {
+          artistMap.set(artistId, {
+            artistId,
+            artistName,
+            albums: []
+          });
+        }
+        artistMap.get(artistId).albums.push(album);
+      }
+    }
+    
+    const uniqueArtists = Array.from(artistMap.values());
+    mismatchCheckProgress.value.total = uniqueArtists.length;
+    
+    // Step 4: For each artist, fetch their full discography from Spotify
+    for (let i = 0; i < uniqueArtists.length; i++) {
+      const artist = uniqueArtists[i];
+      mismatchCheckProgress.value.current = i + 1;
+      currentlyProcessingAlbum.value = `Checking ${artist.artistName}... (${i + 1}/${uniqueArtists.length})`;
+      
+      try {
+        // Fetch all albums from this artist
+        const spotifyAlbums = await getAllArtistAlbums(artist.artistId);
+        
+        // Create a map of album title -> album for quick lookup
+        // Use normalized title for fuzzy matching
+        const spotifyAlbumMap = new Map();
+        for (const spotifyAlbum of spotifyAlbums) {
+          const normalizedTitle = spotifyAlbum.name.toLowerCase().trim();
+          // Store multiple albums with same title (can happen with reissues)
+          if (!spotifyAlbumMap.has(normalizedTitle)) {
+            spotifyAlbumMap.set(normalizedTitle, []);
+          }
+          spotifyAlbumMap.get(normalizedTitle).push(spotifyAlbum);
+        }
+        
+        // Step 5: For each album in DB from this artist, check for ID mismatch
+        for (const dbAlbum of artist.albums) {
+          const playlistAlbum = dbAlbum;
+          const playlistAlbumId = playlistAlbum.id;
+          const playlistAlbumTitle = playlistAlbum.name.toLowerCase().trim();
+          
+          // Check if this album exists in Spotify's artist catalog with different ID
+          const spotifyMatches = spotifyAlbumMap.get(playlistAlbumTitle) || [];
+          
+          for (const spotifyAlbum of spotifyMatches) {
+            if (spotifyAlbum.id !== playlistAlbumId) {
+              // Found a potential mismatch! Same title, different ID
+              
+              // Check if already mapped
+              const primaryId = await getPrimaryId(playlistAlbumId);
+              const isMapped = primaryId === spotifyAlbum.id || primaryId !== null;
+              
+              // Also check reverse mapping
+              const reversePrimaryId = await getPrimaryId(spotifyAlbum.id);
+              const isReverseMapped = reversePrimaryId === playlistAlbumId || reversePrimaryId !== null;
+              
+              // Only report if not already mapped in either direction
+              if (!isMapped && !isReverseMapped) {
+                // Get DB album details for comparison
+                const dbAlbumDetails = await getAlbumDetails(playlistAlbumId);
+                const dbTitle = dbAlbumDetails?.albumTitle || playlistAlbum.name;
+                const spotifyTitle = spotifyAlbum.name;
+                
+                // Calculate similarity between album titles
+                const similarity = albumTitleSimilarity(dbTitle, spotifyTitle);
+                
+                // Get years for comparison
+                const dbYear = dbAlbumDetails?.releaseYear || (playlistAlbum.release_date ? playlistAlbum.release_date.substring(0, 4) : '');
+                const spotifyYear = spotifyAlbum.release_date ? spotifyAlbum.release_date.substring(0, 4) : '';
+                
+                // Calculate year difference if both years are available
+                let yearDifference = null;
+                if (dbYear && spotifyYear) {
+                  const dbYearNum = parseInt(dbYear);
+                  const spotifyYearNum = parseInt(spotifyYear);
+                  if (!isNaN(dbYearNum) && !isNaN(spotifyYearNum)) {
+                    yearDifference = Math.abs(dbYearNum - spotifyYearNum);
+                  }
+                }
+                
+                mismatchReport.value.push({
+                  dbAlbum: {
+                    id: playlistAlbumId,
+                    title: dbTitle,
+                    artist: dbAlbumDetails?.artistName || artist.artistName,
+                    year: dbYear,
+                    cover: dbAlbumDetails?.albumCover || playlistAlbum.images?.[1]?.url || playlistAlbum.images?.[0]?.url || ''
+                  },
+                  spotifyAlbum: {
+                    id: spotifyAlbum.id,
+                    title: spotifyTitle,
+                    artist: artist.artistName,
+                    year: spotifyYear,
+                    cover: spotifyAlbum.images?.[1]?.url || spotifyAlbum.images?.[0]?.url || ''
+                  },
+                  similarity: Math.round(similarity * 100),
+                  yearDifference: yearDifference
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching albums for artist ${artist.artistName}:`, err);
+        // Continue with next artist even if this one fails
+      }
+    }
+
+    showMismatchReport.value = true;
+    showProgressModal.value = false;
+    
+    if (mismatchReport.value.length === 0) {
+      successMessage.value = 'No ID mismatches found! All albums appear to have matching IDs.';
+    } else {
+      successMessage.value = `Found ${mismatchReport.value.length} potential ID mismatch(es). See report below.`;
+    }
+  } catch (err) {
+    console.error('Error checking for ID mismatches:', err);
+    error.value = err.message || 'Failed to check for ID mismatches';
+    showProgressModal.value = false;
+  } finally {
+    checkingMismatches.value = false;
+    mismatchCheckProgress.value = { current: 0, total: 0, currentArtist: null };
+    currentlyProcessingAlbum.value = null;
+  }
+}
+
+const handleCreateMapping = async (mismatch) => {
+  try {
+    error.value = null;
+    successMessage.value = '';
+    
+    // Create mapping: Spotify catalog ID (alternate) -> DB album ID (primary)
+    // The Spotify catalog ID is the alternateId, and DB album ID is the primaryId
+    // (The DB album has the playlist data, so it's the primary)
+    const success = await createMapping(mismatch.spotifyAlbum.id, mismatch.dbAlbum.id);
+    
+    if (success) {
+      // Remove this mismatch from the report since it's now mapped
+      mismatchReport.value = mismatchReport.value.filter(m => 
+        m.dbAlbum.id !== mismatch.dbAlbum.id || m.spotifyAlbum.id !== mismatch.spotifyAlbum.id
+      );
+      
+      successMessage.value = `Mapping created successfully for "${mismatch.dbAlbum.title}"!`;
+      
+      // Clear success message after a few seconds
+      setTimeout(() => {
+        if (successMessage.value.includes('Mapping created')) {
+          successMessage.value = '';
+        }
+      }, 3000);
+    } else {
+      error.value = 'Failed to create mapping';
+    }
+  } catch (err) {
+    console.error('Error creating mapping:', err);
+    error.value = err.message || 'Failed to create mapping';
+  }
+};
+
+const handleUpdateYear = async (mismatch) => {
+  try {
+    error.value = null;
+    successMessage.value = '';
+    
+    if (!mismatch.spotifyAlbum.year) {
+      error.value = 'No year available in Spotify catalog';
+      return;
+    }
+    
+    // Update the album's releaseYear to match Spotify catalog
+    await updateAlbumDetails(mismatch.dbAlbum.id, {
+      releaseYear: parseInt(mismatch.spotifyAlbum.year)
+    });
+    
+    // Update the mismatch object to reflect the change
+    mismatch.yearDifference = null;
+    mismatch.dbAlbum.year = mismatch.spotifyAlbum.year;
+    
+    successMessage.value = `Year updated to ${mismatch.spotifyAlbum.year} for "${mismatch.dbAlbum.title}"!`;
+    
+    // Clear success message after a few seconds
+    setTimeout(() => {
+      if (successMessage.value.includes('Year updated')) {
+        successMessage.value = '';
+      }
+    }, 3000);
+  } catch (err) {
+    console.error('Error updating year:', err);
+    error.value = err.message || 'Failed to update year';
+  }
+};
 </script>
 
 <template>
@@ -1080,6 +1332,16 @@ const cancelBatchProcessing = () => {
           : `Add ${missingAlbumsCount} Missing Albums to DB` 
         }}
       </BaseButton>
+      <BaseButton 
+        @click="checkForIdMismatches"
+        :disabled="checkingMismatches || loading || batchProcessingAlbums"
+        customClass="bg-delft-blue text-white hover:bg-blue-700"
+      >
+        <template #icon-left>
+          <ArrowPathIcon v-if="checkingMismatches" class="h-5 w-5 animate-spin" />
+        </template>
+        {{ checkingMismatches ? 'Checking...' : 'Check for ID Mismatches' }}
+      </BaseButton>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
@@ -1089,6 +1351,143 @@ const cancelBatchProcessing = () => {
     <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
     <p class="text-lg mb-2">Albums in database: {{ albumsInDbCount }}</p>
     <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
+
+    <!-- ID Mismatch Report -->
+    <div v-if="showMismatchReport && mismatchReport.length > 0" class="mb-6 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4 text-yellow-800">
+        ID Mismatch Report ({{ mismatchReport.length }} found)
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div 
+          v-for="(mismatch, index) in mismatchReport" 
+          :key="index"
+          class="bg-white rounded-lg p-4 border border-yellow-300"
+        >
+          <div class="mb-3 text-center">
+            <h3 class="font-semibold text-sm text-gray-800 mb-1">
+              {{ mismatch.dbAlbum.artist }}
+            </h3>
+            <div class="flex flex-col items-center gap-2">
+              <div class="flex items-center justify-center gap-2">
+                <span class="text-xs font-medium text-gray-500">Title Similarity:</span>
+                <span 
+                  class="text-sm font-semibold px-2 py-0.5 rounded"
+                  :class="{
+                    'bg-green-100 text-green-700': mismatch.similarity >= 90,
+                    'bg-yellow-100 text-yellow-700': mismatch.similarity >= 70 && mismatch.similarity < 90,
+                    'bg-orange-100 text-orange-700': mismatch.similarity >= 50 && mismatch.similarity < 70,
+                    'bg-red-100 text-red-700': mismatch.similarity < 50
+                  }"
+                >
+                  {{ mismatch.similarity }}%
+                </span>
+              </div>
+              <div 
+                v-if="mismatch.yearDifference !== null && mismatch.yearDifference > 0" 
+                class="flex items-center justify-center gap-2"
+              >
+                <span class="text-xs font-medium text-orange-600">⚠️ Year Difference:</span>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                  {{ mismatch.yearDifference }} years
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Side by side comparison -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Database Album (Left) -->
+            <div class="border-r border-gray-200 pr-3">
+              <div class="mb-2">
+                <p class="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Database</p>
+                <img 
+                  v-if="mismatch.dbAlbum.cover" 
+                  :src="mismatch.dbAlbum.cover" 
+                  :alt="mismatch.dbAlbum.title"
+                  class="w-24 h-24 rounded object-cover mb-2 shadow-sm"
+                />
+                <div v-else class="w-24 h-24 bg-gray-200 rounded flex items-center justify-center mb-2">
+                  <span class="text-gray-400 text-xs">No Cover</span>
+                </div>
+              </div>
+              
+              <div class="space-y-1.5">
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">Title</p>
+                  <p class="text-sm font-semibold text-gray-900 leading-tight">{{ mismatch.dbAlbum.title }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">Year</p>
+                  <p class="text-sm text-gray-700">{{ mismatch.dbAlbum.year || 'N/A' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">ID</p>
+                  <p class="text-xs font-mono text-gray-600 break-all leading-tight">{{ mismatch.dbAlbum.id }}</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Spotify Album (Right) -->
+            <div class="pl-3">
+              <div class="mb-2">
+                <p class="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Spotify</p>
+                <img 
+                  v-if="mismatch.spotifyAlbum.cover" 
+                  :src="mismatch.spotifyAlbum.cover" 
+                  :alt="mismatch.spotifyAlbum.title"
+                  class="w-24 h-24 rounded object-cover mb-2 shadow-sm"
+                />
+                <div v-else class="w-24 h-24 bg-gray-200 rounded flex items-center justify-center mb-2">
+                  <span class="text-gray-400 text-xs">No Cover</span>
+                </div>
+              </div>
+              
+              <div class="space-y-1.5">
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">Title</p>
+                  <p class="text-sm font-semibold text-gray-900 leading-tight">{{ mismatch.spotifyAlbum.title }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">Year</p>
+                  <p class="text-sm text-gray-700">{{ mismatch.spotifyAlbum.year || 'N/A' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-gray-500 mb-0.5">ID</p>
+                  <p class="text-xs font-mono text-gray-600 break-all leading-tight">{{ mismatch.spotifyAlbum.id }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Update Year Button (only if year differs) -->
+          <div 
+            v-if="mismatch.yearDifference !== null && mismatch.yearDifference > 0" 
+            class="mt-3 pt-3 border-t border-gray-200"
+          >
+            <BaseButton 
+              @click="handleUpdateYear(mismatch)"
+              customClass="w-full bg-yellow-500 text-white hover:bg-yellow-600 text-sm py-2 mb-2"
+            >
+              Update Year to {{ mismatch.spotifyAlbum.year }} (from Spotify)
+            </BaseButton>
+          </div>
+          
+          <!-- Map Button -->
+          <div class="mt-3 pt-3 border-t border-gray-200">
+            <BaseButton 
+              @click="handleCreateMapping(mismatch)"
+              customClass="w-full bg-mint text-delft-blue hover:bg-celadon text-sm py-2"
+            >
+              Map These Albums
+            </BaseButton>
+          </div>
+        </div>
+      </div>
+      <p class="mt-4 text-sm text-yellow-700">
+        These albums have the same title and artist but different Spotify IDs. 
+        You may want to create album mappings to link them together.
+      </p>
+    </div>
     <div v-if="tracksLoading" class="mb-4 text-center">
       <p class="text-delft-blue">Loading tracklists...</p>
     </div>
@@ -1182,15 +1581,29 @@ const cancelBatchProcessing = () => {
       </p>
     </div>
 
-    <!-- Progress Modal -->
+    <!-- Progress Modal for Batch Processing -->
     <ProgressModal
-      :visible="showProgressModal"
+      v-if="batchProcessingAlbums"
+      :visible="showProgressModal && batchProcessingAlbums"
       title="Adding Albums to Database"
       :current="albumsProcessed"
       :total="albumsToProcess"
       :currentItem="currentlyProcessingAlbum"
       :allowCancel="false"
       :startTime="batchProcessingStartTime"
+      @dismiss="showProgressModal = false"
+    />
+    
+    <!-- Progress Modal for ID Mismatch Check -->
+    <ProgressModal
+      v-if="checkingMismatches"
+      :visible="showProgressModal && checkingMismatches"
+      title="Checking for ID Mismatches"
+      :current="mismatchCheckProgress.current"
+      :total="mismatchCheckProgress.total"
+      :currentItem="currentlyProcessingAlbum"
+      :allowCancel="false"
+      :startTime="mismatchCheckStartTime"
       @dismiss="showProgressModal = false"
     />
   </main>

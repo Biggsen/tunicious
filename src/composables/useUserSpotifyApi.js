@@ -539,6 +539,30 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Gets all albums from an artist (handles pagination)
+   */
+  const getAllArtistAlbums = async (artistId) => {
+    let allAlbums = [];
+    let offset = 0;
+    const limit = 50;
+    
+    while (true) {
+      const response = await getArtistAlbums(artistId, limit, offset);
+      allAlbums = allAlbums.concat(response.items);
+      
+      if (response.items.length < limit) {
+        break;
+      }
+      offset += limit;
+      
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return allAlbums;
+  };
+
+  /**
    * Fetches artist details
    */
   const getArtist = async (artistId) => {
@@ -572,6 +596,7 @@ export function useUserSpotifyApi() {
     getAlbum,
     getAlbumTracks,
     getArtistAlbums,
+    getAllArtistAlbums,
     getArtist
   };
 }
