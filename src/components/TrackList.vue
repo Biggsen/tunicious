@@ -56,6 +56,11 @@ const props = defineProps({
     default: () => [],
     description: 'List of albums in the playlist, ordered by addedAt'
   },
+  playlistTrackIds: {
+    type: Object,
+    default: () => ({}),
+    description: 'Map of track IDs in the playlist (keys are track IDs, values are true)'
+  },
   sortByPlaycount: {
     type: Boolean,
     default: true,
@@ -246,6 +251,17 @@ const isTrackLoved = (track) => {
     const key = `${trackName}|${artistName}`;
     return lovedTracksLookup.value.has(key);
   });
+};
+
+/**
+ * Check if a track is in the playlist
+ */
+const isTrackInPlaylist = (track) => {
+  if (!props.playlistId || !props.playlistTrackIds || Object.keys(props.playlistTrackIds).length === 0) {
+    return true; // If no playlist context, assume all tracks are "in playlist"
+  }
+  const trackId = track.id;
+  return !!props.playlistTrackIds[trackId];
 };
 
 /**
@@ -455,7 +471,8 @@ const handleTrackClick = async (track) => {
           {
             'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
             'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
-            'cursor-pointer': playerReady
+            'cursor-pointer': playerReady,
+            'opacity-40 text-gray-500': !isTrackInPlaylist(track)
           }
         ]"
         @click="playerReady ? handleTrackClick(track) : null"

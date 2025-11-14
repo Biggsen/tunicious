@@ -24,7 +24,7 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 
 const route = useRoute();
 const { user, userData } = useUserData();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
@@ -63,6 +63,7 @@ const TRACKLIST_STORAGE_KEY = 'audiofoodie_showTracklists';
 const showTracklists = ref(localStorage.getItem(TRACKLIST_STORAGE_KEY) === 'true');
 const albumTracks = ref({}); // Store tracks for each album
 const tracksLoading = ref(false);
+const playlistTrackIds = ref({}); // Map of albumId -> Object with track IDs as keys (for fast lookup)
 
 const toggleSort = async () => {
   sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc';
@@ -75,6 +76,37 @@ const fetchAlbumTracks = async () => {
   
   tracksLoading.value = true;
   try {
+    // First, fetch all playlist tracks if we have a playlistId and haven't already fetched them
+    if (id.value && Object.keys(playlistTrackIds.value).length === 0) {
+      try {
+        const cacheKey = `playlist_tracks_${id.value}`;
+        let cachedTrackIds = await getCache(cacheKey);
+        
+        if (!cachedTrackIds) {
+          const allPlaylistTracks = await getAllPlaylistTracks(id.value);
+          const trackIdsByAlbum = {};
+          
+          allPlaylistTracks.forEach(item => {
+            if (item.track?.album?.id && item.track?.id) {
+              const albumId = item.track.album.id;
+              if (!trackIdsByAlbum[albumId]) {
+                trackIdsByAlbum[albumId] = {};
+              }
+              trackIdsByAlbum[albumId][item.track.id] = true;
+            }
+          });
+          
+          cachedTrackIds = trackIdsByAlbum;
+          await setCache(cacheKey, cachedTrackIds);
+        }
+        
+        playlistTrackIds.value = cachedTrackIds;
+      } catch (error) {
+        console.error('Failed to fetch playlist tracks:', error);
+        playlistTrackIds.value = {};
+      }
+    }
+    
     const trackPromises = albumData.value.map(async (album) => {
       if (!albumTracks.value[album.id]) {
         try {
@@ -617,6 +649,11 @@ async function handleClearCache() {
     await clearCache(`playlist_${id.value}_page_${page}_desc`);
   }
   
+  // Clear playlist tracks cache
+  if (id.value) {
+    await clearCache(`playlist_tracks_${id.value}`);
+  }
+  
   // Also clear albumDbData cache for all albums on the current page
   if (user.value && albumData.value && albumData.value.length) {
     for (const album of albumData.value) {
@@ -632,6 +669,9 @@ async function handleClearCache() {
   sortedAlbumIds.value = [];
   playlistName.value = '';
   albumsInDbCount.value = 0;
+  
+  // Clear playlist track IDs
+  playlistTrackIds.value = {};
   
   // Clear loved tracks data
   lovedTracks.value = [];
@@ -1838,6 +1878,7 @@ const handleUpdateYear = async (mismatch) => {
           :lastFmSessionKey="userData?.lastFmSessionKey || ''"
           :allowTrackLoving="userData?.lastFmAuthenticated || false"
           :playlistId="id"
+          :playlistTrackIds="playlistTrackIds[album.id] || {}"
           :albumsList="sortedAlbumsList"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"

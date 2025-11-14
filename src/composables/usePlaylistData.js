@@ -63,14 +63,13 @@ export function usePlaylistData() {
     console.log(`Getting available categories for group ${group}:`, {
       playlistsValue: playlists.value,
       groupData: playlists.value[group],
-      categories: ALL_CATEGORIES.filter(category => 
-        playlists.value[group]?.[category]?.length > 0
-      )
     });
     
-    // Get categories that have playlists
-    return ALL_CATEGORIES.filter(category => 
-      playlists.value[group]?.[category]?.length > 0
+    // Get ALL categories that have playlists, not just predefined ones
+    if (!playlists.value[group]) return [];
+    
+    return Object.keys(playlists.value[group]).filter(category => 
+      playlists.value[group][category]?.length > 0
     );
   };
 

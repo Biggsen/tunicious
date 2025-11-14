@@ -100,6 +100,11 @@ const props = defineProps({
   albumsList: {
     type: Array,
     default: () => []
+  },
+  playlistTrackIds: {
+    type: Object,
+    default: () => ({}),
+    description: 'Map of track IDs in the playlist (keys are track IDs, values are true)'
   }
 });
 
@@ -281,6 +286,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
           :playlistId="playlistId"
           :playlistName="currentPlaylist?.name || ''"
           :albumsList="albumsList"
+          :playlistTrackIds="playlistTrackIds"
           @track-loved="handleTrackLoved"
           @track-unloved="handleTrackUnloved"
         />
