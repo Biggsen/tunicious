@@ -59,7 +59,7 @@ const props = defineProps({
   playlistTrackIds: {
     type: Object,
     default: () => ({}),
-    description: 'Map of track IDs in the playlist (keys are track IDs, values are true)'
+    description: 'Map of albumId -> Object with track IDs as keys (for all albums in playlist)'
   },
   sortByPlaycount: {
     type: Boolean,
@@ -257,11 +257,15 @@ const isTrackLoved = (track) => {
  * Check if a track is in the playlist
  */
 const isTrackInPlaylist = (track) => {
-  if (!props.playlistId || !props.playlistTrackIds || Object.keys(props.playlistTrackIds).length === 0) {
+  if (!props.playlistId || !props.playlistTrackIds || !props.albumId) {
     return true; // If no playlist context, assume all tracks are "in playlist"
   }
+  const albumTrackIds = props.playlistTrackIds[props.albumId];
+  if (!albumTrackIds || Object.keys(albumTrackIds).length === 0) {
+    return true; // If no tracks for this album, assume all are in playlist
+  }
   const trackId = track.id;
-  return !!props.playlistTrackIds[trackId];
+  return !!albumTrackIds[trackId];
 };
 
 /**
@@ -382,11 +386,24 @@ const selectNextTrackToQueue = async (nextAlbum) => {
       })
     );
 
-    // Find the minimum playcount (lowest, including 0)
-    const minPlaycount = Math.min(...tracksWithPlaycounts.map(t => t.playcount));
+    // Filter to only include tracks that are in the playlist for this next album
+    const playlistTracksForNextAlbum = props.playlistTrackIds[nextAlbum.id] || {};
+    const tracksInPlaylist = tracksWithPlaycounts.filter(track => {
+      if (!props.playlistId || Object.keys(playlistTracksForNextAlbum).length === 0) {
+        return true; // If no playlist context, include all tracks
+      }
+      return !!playlistTracksForNextAlbum[track.id];
+    });
+
+    if (tracksInPlaylist.length === 0) {
+      return null; // No tracks from this album are in the playlist
+    }
+
+    // Find the minimum playcount (lowest, including 0) from tracks in playlist
+    const minPlaycount = Math.min(...tracksInPlaylist.map(t => t.playcount));
     
     // Filter tracks with the minimum playcount and sort by track number
-    const tracksWithMinPlaycount = tracksWithPlaycounts
+    const tracksWithMinPlaycount = tracksInPlaylist
       .filter(t => t.playcount === minPlaycount)
       .sort((a, b) => {
         // Sort by track number (preserve album order)

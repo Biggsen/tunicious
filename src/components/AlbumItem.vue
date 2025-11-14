@@ -104,7 +104,7 @@ const props = defineProps({
   playlistTrackIds: {
     type: Object,
     default: () => ({}),
-    description: 'Map of track IDs in the playlist (keys are track IDs, values are true)'
+    description: 'Map of albumId -> Object with track IDs as keys (for all albums in playlist)'
   }
 });
 

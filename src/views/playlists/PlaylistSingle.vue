@@ -1878,7 +1878,7 @@ const handleUpdateYear = async (mismatch) => {
           :lastFmSessionKey="userData?.lastFmSessionKey || ''"
           :allowTrackLoving="userData?.lastFmAuthenticated || false"
           :playlistId="id"
-          :playlistTrackIds="playlistTrackIds[album.id] || {}"
+          :playlistTrackIds="playlistTrackIds"
           :albumsList="sortedAlbumsList"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
