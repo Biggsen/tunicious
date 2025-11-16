@@ -106,15 +106,24 @@ exports.refreshToken = onRequest({
       return;
     }
 
+    // Log request details for debugging (without exposing secrets)
+    logger.info("Refreshing token", {
+      hasRefreshToken: !!refreshToken,
+      refreshTokenLength: refreshToken ? refreshToken.length : 0,
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+    });
+
     const tokenResponse = await fetch(SPOTIFY_TOKEN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
       },
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
       }),
     });
 
