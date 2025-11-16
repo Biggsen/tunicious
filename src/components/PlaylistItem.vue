@@ -9,7 +9,6 @@ const { playingFrom, isPlaying } = useSpotifyPlayer();
 
 const props = defineProps({
   playlist: Object,
-  category: String,
 });
 
 const navigateToPlaylist = (id) => {

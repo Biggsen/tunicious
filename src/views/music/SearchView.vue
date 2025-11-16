@@ -107,7 +107,7 @@ const onSearch = async () => {
         const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
         ratingDataMap.value[album.id] = currentEntry ? {
           priority: currentEntry.priority,
-          category: currentEntry.category,
+          pipelineRole: currentEntry.pipelineRole || 'transient',
           type: currentEntry.type,
           playlistId: currentEntry.playlistId
         } : null;

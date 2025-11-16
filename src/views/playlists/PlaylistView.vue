@@ -12,7 +12,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { user, userData, fetchUserData } = useUserData();
-const { playlists: userPlaylists, fetchUserPlaylists, getAvailableCategories, getAvailableGroups } = usePlaylistData();
+const { playlists: userPlaylists, fetchUserPlaylists, getAvailableGroups } = usePlaylistData();
 
 const route = useRoute();
 const { getPlaylist} = useUserSpotifyApi();
@@ -43,17 +43,6 @@ const initializeActiveTab = () => {
   }
 };
 
-const availableCategories = computed(() => {
-  console.log('Computing availableCategories, userPlaylists:', userPlaylists.value);
-  if (!userPlaylists.value || !activeTab.value) return {};
-  
-  const categories = {};
-  availableGroups.value.forEach(group => {
-    categories[group] = getAvailableCategories(group);
-  });
-  console.log('Available categories:', categories);
-  return categories;
-});
 
 const allPlaylistsLoaded = computed(() => {
   console.log('Computing allPlaylistsLoaded:', {
@@ -67,10 +56,8 @@ const allPlaylistsLoaded = computed(() => {
   // Check if all available groups have been loaded from Spotify
   const allGroupsLoaded = availableGroups.value.every(group => {
     const groupPlaylists = playlists.value[group] || [];
-    // A group is considered loaded if it has playlists OR if it has no playlists in the userPlaylists data
-    const hasPlaylistsInData = Object.values(userPlaylists.value[group] || {}).some(categoryPlaylists => 
-      categoryPlaylists.length > 0
-    );
+      // A group is considered loaded if it has playlists in the userPlaylists data
+      const hasPlaylistsInData = (userPlaylists.value[group] || []).length > 0;
     
     if (!hasPlaylistsInData) {
       // If no playlists in data, consider it loaded
@@ -148,43 +135,40 @@ async function loadPlaylists() {
       
       // Collect all playlists for this group
       const allPlaylistsForGroup = [];
-      for (const category of availableCategories.value[group] || []) {
-        const categoryPlaylists = userPlaylists.value[group]?.[category] || [];
-                  for (const playlistData of categoryPlaylists) {
-            if (!playlistData?.playlistId) {
-              console.warn(`Missing playlist data for ${group} category: ${category}`);
-              continue;
-            }
+      const groupPlaylists = userPlaylists.value[group] || [];
+      
+      for (const playlistData of groupPlaylists) {
+        if (!playlistData?.playlistId) {
+          console.warn(`Missing playlist data for ${group}:`, playlistData);
+          continue;
+        }
 
-            try {
-              console.log(`Fetching Spotify data for ${group}/${category} (${playlistData.playlistId})`);
-              const playlist = await getPlaylist(playlistData.playlistId);
-              console.log(`Got Spotify data:`, playlist);
-              
-              allPlaylistsForGroup.push({
-                id: playlist.id, // Spotify playlist ID
-                firebaseId: playlistData.firebaseId, // Firebase document ID
-                name: playlist.name,
-                images: playlist.images,
-                tracks: { total: playlist.tracks.total },
-                priority: playlistData.priority,
-                category: category,
-                pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
-              });
-          } catch (playlistError) {
-            console.error(`Failed to load playlist ${playlistData.playlistId} for ${group}/${category}:`, playlistError);
-            // Still add the playlist with basic data even if Spotify API fails
-            allPlaylistsForGroup.push({
-              id: playlistData.playlistId, // Use the playlistId as fallback
-              firebaseId: playlistData.firebaseId,
-              name: `${group} ${category}`, // Fallback name
-              images: [],
-              tracks: { total: 0 }, // Assume empty if we can't get data
-              priority: playlistData.priority,
-              category: category,
-              pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
-            });
-          }
+        try {
+          console.log(`Fetching Spotify data for ${group} (${playlistData.playlistId})`);
+          const playlist = await getPlaylist(playlistData.playlistId);
+          console.log(`Got Spotify data:`, playlist);
+          
+          allPlaylistsForGroup.push({
+            id: playlist.id, // Spotify playlist ID
+            firebaseId: playlistData.firebaseId, // Firebase document ID
+            name: playlist.name,
+            images: playlist.images,
+            tracks: { total: playlist.tracks.total },
+            priority: playlistData.priority,
+            pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
+          });
+        } catch (playlistError) {
+          console.error(`Failed to load playlist ${playlistData.playlistId} for ${group}:`, playlistError);
+          // Still add the playlist with basic data even if Spotify API fails
+          allPlaylistsForGroup.push({
+            id: playlistData.playlistId, // Use the playlistId as fallback
+            firebaseId: playlistData.firebaseId,
+            name: playlistData.name || `${group} playlist`, // Fallback name
+            images: [],
+            tracks: { total: 0 }, // Assume empty if we can't get data
+            priority: playlistData.priority,
+            pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
+          });
         }
       }
       
@@ -310,7 +294,6 @@ onMounted(async () => {
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
           :playlist="playlist"
-          :category="playlist.category"
         />
       </div>
       <p v-else class="text-gray-500 text-center py-8">

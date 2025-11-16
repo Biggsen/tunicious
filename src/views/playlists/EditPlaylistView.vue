@@ -28,7 +28,6 @@ const availablePlaylists = ref([]);
 const form = ref({
   name: '',
   type: 'known',
-  category: 'queued',
   priority: 0,
   group: 'known',
   pipelineRole: 'source',
@@ -111,7 +110,6 @@ async function loadPlaylist() {
     form.value = {
       name: playlistData.name || '',
       type: playlistData.type || 'known',
-      category: playlistData.category || 'queued',
       priority: playlistData.priority || 0,
       group: playlistData.group || playlistData.type || 'known',
       pipelineRole: playlistData.pipelineRole || 'source',
@@ -148,9 +146,8 @@ async function loadAvailablePlaylists() {
       allPlaylists.push({
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID
-        name: playlistData.name || `${playlistData.type} ${playlistData.category}`, // Use Firebase name, fallback to generated
+        name: playlistData.name || `${playlistData.type} ${playlistData.pipelineRole}`, // Use Firebase name, fallback to generated
         type: playlistData.type,
-        category: playlistData.category,
         priority: playlistData.priority,
         group: playlistData.group || playlistData.type,
         pipelineRole: playlistData.pipelineRole || 'transient'
@@ -172,10 +169,6 @@ function validateForm() {
   
   if (!form.value.group.trim()) {
     errors.group = 'Group is required';
-  }
-  
-  if (!form.value.category.trim()) {
-    errors.category = 'Category is required';
   }
   
   // Validate pipeline role specific fields
@@ -208,7 +201,6 @@ async function savePlaylist() {
     const updateData = {
       name: form.value.name.trim(),
       type: form.value.type,
-      category: form.value.category,
       priority: form.value.priority,
       group: form.value.group,
       pipelineRole: form.value.pipelineRole,
@@ -338,25 +330,6 @@ onMounted(async () => {
             />
             <p v-if="formErrors.group" class="text-red-500 text-sm mt-1">
               {{ formErrors.group }}
-            </p>
-          </div>
-          
-          <div class="form-group">
-            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <input 
-              type="text" 
-              id="category" 
-              v-model="form.category"
-              :class="[
-                'form-input w-full',
-                formErrors.category ? 'border-red-500' : 'border-gray-300'
-              ]"
-              placeholder="e.g., queued, checking, nice"
-            />
-            <p v-if="formErrors.category" class="text-red-500 text-sm mt-1">
-              {{ formErrors.category }}
             </p>
           </div>
         </div>

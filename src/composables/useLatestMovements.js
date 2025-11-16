@@ -96,8 +96,8 @@ export function useLatestMovements() {
           movementType: isNewAddition ? 'added' : 'moved',
           fromPlaylist: sortedHistory[1]?.playlistName || null,
           toPlaylist: latestEntry.playlistName,
-          category: latestEntry.category,
-          fromCategory: sortedHistory[1]?.category || null,
+          pipelineRole: latestEntry.pipelineRole || 'transient',
+          fromPipelineRole: sortedHistory[1]?.pipelineRole || null,
           type: latestEntry.type,
           timestamp: addedAt,
           updatedAt: updatedAt

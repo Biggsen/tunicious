@@ -7,7 +7,7 @@ const props = defineProps({
     type: Number,
     required: true
   },
-  category: {
+  pipelineRole: {
     type: String,
     required: true
   }
@@ -25,7 +25,7 @@ const computeRatingFromPriority = (pri) => {
 
 const rating = computed(() => computeRatingFromPriority(props.priority));
 const barWidths = ["20%", "40%", "60%", "80%", "100%"];
-const bgClass = computed(() => (props.category === 'end' || props.category === 'wonderful') ? 'bg-raspberry' : 'bg-mint');
+const bgClass = computed(() => (props.pipelineRole === 'sink' || props.pipelineRole === 'terminal') ? 'bg-raspberry' : 'bg-mint');
 </script>
 
 <template>
@@ -34,7 +34,7 @@ const bgClass = computed(() => (props.category === 'end' || props.category === '
     :style="{ width: barWidths[Math.max(0, rating - 1)] }"
   >
     <div class="flex justify-end gap-1">
-      <template v-if="props.category === 'end' || props.category === 'wonderful'">
+      <template v-if="props.pipelineRole === 'sink' || props.pipelineRole === 'terminal'">
         <StarIcon
           v-for="n in rating"
           :key="n"

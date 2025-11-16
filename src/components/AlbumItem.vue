@@ -294,9 +294,9 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     </div>
     <!-- Simulated rating bars -->
     <div>
-      <RatingBar v-if="ratingData?.category && ratingData?.category !== 'queued'" :priority="ratingData?.priority" :category="ratingData?.category" />
-      <!-- Show queued indicator for queued albums -->
-      <div v-else-if="ratingData?.category === 'queued'" class="h-6 py-1 flex items-center justify-start pl-2" style="width: 100%">
+      <RatingBar v-if="ratingData?.pipelineRole && ratingData?.pipelineRole !== 'source'" :priority="ratingData?.priority" :pipelineRole="ratingData?.pipelineRole" />
+      <!-- Show queued indicator for source albums -->
+      <div v-else-if="ratingData?.pipelineRole === 'source'" class="h-6 py-1 flex items-center justify-start pl-2" style="width: 100%">
         <ClockIcon class="w-5 h-5 text-delft-blue" title="Queued" />
       </div>
     </div>

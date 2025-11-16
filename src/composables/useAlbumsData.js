@@ -362,7 +362,8 @@ export function useAlbumsData() {
       const newEntry = {
         playlistId: _playlistData.playlistId,
         playlistName: _playlistData.name,
-        category: _playlistData.category,
+        category: _playlistData.category, // Keep for backward compatibility
+        pipelineRole: _playlistData.pipelineRole || 'transient',
         type: entryType,
         priority: _playlistData.priority,
         addedAt: _spotifyAddedAt,

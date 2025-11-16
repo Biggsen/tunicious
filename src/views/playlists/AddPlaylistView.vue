@@ -168,18 +168,6 @@
                  />
                  <span v-if="formError?.group" class="error-text">{{ formError.group }}</span>
                </div>
-               
-               <div class="form-group">
-                 <label for="category">Category</label>
-                 <input 
-                   type="text" 
-                   id="category" 
-                   v-model="form.category"
-                   placeholder="e.g., queued, checking, nice"
-                   :class="{ 'error': formError?.category }"
-                 />
-                 <span v-if="formError?.category" class="error-text">{{ formError.category }}</span>
-               </div>
              </div>
              
              <div class="mt-4">
@@ -296,7 +284,6 @@ const initialFormData = {
   playlistId: '',
   name: '',
   type: '',
-  category: '',
   priority: 0,
   group: '',
   pipelineRole: 'source',
@@ -400,10 +387,6 @@ const enhancedValidateForm = () => {
     errors.group = 'Please enter a group name';
   }
   
-  if (!form.category?.trim()) {
-    errors.category = 'Please enter a category name';
-  }
-  
   if (!form.pipelineRole) {
     errors.pipelineRole = 'Please select a pipeline role';
   }
@@ -431,7 +414,6 @@ const onSubmit = async (formData) => {
   form.playlistId = '';
   form.name = '';
   form.type = '';
-  form.category = '';
   form.priority = 0;
   form.group = '';
   form.pipelineRole = 'source';

@@ -616,7 +616,7 @@ async function loadCurrentPage() {
       const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
       album.ratingData = currentEntry ? {
         priority: currentEntry.priority,
-        category: currentEntry.category,
+        pipelineRole: currentEntry.pipelineRole || 'transient',
         type: currentEntry.type,
         playlistId: currentEntry.playlistId
       } : null;

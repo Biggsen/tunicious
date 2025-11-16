@@ -32,16 +32,14 @@ const navigateToAlbum = (movement) => {
   });
 };
 
-const getCategoryColor = (category) => {
+const getRoleColor = (pipelineRole) => {
   const colors = {
-    'queued': 'bg-gray-800 text-white',
-    'curious': 'bg-blue-800 text-white',
-    'interested': 'bg-green-800 text-white',
-    'great': 'bg-yellow-800 text-white',
-    'excellent': 'bg-orange-800 text-white',
-    'wonderful': 'bg-red-800 text-white'
+    'source': 'bg-gray-800 text-white',
+    'transient': 'bg-blue-800 text-white',
+    'terminal': 'bg-red-800 text-white',
+    'sink': 'bg-gray-600 text-white'
   };
-  return colors[category] || 'bg-gray-800 text-white';
+  return colors[pipelineRole] || 'bg-gray-800 text-white';
 };
 
 const getMovementTypeStyles = (type) => {
@@ -141,8 +139,8 @@ const fallbackImage = '/placeholder.png';
                 <span
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.fromCategory === 'end' ? 'rounded' : 'rounded-full',
-                    getCategoryColor(movement.fromCategory)
+                    movement.fromPipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.fromPipelineRole)
                   ]"
                 >
                   {{ movement.fromPlaylist }}
@@ -151,8 +149,8 @@ const fallbackImage = '/placeholder.png';
                 <span
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.category === 'end' ? 'rounded' : 'rounded-full',
-                    getCategoryColor(movement.category)
+                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.pipelineRole)
                   ]"
                 >
                   {{ movement.toPlaylist }}
@@ -162,8 +160,8 @@ const fallbackImage = '/placeholder.png';
                 <span
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.category === 'end' ? 'rounded' : 'rounded-full',
-                    getCategoryColor(movement.category)
+                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.pipelineRole)
                   ]"
                 >
                   {{ movement.toPlaylist }}

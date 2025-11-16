@@ -3,47 +3,15 @@ import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
 /**
- * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
- * 
  * @typedef {Object} Playlist
  * @property {string} playlistId
  * @property {string} group
- * @property {PlaylistCategory} category
+ * @property {string} pipelineRole
  * @property {number} priority
  * @property {string} userId
  * 
- * @typedef {Object.<string, string[]>} PlaylistsByCategory
- * 
- * @typedef {Object.<string, PlaylistsByCategory>} GroupedPlaylists
+ * @typedef {Object.<string, Playlist[]>} GroupedPlaylists
  */
-
-const ALL_CATEGORIES = ['queued', 'curious', 'interested', 'great', 'excellent', 'wonderful', 'end'];
-
-/**
- * Creates an empty grouped playlists structure for a specific group
- * @param {string} group - The group name
- * @returns {PlaylistsByCategory}
- */
-function createEmptyGroupPlaylists(group) {
-  const empty = {};
-  ALL_CATEGORIES.forEach(category => {
-    empty[category] = [];
-  });
-  return empty;
-}
-
-/**
- * Creates an empty grouped playlists structure with all groups initialized
- * @param {string[]} groups - Array of group names to initialize
- * @returns {GroupedPlaylists}
- */
-function createEmptyGroupedPlaylists(groups = []) {
-  const empty = {};
-  groups.forEach(group => {
-    empty[group] = createEmptyGroupPlaylists(group);
-  });
-  return empty;
-}
 
 /**
  * Composable for managing playlist data from Firestore
@@ -55,35 +23,13 @@ export function usePlaylistData() {
   const error = ref(null);
 
   /**
-   * Gets categories that have playlists for a specific group
-   * @param {string} group - The group name to check
-   * @returns {PlaylistCategory[]} Array of categories that have playlists
-   */
-  const getAvailableCategories = (group) => {
-    console.log(`Getting available categories for group ${group}:`, {
-      playlistsValue: playlists.value,
-      groupData: playlists.value[group],
-    });
-    
-    // Get ALL categories that have playlists, not just predefined ones
-    if (!playlists.value[group]) return [];
-    
-    return Object.keys(playlists.value[group]).filter(category => 
-      playlists.value[group][category]?.length > 0
-    );
-  };
-
-  /**
    * Gets all available groups that have playlists
    * @returns {string[]} Array of group names that have playlists
    */
   const getAvailableGroups = () => {
-    return Object.keys(playlists.value).filter(group => {
-      const groupPlaylists = playlists.value[group];
-      return Object.values(groupPlaylists).some(categoryPlaylists => 
-        categoryPlaylists.length > 0
-      );
-    });
+    return Object.keys(playlists.value).filter(group => 
+      playlists.value[group]?.length > 0
+    );
   };
 
   /**
@@ -108,7 +54,6 @@ export function usePlaylistData() {
       console.log('Query snapshot size:', querySnapshot.size);
       
       const grouped = {};
-      const groups = new Set();
 
       querySnapshot.forEach((doc) => {
         const playlist = doc.data();
@@ -116,17 +61,12 @@ export function usePlaylistData() {
         
         // Use group field if available, fallback to type for backward compatibility
         const group = playlist.group || playlist.type || 'unknown';
-        groups.add(group);
         
         if (!grouped[group]) {
-          grouped[group] = createEmptyGroupPlaylists(group);
+          grouped[group] = [];
         }
         
-        if (!grouped[group][playlist.category]) {
-          grouped[group][playlist.category] = [];
-        }
-        
-        grouped[group][playlist.category].push({
+        grouped[group].push({
           playlistId: playlist.playlistId,
           firebaseId: doc.id, // Include Firebase document ID
           priority: playlist.priority,
@@ -135,6 +75,11 @@ export function usePlaylistData() {
           type: playlist.type,
           group: playlist.group
         });
+      });
+
+      // Sort each group by priority
+      Object.keys(grouped).forEach(group => {
+        grouped[group].sort((a, b) => a.priority - b.priority);
       });
 
       console.log('Final grouped playlists:', grouped);
@@ -152,7 +97,6 @@ export function usePlaylistData() {
     loading,
     error,
     fetchUserPlaylists,
-    getAvailableCategories,
     getAvailableGroups
   };
 } 
