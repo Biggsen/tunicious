@@ -110,11 +110,11 @@ exports.refreshToken = onRequest({
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
       },
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: refreshToken,
-        client_id: clientId,
       }),
     });
 
