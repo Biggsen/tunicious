@@ -54,15 +54,26 @@ exports.apiProxy = onRequest({
         return;
       }
 
-      // Special handling for auth.getSession - it doesn't require session_key
-      if (method !== "auth.getSession" && !params.session_key) {
-        res.status(400).json({error: "Session key required for authenticated methods"});
-        return;
+      // Special handling for auth.getSession - it uses 'token' parameter, not 'session_key'
+      if (method !== "auth.getSession") {
+        if (!params.session_key) {
+          res.status(400).json({error: "Session key required for authenticated methods"});
+          return;
+        }
+      } else {
+        // For auth.getSession, token parameter is required
+        if (!params.token) {
+          res.status(400).json({error: "Token required for auth.getSession"});
+          return;
+        }
       }
 
-      // Convert session_key to sk for signature generation first
+      // Convert session_key to sk for signature generation (but keep token as-is for auth.getSession)
       const signatureParams = { api_key: apiKey, ...params };
-      if (signatureParams.session_key) {
+      if (method === "auth.getSession") {
+        // For auth.getSession, token stays as 'token' in the signature
+        // No conversion needed
+      } else if (signatureParams.session_key) {
         signatureParams.sk = signatureParams.session_key;
         delete signatureParams.session_key;
       }

@@ -31,6 +31,11 @@ export function useBackendApi() {
         // Provide more specific error messages based on the response
         let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
         
+        // Ensure errorMessage is a string before calling string methods
+        if (typeof errorMessage !== 'string') {
+          errorMessage = JSON.stringify(errorMessage);
+        }
+        
         // Handle specific HTTP status codes
         if (response.status === 400) {
           if (errorMessage.includes('refresh token')) {
