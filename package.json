@@ -13,6 +13,7 @@
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
     "@vueuse/core": "^13.0.0",
+    "debug": "^4.4.3",
     "firebase": "^10.7.1",
     "firebase-admin": "^13.3.0",
     "vue": "^3.3.12",
