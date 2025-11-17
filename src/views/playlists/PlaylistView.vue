@@ -4,7 +4,6 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
-import BackButton from '@components/common/BackButton.vue';
 import { useRoute } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
@@ -229,9 +228,6 @@ onMounted(async () => {
 
 <template>
   <main class="pt-6">
-    <div class="mb-6">
-      <BackButton to="/" text="Back to Home" />
-    </div>
     <h1 class="h2 pb-4">Playlists</h1>
     <div class="flex gap-4 mb-6">
       <RouterLink 

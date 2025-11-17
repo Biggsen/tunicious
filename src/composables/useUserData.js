@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -58,11 +58,21 @@ export function useUserData() {
     }
   }
 
+  // Watch for user changes and fetch data when user is available
+  watch(user, (newUser) => {
+    if (newUser) {
+      fetchUserData(newUser.uid);
+    } else {
+      userData.value = null;
+      loading.value = false;
+    }
+  }, { immediate: true });
+
   onMounted(() => {
     logUser('useUserData mounted, current user:', user.value);
-    if (user.value) {
+    if (user.value && !userData.value) {
       fetchUserData(user.value.uid);
-    } else {
+    } else if (!user.value) {
       logUser('No user found in useUserData mounted');
       loading.value = false;
     }
