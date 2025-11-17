@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .firebase/*
 .env
+storybook-static
 
 # Editor directories and files
 .vscode/*
