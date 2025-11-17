@@ -1,5 +1,9 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useUserSpotifyApi } from './useUserSpotifyApi';
+import { useCurrentUser } from 'vuefire';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { logPlayer } from '@utils/logger';
 
 // Singleton state - shared across all component instances
 const player = ref(null);
@@ -19,22 +23,33 @@ let componentCount = 0;
 export function useSpotifyPlayer() {
   componentCount++;
 
+  const user = useCurrentUser();
   const { getUserTokens } = useUserSpotifyApi();
 
   /**
    * Initialize the Spotify Web Playback SDK (singleton - only initializes once)
    */
   const initializePlayer = async () => {
+    logPlayer('===== initializePlayer CALLED =====');
+    logPlayer('player.value exists:', !!player.value);
+    logPlayer('initializationPromise exists:', !!initializationPromise);
+    logPlayer('isInitializing:', isInitializing);
+    logPlayer('window.Spotify:', typeof window.Spotify);
+    logPlayer('window.Spotify?.Player:', typeof window.Spotify?.Player);
+    
     // If already initialized or initializing, return the existing promise
     if (player.value) {
+      logPlayer('Player already initialized, returning');
       return Promise.resolve();
     }
 
     if (initializationPromise) {
+      logPlayer('Initialization already in progress, returning promise');
       return initializationPromise;
     }
 
     if (isInitializing) {
+      logPlayer('Waiting for ongoing initialization...');
       // Wait for ongoing initialization
       while (isInitializing) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -43,8 +58,14 @@ export function useSpotifyPlayer() {
     }
 
     isInitializing = true;
+    logPlayer('Starting new initialization...');
     initializationPromise = (async () => {
+      logPlayer('Inside initialization promise');
+      logPlayer('typeof window:', typeof window);
+      logPlayer('window.Spotify:', typeof window.Spotify);
+      
       if (typeof window === 'undefined' || !window.Spotify) {
+        logPlayer('SDK not available! window:', typeof window, 'Spotify:', typeof window?.Spotify);
         error.value = 'Spotify Web Playback SDK not loaded';
         isInitializing = false;
         return;
@@ -54,7 +75,32 @@ export function useSpotifyPlayer() {
         loading.value = true;
         error.value = null;
 
-        const tokens = await getUserTokens();
+        logPlayer('Initializing Spotify player...');
+
+        // Check if user has Spotify tokens before attempting to initialize
+        let tokens;
+        try {
+          tokens = await getUserTokens();
+          logPlayer('Got Spotify tokens, proceeding with player initialization');
+        } catch (authErr) {
+          // Only skip initialization for specific authentication errors
+          const errorMsg = authErr.message || '';
+          if (errorMsg.includes('not authenticated') || 
+              errorMsg.includes('not connected') || 
+              errorMsg.includes('missing refresh token') ||
+              errorMsg.includes('User not authenticated')) {
+            // User not authenticated with Spotify - this is expected for users without Spotify connected
+            logPlayer('Spotify player initialization skipped - user not authenticated with Spotify');
+            isInitializing = false;
+            loading.value = false;
+            initializationPromise = null;
+            return;
+          }
+          // For other errors, log and rethrow so they're handled by the outer catch
+          logPlayer('Error getting Spotify tokens:', authErr);
+          throw authErr;
+        }
+
         const accessToken = tokens.accessToken;
 
         // Only create player if it doesn't exist
@@ -67,7 +113,7 @@ export function useSpotifyPlayer() {
                 const freshTokens = await getUserTokens();
                 cb(freshTokens.accessToken);
               } catch (err) {
-                console.error('Error getting OAuth token:', err);
+                logPlayer('Error getting OAuth token:', err);
                 error.value = 'Failed to authenticate with Spotify';
                 cb(null);
               }
@@ -79,14 +125,14 @@ export function useSpotifyPlayer() {
         // Set up event listeners only once
         if (!player.value._listenersSet) {
           player.value.addListener('ready', ({ device_id }) => {
-            console.log('Spotify player ready with device ID:', device_id);
+            logPlayer('Spotify player ready with device ID:', device_id);
             deviceId.value = device_id;
             isReady.value = true;
             error.value = null;
           });
 
           player.value.addListener('not_ready', ({ device_id }) => {
-            console.log('Device ID has gone offline', device_id);
+            logPlayer('Device ID has gone offline', device_id);
             isReady.value = false;
             deviceId.value = null;
           });
@@ -116,13 +162,13 @@ export function useSpotifyPlayer() {
           });
 
           player.value.addListener('authentication_error', ({ message }) => {
-            console.error('Authentication error:', message);
+            logPlayer('Authentication error:', message);
             error.value = 'Spotify authentication failed';
             isReady.value = false;
           });
 
           player.value.addListener('playback_error', ({ message }) => {
-            console.error('Playback error:', message);
+            logPlayer('Playback error:', message);
             error.value = `Playback error: ${message}`;
           });
 
@@ -139,8 +185,14 @@ export function useSpotifyPlayer() {
           }
         }
       } catch (err) {
-        console.error('Error initializing Spotify player:', err);
-        error.value = err.message || 'Failed to initialize Spotify player';
+        // Only log errors that aren't authentication-related
+        if (!err.message?.includes('not authenticated') && !err.message?.includes('not connected')) {
+          logPlayer('Error initializing Spotify player:', err);
+          error.value = err.message || 'Failed to initialize Spotify player';
+        } else {
+          // User not authenticated with Spotify - this is expected
+          logPlayer('Spotify player initialization skipped - user not authenticated with Spotify');
+        }
       } finally {
         loading.value = false;
         isInitializing = false;
@@ -181,7 +233,7 @@ export function useSpotifyPlayer() {
       // Store the context after successful play
       playingFrom.value = context;
     } catch (err) {
-      console.error('Error playing track:', err);
+      logPlayer('Error playing track:', err);
       error.value = err.message || 'Failed to play track';
       throw err;
     }
@@ -220,7 +272,7 @@ export function useSpotifyPlayer() {
       // Store the context after successful play
       playingFrom.value = context;
     } catch (err) {
-      console.error('Error playing album:', err);
+      logPlayer('Error playing album:', err);
       error.value = err.message || 'Failed to play album';
       throw err;
     }
@@ -238,7 +290,7 @@ export function useSpotifyPlayer() {
     try {
       await player.value.togglePlay();
     } catch (err) {
-      console.error('Error toggling playback:', err);
+      logPlayer('Error toggling playback:', err);
       error.value = err.message || 'Failed to toggle playback';
     }
   };
@@ -254,7 +306,7 @@ export function useSpotifyPlayer() {
     try {
       await player.value.pause();
     } catch (err) {
-      console.error('Error pausing:', err);
+      logPlayer('Error pausing:', err);
       error.value = err.message || 'Failed to pause';
     }
   };
@@ -270,7 +322,7 @@ export function useSpotifyPlayer() {
     try {
       await player.value.resume();
     } catch (err) {
-      console.error('Error resuming:', err);
+      logPlayer('Error resuming:', err);
       error.value = err.message || 'Failed to resume';
     }
   };
@@ -286,7 +338,7 @@ export function useSpotifyPlayer() {
     try {
       await player.value.seek(positionMs);
     } catch (err) {
-      console.error('Error seeking:', err);
+      logPlayer('Error seeking:', err);
       error.value = err.message || 'Failed to seek';
     }
   };
@@ -302,7 +354,7 @@ export function useSpotifyPlayer() {
     try {
       await player.value.setVolume(volume);
     } catch (err) {
-      console.error('Error setting volume:', err);
+      logPlayer('Error setting volume:', err);
       error.value = err.message || 'Failed to set volume';
     }
   };
@@ -333,7 +385,7 @@ export function useSpotifyPlayer() {
         throw new Error(errorData.error?.message || `Failed to add track to queue: ${response.status}`);
       }
     } catch (err) {
-      console.error('Error adding track to queue:', err);
+      logPlayer('Error adding track to queue:', err);
       error.value = err.message || 'Failed to add track to queue';
       throw err;
     }
@@ -357,7 +409,7 @@ export function useSpotifyPlayer() {
       try {
         await player.value.disconnect();
       } catch (err) {
-        console.error('Error disconnecting player:', err);
+        logPlayer('Error disconnecting player:', err);
       }
       // Reset state but keep the player instance reference
       // We'll let the next component reinitialize if needed
@@ -370,32 +422,213 @@ export function useSpotifyPlayer() {
     }
   };
 
+  // Periodic check to retry initialization when both SDK and user are ready
+  let retryCheckInterval = null;
+  
+  const checkAndRetryInitialization = async () => {
+    // Only retry if player is not already initialized
+    if (player.value || isInitializing) {
+      return;
+    }
+
+    // Check if SDK is available
+    if (!window.Spotify) {
+      return;
+    }
+
+    // Check if user is authenticated and has Spotify connected
+    if (!user.value) {
+      return;
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.spotifyConnected && userData.spotifyTokens) {
+          logPlayer('Both SDK and Spotify connection ready, retrying player initialization...');
+          initializePlayer().catch(err => {
+            logPlayer('Failed to initialize player on retry:', err);
+          });
+        }
+      }
+    } catch (err) {
+      logPlayer('Error in retry check:', err);
+    }
+  };
+
+  // Watch for user authentication and Spotify connection changes
+  watch([user, () => user.value?.uid], async ([newUser, newUid], [oldUser, oldUid]) => {
+    // If user just logged in or changed, check for Spotify connection
+    if (newUser && newUid && (!oldUser || oldUid !== newUid)) {
+      // Start periodic retry check
+      if (retryCheckInterval) {
+        clearInterval(retryCheckInterval);
+      }
+      retryCheckInterval = setInterval(checkAndRetryInitialization, 2000); // Check every 2 seconds
+      
+      // Also do an immediate check
+      setTimeout(checkAndRetryInitialization, 1000);
+    }
+  }, { immediate: false });
+
   onMounted(() => {
+    // Start periodic retry check if user is already authenticated
+    if (user.value) {
+      retryCheckInterval = setInterval(checkAndRetryInitialization, 2000);
+      // Do an immediate check
+      setTimeout(checkAndRetryInitialization, 1000);
+    }
+    
     // Wait for Spotify SDK to load
     if (typeof window !== 'undefined') {
+      const tryInitialize = () => {
+        logPlayer('tryInitialize called');
+        logPlayer('window.Spotify:', typeof window.Spotify);
+        logPlayer('window.Spotify?.Player:', typeof window.Spotify?.Player);
+        logPlayer('player.value:', !!player.value);
+        logPlayer('isInitializing:', isInitializing);
+        logPlayer('user.value:', !!user.value);
+        
+        if (window.Spotify) {
+          logPlayer('Spotify SDK available, initializing player...');
+          initializePlayer().catch(err => {
+            logPlayer('Failed to initialize player:', err);
+          });
+        } else {
+          logPlayer('Spotify SDK not yet available');
+          logPlayer('window object keys:', Object.keys(window).filter(k => k.toLowerCase().includes('spotify')));
+        }
+      };
+
       if (window.Spotify) {
-        initializePlayer();
+        logPlayer('Spotify SDK already loaded');
+        tryInitialize();
       } else {
-        // Wait for SDK to load
-        const checkInterval = setInterval(() => {
+        logPlayer('Waiting for Spotify SDK to load...');
+        // Wait for SDK to load via polling - keep trying indefinitely
+        let checkInterval = setInterval(async () => {
+          logPlayer('Polling check - window.Spotify:', typeof window.Spotify);
+          
           if (window.Spotify) {
             clearInterval(checkInterval);
-            initializePlayer();
+            checkInterval = null;
+            logPlayer('Spotify SDK detected via polling');
+            // Also check if user has Spotify connected before trying
+            if (user.value) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  logPlayer('Polling - User has Spotify:', {
+                    spotifyConnected: userData.spotifyConnected,
+                    hasTokens: !!userData.spotifyTokens
+                  });
+                  
+                  if (userData.spotifyConnected && userData.spotifyTokens) {
+                    tryInitialize();
+                  } else {
+                    logPlayer('Polling - User does not have Spotify connected yet');
+                  }
+                }
+              } catch (err) {
+                logPlayer('Polling - Error checking user data:', err);
+                // Try anyway - might work
+                tryInitialize();
+              }
+            } else {
+              logPlayer('Polling - No user, trying anyway...');
+              tryInitialize();
+            }
           }
-        }, 100);
+        }, 500); // Check every 500ms
 
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          if (!window.Spotify) {
-            error.value = 'Spotify Web Playback SDK failed to load';
+        // Also listen for the SDK ready event
+        const sdkReadyHandler = async () => {
+          logPlayer('===== SDK READY EVENT HANDLER =====');
+          logPlayer('Event received at:', new Date().toISOString());
+          logPlayer('window.Spotify BEFORE check:', typeof window.Spotify);
+          logPlayer('window.Spotify value:', window.Spotify);
+          
+          if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+            logPlayer('Cleared check interval');
           }
-        }, 10000);
+          
+          // Add a small delay to ensure window.Spotify is set
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          logPlayer('window.Spotify AFTER delay:', typeof window.Spotify);
+          logPlayer('window.Spotify?.Player:', typeof window.Spotify?.Player);
+          
+          if (!window.Spotify) {
+            logPlayer('ERROR: window.Spotify not set despite ready event!');
+            logPlayer('Will continue polling...');
+            return;
+          }
+          
+          logPlayer('window.Spotify is valid, checking user...');
+          // Check if user has Spotify connected before trying
+          if (user.value) {
+            logPlayer('User exists, checking Firestore...');
+            try {
+              const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                logPlayer('User data:', {
+                  spotifyConnected: userData.spotifyConnected,
+                  hasTokens: !!userData.spotifyTokens,
+                  tokenExpiresAt: userData.spotifyTokens?.expiresAt
+                });
+                
+                if (userData.spotifyConnected && userData.spotifyTokens) {
+                  logPlayer('User has Spotify, calling tryInitialize...');
+                  tryInitialize();
+                } else {
+                  logPlayer('User does not have Spotify connected yet');
+                }
+              } else {
+                logPlayer('User document does not exist');
+              }
+            } catch (err) {
+              logPlayer('Error checking user data:', err);
+              // Try anyway - might work
+              logPlayer('Attempting initialization anyway...');
+              tryInitialize();
+            }
+          } else {
+            logPlayer('No user, attempting initialization anyway...');
+            tryInitialize();
+          }
+        };
+        window.addEventListener('spotify-sdk-ready', sdkReadyHandler);
+
+        // Store interval and handler for cleanup (use a unique key per component instance)
+        const instanceKey = `spotifySDK_${componentCount}`;
+        window[`${instanceKey}_interval`] = checkInterval;
+        window[`${instanceKey}_handler`] = sdkReadyHandler;
       }
     }
   });
 
   onUnmounted(() => {
+    // Clean up retry check interval
+    if (retryCheckInterval) {
+      clearInterval(retryCheckInterval);
+      retryCheckInterval = null;
+    }
+    
+    // Clean up SDK waiting interval if it exists
+    const instanceKey = `spotifySDK_${componentCount}`;
+    if (window[`${instanceKey}_interval`]) {
+      clearInterval(window[`${instanceKey}_interval`]);
+      window[`${instanceKey}_interval`] = null;
+    }
+    if (window[`${instanceKey}_handler`]) {
+      window.removeEventListener('spotify-sdk-ready', window[`${instanceKey}_handler`]);
+      window[`${instanceKey}_handler`] = null;
+    }
     disconnect();
   });
 

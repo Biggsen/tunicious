@@ -8,7 +8,46 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,700;1,400;1,900&display=swap" rel="stylesheet">
+    <script>
+      // Set up Spotify Web Playback SDK ready callback before SDK loads
+      console.log('[SPOTIFY DEBUG] Setting up SDK callback...');
+      console.log('[SPOTIFY DEBUG] window.onSpotifyWebPlaybackSDKReady before:', typeof window.onSpotifyWebPlaybackSDKReady);
+      
+      window.onSpotifyWebPlaybackSDKReady = (SDK) => {
+        console.log('[SPOTIFY DEBUG] SDK callback invoked!');
+        console.log('[SPOTIFY DEBUG] SDK parameter type:', typeof SDK);
+        console.log('[SPOTIFY DEBUG] SDK parameter:', SDK);
+        console.log('[SPOTIFY DEBUG] SDK.Player:', typeof SDK?.Player);
+        
+        if (SDK && SDK.Player) {
+          window.Spotify = SDK;
+          console.log('[SPOTIFY DEBUG] window.Spotify set successfully');
+          console.log('[SPOTIFY DEBUG] window.Spotify.Player:', typeof window.Spotify.Player);
+          
+          // Dispatch a custom event so components can react to SDK being ready
+          const event = new CustomEvent('spotify-sdk-ready');
+          console.log('[SPOTIFY DEBUG] Dispatching spotify-sdk-ready event');
+          window.dispatchEvent(event);
+          console.log('[SPOTIFY DEBUG] Event dispatched, window.Spotify still exists:', !!window.Spotify);
+        } else {
+          console.error('[SPOTIFY DEBUG] SDK callback received invalid SDK object:', SDK);
+        }
+      };
+      
+      console.log('[SPOTIFY DEBUG] Callback set, window.onSpotifyWebPlaybackSDKReady after:', typeof window.onSpotifyWebPlaybackSDKReady);
+      
+      // Also check if SDK loads synchronously
+      window.addEventListener('load', () => {
+        console.log('[SPOTIFY DEBUG] Window loaded, checking SDK state...');
+        console.log('[SPOTIFY DEBUG] window.Spotify:', typeof window.Spotify);
+        console.log('[SPOTIFY DEBUG] window.onSpotifyWebPlaybackSDKReady:', typeof window.onSpotifyWebPlaybackSDKReady);
+      });
+    </script>
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script>
+      // Check immediately after script loads
+      console.log('[SPOTIFY DEBUG] Script tag executed, window.Spotify:', typeof window.Spotify);
+    </script>
   </head>
   <body>
     <div id="app"></div>
