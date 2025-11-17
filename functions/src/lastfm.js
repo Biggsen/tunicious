@@ -5,16 +5,26 @@ const logger = require("firebase-functions/logger");
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 
-// Define secrets for Last.fm API (production)
-const lastfmApiKey = defineSecret("LASTFM_API_KEY_PROD");
-const lastfmApiSecret = defineSecret("LASTFM_API_SECRET_PROD");
+// Define secrets for Last.fm API (both DEV and PROD)
+const lastfmApiKeyProd = defineSecret("LASTFM_API_KEY_PROD");
+const lastfmApiSecretProd = defineSecret("LASTFM_API_SECRET_PROD");
+const lastfmApiKeyDev = defineSecret("LASTFM_API_KEY_DEV");
+const lastfmApiSecretDev = defineSecret("LASTFM_API_SECRET_DEV");
+
+/**
+ * Determine if request is from development environment
+ */
+function isDevelopmentRequest(req) {
+  const origin = req.headers.origin || req.headers.referer || "";
+  return origin.includes("localhost") || origin.includes("127.0.0.1");
+}
 
 /**
  * Proxy for Last.fm API calls
  */
 exports.apiProxy = onRequest({
   cors: true,
-  secrets: [lastfmApiKey, lastfmApiSecret],
+  secrets: [lastfmApiKeyProd, lastfmApiSecretProd, lastfmApiKeyDev, lastfmApiSecretDev],
 }, async (req, res) => {
   try {
     if (req.method !== "POST") {
@@ -29,12 +39,14 @@ exports.apiProxy = onRequest({
       return;
     }
 
-    // Get credentials from secrets
-    const apiKey = lastfmApiKey.value();
-    const apiSecret = lastfmApiSecret.value();
+    // Determine environment and get appropriate credentials
+    const isDev = isDevelopmentRequest(req);
+    const apiKey = isDev ? lastfmApiKeyDev.value() : lastfmApiKeyProd.value();
+    const apiSecret = isDev ? lastfmApiSecretDev.value() : lastfmApiSecretProd.value();
     
     logger.info("Last.fm API call", {
       method,
+      environment: isDev ? "DEV" : "PROD",
       hasApiKey: !!apiKey,
       apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + "..." : "none",
       hasApiSecret: !!apiSecret,
@@ -42,7 +54,7 @@ exports.apiProxy = onRequest({
     });
 
     if (!apiKey) {
-      logger.error("Missing Last.fm API key in environment");
+      logger.error(`Missing Last.fm API key in ${isDev ? "DEV" : "PROD"} environment`);
       res.status(500).json({error: "Server configuration error"});
       return;
     }
@@ -56,7 +68,7 @@ exports.apiProxy = onRequest({
     if (isAuthenticatedMethod) {
       // For authenticated methods, use POST with form data
       if (!apiSecret) {
-        logger.error("Missing Last.fm API secret for authenticated method");
+        logger.error(`Missing Last.fm API secret for authenticated method in ${isDev ? "DEV" : "PROD"} environment`);
         res.status(500).json({error: "Server configuration error"});
         return;
       }
