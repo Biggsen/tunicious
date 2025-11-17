@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { logAuth } from '@utils/logger';
 
 export function useAuth() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export function useAuth() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
     } catch (err) {
-      console.error('Login error:', err);
+      logAuth('Login error:', err);
       error.value = getAuthErrorMessage(err.code);
       throw err;
     } finally {
@@ -32,7 +33,7 @@ export function useAuth() {
       await signOut(auth);
       router.push(redirectPath);
     } catch (err) {
-      console.error('Logout error:', err);
+      logAuth('Logout error:', err);
       error.value = 'Failed to sign out. Please try again.';
       throw err;
     } finally {

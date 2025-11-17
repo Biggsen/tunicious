@@ -1,3 +1,5 @@
+import { logDebug } from './logger';
+
 /**
  * Calculates the Levenshtein distance between two strings
  * @param {string} str1 - First string
@@ -39,12 +41,12 @@ export function stringSimilarity(str1, str2) {
   if (str1 === str2) return 1;
   if (!str1 || !str2) return 0;
   
-  console.log('Comparing strings:', str1, str2);
+  logDebug('Comparing strings:', str1, str2);
   const maxLength = Math.max(str1.length, str2.length);
   const distance = levenshteinDistance(str1, str2);
   const similarity = 1 - (distance / maxLength);
   
-  console.log('Similarity score:', similarity);
+  logDebug('Similarity score:', similarity);
   return similarity;
 }
 

@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useLastFmApi } from './useLastFmApi';
+import { logLastFm } from '@utils/logger';
 
 export function useCurrentPlayingTrack(lastFmUserName) {
   const currentPlayingTrack = ref(null);
@@ -54,7 +55,7 @@ export function useCurrentPlayingTrack(lastFmUserName) {
         currentPlayingTrack.value = null;
       }
     } catch (err) {
-      console.error('Error fetching current playing track:', err);
+      logLastFm('Error fetching current playing track:', err);
       error.value = err.message;
       currentPlayingTrack.value = null;
     } finally {

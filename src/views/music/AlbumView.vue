@@ -20,6 +20,7 @@ import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
 
 import { clearCache } from '@utils/cache';
+import { logAlbum } from '@utils/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -99,7 +100,7 @@ const fetchAllTracks = async (albumId) => {
       offset += limit;
       retryCount = 0; // Reset retry count on successful request
     } catch (err) {
-      console.error('Error fetching album tracks:', err);
+      logAlbum('Error fetching album tracks:', err);
       
       // For 502 Bad Gateway or other server errors, retry a few times
       if (err.status >= 500 && retryCount < maxRetries) {
@@ -126,7 +127,7 @@ const saveAlbum = async () => {
     });
     currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
   } catch (err) {
-    console.error('Error saving album:', err);
+    logAlbum('Error saving album:', err);
     error.value = err.message || 'Failed to save album';
   } finally {
     saving.value = false;
@@ -156,7 +157,7 @@ const handleUpdateAlbumDetails = async () => {
     // Refresh the needsUpdate status
     await checkIfNeedsUpdate();
   } catch (err) {
-    console.error('Error updating album details:', err);
+    logAlbum('Error updating album details:', err);
     error.value = err.message || 'Failed to update album details';
   } finally {
     updating.value = false;
@@ -169,15 +170,15 @@ const handleCheckExistingAlbum = async () => {
   try {
     isSearching.value = true;
     searchError.value = null;
-    console.log('Starting search for album:', album.value.name, 'by', album.value.artists[0].name);
+    logAlbum('Starting search for album:', album.value.name, 'by', album.value.artists[0].name);
     searchResults.value = await searchAlbumsByTitleAndArtistFuzzy(
       album.value.name,
       album.value.artists[0].name,
       0.7 // Lower threshold to catch more potential matches
     );
-    console.log('Search results:', searchResults.value);
+    logAlbum('Search results:', searchResults.value);
   } catch (e) {
-    console.error('Error searching for existing albums:', e);
+    logAlbum('Error searching for existing albums:', e);
     searchError.value = 'Failed to search for existing albums';
   } finally {
     isSearching.value = false;
@@ -201,7 +202,7 @@ const handleCreateMapping = async (primaryId) => {
       await fetchUserAlbumData(route.params.id);
     }
   } catch (e) {
-    console.error('Error creating mapping:', e);
+    logAlbum('Error creating mapping:', e);
     searchError.value = 'Failed to create album mapping';
   }
 };
@@ -229,9 +230,9 @@ const handleUpdateYear = async (primaryId, spotifyYear) => {
     }
     
     // Show success (you might want to add a success message state)
-    console.log(`Year updated to ${spotifyYear} for album ${primaryId}`);
+    logAlbum(`Year updated to ${spotifyYear} for album ${primaryId}`);
   } catch (e) {
-    console.error('Error updating year:', e);
+    logAlbum('Error updating year:', e);
     searchError.value = 'Failed to update year';
   } finally {
     updating.value = false;
@@ -262,7 +263,7 @@ const fetchLovedTracks = async () => {
     }
     
   } catch (err) {
-    console.error('Error fetching loved tracks:', err);
+    logAlbum('Error fetching loved tracks:', err);
     lovedTracksError.value = err.message || 'Failed to fetch loved tracks';
   } finally {
     lovedTracksLoading.value = false;
@@ -276,7 +277,7 @@ watch([tracks], async () => {
       const result = await calculateLovedTrackPercentage(album.value, lovedTracks.value, tracks.value);
       lovedTracksCount.value = result.lovedCount;
     } catch (err) {
-      console.error('Error calculating loved tracks count:', err);
+      logAlbum('Error calculating loved tracks count:', err);
     }
   }
 });
@@ -334,7 +335,7 @@ onMounted(async () => {
       await fetchLovedTracks();
     }
   } catch (err) {
-    console.error('Error in AlbumView:', err);
+    logAlbum('Error in AlbumView:', err);
     error.value = err.message || 'Failed to load album details. Please try refreshing the page.';
   } finally {
     loading.value = false;

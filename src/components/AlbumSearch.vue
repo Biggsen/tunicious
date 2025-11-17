@@ -84,6 +84,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
+import { logSpotify } from '@utils/logger';
 
 const props = defineProps({
   modelValue: {
@@ -123,7 +124,7 @@ const handleSearch = () => {
       searchResults.value = response.albums?.items || [];
       showResults.value = true;
     } catch (error) {
-      console.error('Search error:', error);
+      logSpotify('Search error:', error);
       searchResults.value = [];
     } finally {
       searching.value = false;

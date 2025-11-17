@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { setCache, getCache, clearCache } from '../utils/cache';
+import { logCache } from '@utils/logger';
 
 export function useCache(cacheKey) {
   const cacheCleared = ref(false);
@@ -18,7 +19,7 @@ export function useCache(cacheKey) {
       }
       return await fetchFn();
     } catch (e) {
-      console.error("Error loading from cache:", e);
+      logCache("Error loading from cache:", e);
       error.value = e.message || "Failed to load data. Please try again.";
       throw e;
     } finally {
@@ -30,7 +31,7 @@ export function useCache(cacheKey) {
     try {
       await setCache(cacheKey, data);
     } catch (e) {
-      console.error("Error saving to cache:", e);
+      logCache("Error saving to cache:", e);
       error.value = e.message || "Failed to save data to cache.";
       throw e;
     }
@@ -42,7 +43,7 @@ export function useCache(cacheKey) {
       cacheCleared.value = true;
       return await fetchFn();
     } catch (e) {
-      console.error("Error clearing cache:", e);
+      logCache("Error clearing cache:", e);
       error.value = e.message || "Failed to clear cache.";
       throw e;
     }

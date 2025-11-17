@@ -9,6 +9,7 @@ import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import { logPlaylist } from '@utils/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -121,7 +122,7 @@ async function loadPlaylist() {
     await loadAvailablePlaylists();
     
   } catch (err) {
-    console.error('Error loading playlist:', err);
+    logPlaylist('Error loading playlist:', err);
     error.value = err.message || 'Failed to load playlist';
   } finally {
     loading.value = false;
@@ -156,7 +157,7 @@ async function loadAvailablePlaylists() {
     
     availablePlaylists.value = allPlaylists;
   } catch (err) {
-    console.error('Error loading available playlists:', err);
+    logPlaylist('Error loading available playlists:', err);
   }
 }
 
@@ -231,7 +232,7 @@ async function savePlaylist() {
     };
     
   } catch (err) {
-    console.error('Error saving playlist:', err);
+    logPlaylist('Error saving playlist:', err);
     error.value = err.message || 'Failed to save playlist';
   } finally {
     saving.value = false;

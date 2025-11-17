@@ -10,6 +10,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
+import { logPlaylist } from '@utils/logger';
 
 const { user, userData, fetchUserData } = useUserData();
 const { playlists: userPlaylists, fetchUserPlaylists, getAvailableGroups } = usePlaylistData();
@@ -45,7 +46,7 @@ const initializeActiveTab = () => {
 
 
 const allPlaylistsLoaded = computed(() => {
-  console.log('Computing allPlaylistsLoaded:', {
+  logPlaylist('Computing allPlaylistsLoaded:', {
     availableGroups: availableGroups.value,
     userPlaylists: userPlaylists.value,
     spotifyPlaylists: playlists.value,
@@ -68,7 +69,7 @@ const allPlaylistsLoaded = computed(() => {
     return groupPlaylists.length > 0 && groupPlaylists.every(p => p.id != null);
   });
   
-  console.log('Playlists loaded status:', { 
+  logPlaylist('Playlists loaded status:', { 
     availableGroups: availableGroups.value,
     allGroupsLoaded
   });
@@ -91,7 +92,7 @@ const filteredPlaylists = computed(() => {
 
 const currentPlaylists = computed(() => {
   const playlists = filteredPlaylists.value[activeTab.value] || [];
-  console.log(`Current playlists for ${activeTab.value}:`, playlists);
+  logPlaylist(`Current playlists for ${activeTab.value}:`, playlists);
   return playlists;
 });
 
@@ -120,7 +121,7 @@ async function loadPlaylists() {
   const cachedPlaylists = await getCache(cacheKey.value);
 
   if (cachedPlaylists) {
-    console.log('Using cached playlists:', cachedPlaylists);
+    logPlaylist('Using cached playlists:', cachedPlaylists);
     playlists.value = cachedPlaylists;
     loading.value = false;
     return;
@@ -131,7 +132,7 @@ async function loadPlaylists() {
     
     // Load all playlists for each group
     for (const group of availableGroups.value) {
-      console.log(`Loading ${group} playlists...`);
+      logPlaylist(`Loading ${group} playlists...`);
       
       // Collect all playlists for this group
       const allPlaylistsForGroup = [];
@@ -139,14 +140,14 @@ async function loadPlaylists() {
       
       for (const playlistData of groupPlaylists) {
         if (!playlistData?.playlistId) {
-          console.warn(`Missing playlist data for ${group}:`, playlistData);
+          logPlaylist(`Missing playlist data for ${group}:`, playlistData);
           continue;
         }
 
         try {
-          console.log(`Fetching Spotify data for ${group} (${playlistData.playlistId})`);
+          logPlaylist(`Fetching Spotify data for ${group} (${playlistData.playlistId})`);
           const playlist = await getPlaylist(playlistData.playlistId);
-          console.log(`Got Spotify data:`, playlist);
+          logPlaylist(`Got Spotify data:`, playlist);
           
           allPlaylistsForGroup.push({
             id: playlist.id, // Spotify playlist ID
@@ -158,7 +159,7 @@ async function loadPlaylists() {
             pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
           });
         } catch (playlistError) {
-          console.error(`Failed to load playlist ${playlistData.playlistId} for ${group}:`, playlistError);
+          logPlaylist(`Failed to load playlist ${playlistData.playlistId} for ${group}:`, playlistError);
           // Still add the playlist with basic data even if Spotify API fails
           allPlaylistsForGroup.push({
             id: playlistData.playlistId, // Use the playlistId as fallback
@@ -176,11 +177,11 @@ async function loadPlaylists() {
       playlistSummaries[group] = allPlaylistsForGroup.sort((a, b) => a.priority - b.priority);
     }
 
-    console.log('Final playlist summaries:', playlistSummaries);
+    logPlaylist('Final playlist summaries:', playlistSummaries);
     playlists.value = playlistSummaries;
     await setCache(cacheKey.value, playlistSummaries);
   } catch (e) {
-    console.error("Error loading playlists:", e);
+    logPlaylist("Error loading playlists:", e);
     if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
       error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
     } else {
@@ -201,11 +202,11 @@ async function handleClearCache() {
 onMounted(async () => {
   try {
     loading.value = true;
-    console.log('PlaylistView mounted, user:', user.value);
+    logPlaylist('PlaylistView mounted, user:', user.value);
     
     if (user.value) {
       if (!userData.value) {
-        console.log('Attempting to fetch user data again...');
+        logPlaylist('Attempting to fetch user data again...');
         await fetchUserData(user.value.uid);
       }
       
@@ -214,7 +215,7 @@ onMounted(async () => {
     }
     
   } catch (e) {
-    console.error("Error in PlaylistView:", e);
+    logPlaylist("Error in PlaylistView:", e);
     if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
       error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
     } else {

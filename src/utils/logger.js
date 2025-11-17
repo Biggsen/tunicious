@@ -1,5 +1,12 @@
 import debug from 'debug';
 
+// Disable debug logs by default
+// Clear localStorage.debug to ensure logs are off (debug package checks this automatically)
+if (typeof window !== 'undefined' && window.localStorage) {
+  localStorage.removeItem('debug');
+}
+debug.disable();
+
 // Create namespaced loggers for different parts of the app
 export const logSpotify = debug('app:spotify');
 export const logFirebase = debug('app:firebase');

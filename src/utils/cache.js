@@ -1,3 +1,5 @@
+import { logCache } from './logger';
+
 const CACHE_EXPIRATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 const MAX_CACHE_ENTRIES = 100; // Maximum number of cache entries to keep
 
@@ -11,7 +13,7 @@ export function setCache(key, data) {
     localStorage.setItem(key, JSON.stringify(cacheData));
   } catch (error) {
     if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-      console.warn('localStorage quota exceeded, attempting cleanup...');
+      logCache('localStorage quota exceeded, attempting cleanup...');
       
       // Try to clean up old cache entries
       cleanupOldCache();
@@ -19,22 +21,22 @@ export function setCache(key, data) {
       try {
         // Try again after cleanup
         localStorage.setItem(key, JSON.stringify(cacheData));
-        console.log('Successfully cached after cleanup');
+        logCache('Successfully cached after cleanup');
       } catch (secondError) {
         // If still failing, try more aggressive cleanup
-        console.warn('Still failing after cleanup, trying aggressive cleanup...');
+        logCache('Still failing after cleanup, trying aggressive cleanup...');
         aggressiveCleanup();
         
         try {
           localStorage.setItem(key, JSON.stringify(cacheData));
-          console.log('Successfully cached after aggressive cleanup');
+          logCache('Successfully cached after aggressive cleanup');
         } catch (finalError) {
-          console.error('Failed to cache even after aggressive cleanup:', finalError);
+          logCache('Failed to cache even after aggressive cleanup:', finalError);
           // Don't throw - let the app continue without caching
         }
       }
     } else {
-      console.error('Unexpected localStorage error:', error);
+      logCache('Unexpected localStorage error:', error);
     }
   }
 }
@@ -52,12 +54,12 @@ export function getCache(key) {
 
     return data;
   } catch (error) {
-    console.error('Error reading from cache:', error);
+    logCache('Error reading from cache:', error);
     // Try to remove corrupted cache entry
     try {
       localStorage.removeItem(key);
     } catch (removeError) {
-      console.error('Error removing corrupted cache entry:', removeError);
+      logCache('Error removing corrupted cache entry:', removeError);
     }
     return null;
   }
@@ -71,7 +73,7 @@ export function clearCache(key) {
       localStorage.clear();
     }
   } catch (error) {
-    console.error('Error clearing cache:', error);
+    logCache('Error clearing cache:', error);
   }
 }
 
@@ -105,13 +107,13 @@ function cleanupOldCache() {
       try {
         localStorage.removeItem(key);
       } catch (error) {
-        console.error(`Error removing cache key ${key}:`, error);
+        logCache(`Error removing cache key ${key}:`, error);
       }
     });
     
-    console.log(`Cleaned up ${keysToRemove.length} expired cache entries`);
+    logCache(`Cleaned up ${keysToRemove.length} expired cache entries`);
   } catch (error) {
-    console.error('Error during cache cleanup:', error);
+    logCache('Error during cache cleanup:', error);
   }
 }
 
@@ -144,7 +146,7 @@ function aggressiveCleanup() {
         try {
           localStorage.removeItem(key);
         } catch (removeError) {
-          console.error(`Error removing unparseable key ${key}:`, removeError);
+          logCache(`Error removing unparseable key ${key}:`, removeError);
         }
       }
     }
@@ -166,13 +168,13 @@ function aggressiveCleanup() {
       try {
         localStorage.removeItem(entry.key);
       } catch (error) {
-        console.error(`Error removing cache key ${entry.key}:`, error);
+        logCache(`Error removing cache key ${entry.key}:`, error);
       }
     });
     
-    console.log(`Aggressively cleaned up ${entriesToRemove.length} cache entries`);
+    logCache(`Aggressively cleaned up ${entriesToRemove.length} cache entries`);
   } catch (error) {
-    console.error('Error during aggressive cleanup:', error);
+    logCache('Error during aggressive cleanup:', error);
   }
 }
 
@@ -209,7 +211,7 @@ export function getCacheInfo() {
       }
     }
   } catch (error) {
-    console.error('Error getting cache info:', error);
+    logCache('Error getting cache info:', error);
   }
   
   return {

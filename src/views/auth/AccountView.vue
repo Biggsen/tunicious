@@ -14,6 +14,7 @@ import SpotifyDiagnostic from '@components/SpotifyDiagnostic.vue';
 import LastFmDiagnostics from '@components/LastFmDiagnostics.vue';
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
 import { useLastFmApi } from '@composables/useLastFmApi';
+import { logAuth, logLastFm } from '@utils/logger';
 
 const { loading: authLoading, error: authError, logout } = useAuth();
 const { user, userData, loading: userLoading, error: userError, fetchUserData } = useUserData();
@@ -45,7 +46,7 @@ const handleLogout = async () => {
   try {
     await logout('/');
   } catch (err) {
-    console.error("Error signing out:", err);
+    logAuth("Error signing out:", err);
   }
 };
 
@@ -55,7 +56,7 @@ const initiateLastFmAuth = () => {
     const authUrl = getAuthUrl(callbackUrl);
     window.location.href = authUrl;
   } catch (err) {
-    console.error("Error initiating Last.fm auth:", err);
+    logLastFm("Error initiating Last.fm auth:", err);
   }
 };
 

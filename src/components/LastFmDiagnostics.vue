@@ -233,6 +233,7 @@ import { ref, computed } from 'vue'
 import { useUserData } from '@/composables/useUserData'
 import { useLastFmApi } from '@/composables/useLastFmApi'
 import BaseButton from '@/components/common/BaseButton.vue'
+import { logLastFm } from '@utils/logger'
 
 const { userData, refreshUserData: refreshUserDataComposable, clearLastFmAuth } = useUserData()
 const { getUserInfo, getUserLovedTracks, loveTrack, validateSession } = useLastFmApi()
@@ -402,7 +403,7 @@ const disconnectLastFm = async () => {
     // Clear test results after disconnecting
     clearResults()
   } catch (error) {
-    console.error('Error disconnecting from Last.fm:', error)
+    logLastFm('Error disconnecting from Last.fm:', error)
     alert('Failed to disconnect from Last.fm. Please try again.')
   } finally {
     isDisconnecting.value = false

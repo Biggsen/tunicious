@@ -1,4 +1,5 @@
 import { ref, reactive } from 'vue';
+import { logDebug } from '@utils/logger';
 
 export function useForm(initialState = {}) {
   const form = reactive({ ...initialState });
@@ -23,7 +24,7 @@ export function useForm(initialState = {}) {
       await submitFn(form);
       success.value = true;
     } catch (err) {
-      console.error('Form submission error:', err);
+      logDebug('Form submission error:', err);
       error.value = err.message || 'Failed to submit form. Please try again.';
     } finally {
       isSubmitting.value = false;

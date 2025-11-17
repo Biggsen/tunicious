@@ -21,6 +21,7 @@ import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
+import { logPlaylist } from '@utils/logger';
 
 const route = useRoute();
 const { user, userData } = useUserData();
@@ -102,7 +103,7 @@ const fetchAlbumTracks = async () => {
         
         playlistTrackIds.value = cachedTrackIds;
       } catch (error) {
-        console.error('Failed to fetch playlist tracks:', error);
+        logPlaylist('Failed to fetch playlist tracks:', error);
         playlistTrackIds.value = {};
       }
     }
@@ -113,7 +114,7 @@ const fetchAlbumTracks = async () => {
           const response = await getAlbumTracks(album.id);
           albumTracks.value[album.id] = response.items || [];
         } catch (error) {
-          console.error(`Failed to fetch tracks for album ${album.id}:`, error);
+          logPlaylist(`Failed to fetch tracks for album ${album.id}:`, error);
           albumTracks.value[album.id] = [];
         }
       }
@@ -166,7 +167,7 @@ const handleTrackLoved = async ({ album, track }) => {
     }
     
   } catch (error) {
-    console.error('Error loving track:', error);
+    logPlaylist('Error loving track:', error);
     
     // On error, refetch from Last.fm to get accurate state
     if (userData.value?.lastFmUserName) {
@@ -213,7 +214,7 @@ const handleTrackUnloved = async ({ album, track }) => {
     }
     
   } catch (error) {
-    console.error('Error unloving track:', error);
+    logPlaylist('Error unloving track:', error);
     
     // On error, refetch from Last.fm to get accurate state
     if (userData.value?.lastFmUserName) {
@@ -270,7 +271,7 @@ const refreshLovedTracks = async () => {
       await fetchAlbumTracks();
     }
   } catch (error) {
-    console.error('Error refreshing loved tracks and playcounts:', error);
+    logPlaylist('Error refreshing loved tracks and playcounts:', error);
   } finally {
     refreshingLovedTracks.value = false;
   }
@@ -454,7 +455,7 @@ async function loadLovedTrackPercentages() {
           isLoading: false
         };
       } catch (err) {
-        console.error(`Error calculating loved track percentage for album ${album.id}:`, err);
+        logPlaylist(`Error calculating loved track percentage for album ${album.id}:`, err);
         albumLovedData.value[album.id] = {
           lovedCount: 0,
           totalCount: 0,
@@ -468,7 +469,7 @@ async function loadLovedTrackPercentages() {
     }
     
   } catch (err) {
-    console.error('Error loading loved track percentages:', err);
+    logPlaylist('Error loading loved track percentages:', err);
     // Clear loading states on error
     albumData.value.forEach(album => {
       albumLovedData.value[album.id] = {
@@ -511,7 +512,7 @@ async function loadLovedTrackPercentagesForNewAlbums() {
         isLoading: false
       };
     } catch (err) {
-      console.error(`Error calculating loved track percentage for album ${album.id}:`, err);
+      logPlaylist(`Error calculating loved track percentage for album ${album.id}:`, err);
       albumLovedData.value[album.id] = {
         lovedCount: 0,
         totalCount: 0,
@@ -694,7 +695,7 @@ async function getPlaylistDocument() {
   const querySnapshot = await getDocs(q);
   
   if (querySnapshot.empty) {
-    console.warn('Playlist document not found');
+    logPlaylist('Playlist document not found');
     return null;
   }
   
@@ -727,7 +728,7 @@ async function updatePlaylistName() {
     playlistDoc.value = await getPlaylistDocument();
     
   } catch (err) {
-    console.error('Error updating playlist:', err);
+    logPlaylist('Error updating playlist:', err);
     error.value = err.message || 'Failed to update playlist';
   } finally {
     updating.value = false;
@@ -782,7 +783,7 @@ async function updateNeedsUpdateMap() {
       if (!inCollection) return [album.id, false];
       const details = albumRootDataMap.value[album.id];
       const needsUpdate = !details?.albumCover || !details?.artistId || !details?.releaseYear;
-      console.log('updateNeedsUpdateMap:', { albumId: album.id, details, needsUpdate });
+      logPlaylist('updateNeedsUpdateMap:', { albumId: album.id, details, needsUpdate });
       return [album.id, needsUpdate];
     })
   );
@@ -806,7 +807,7 @@ async function handleUpdateAlbumDetails(album) {
     // Optionally refresh needsUpdateMap for this album
     await updateNeedsUpdateMap();
   } catch (err) {
-    console.error('Error updating album details:', err);
+    logPlaylist('Error updating album details:', err);
     error.value = err.message || 'Failed to update album details';
   }
 }
@@ -827,7 +828,7 @@ async function loadPlaylistPage() {
     // loadCurrentPage is called within applySortingAndReload
     playlistDoc.value = await getPlaylistDocument();
   } catch (e) {
-    console.error("Error loading playlist page:", e);
+    logPlaylist("Error loading playlist page:", e);
     if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
       error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
     } else {
@@ -857,7 +858,7 @@ onMounted(async () => {
       fetchAlbumTracks();
     }
   } catch (e) {
-    console.error("Error in PlaylistSingle:", e);
+    logPlaylist("Error in PlaylistSingle:", e);
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
 });
@@ -909,7 +910,7 @@ const handleAddAlbum = async () => {
     }
     
   } catch (err) {
-    console.error('Error adding album:', err);
+    logPlaylist('Error adding album:', err);
     spotifyError.value = err.message || 'Failed to add album to playlist';
   }
 };
@@ -944,7 +945,7 @@ const handleRemoveAlbum = async (album) => {
     }
     
   } catch (err) {
-    console.error('Error removing album:', err);
+    logPlaylist('Error removing album:', err);
     spotifyError.value = err.message || 'Failed to remove album from playlist';
   }
 };
@@ -1022,7 +1023,7 @@ const handleProcessAlbum = async ({ album, action }) => {
     }
     
   } catch (err) {
-    console.error('Error processing album:', err);
+    logPlaylist('Error processing album:', err);
     spotifyError.value = err.message || 'Failed to process album';
   } finally {
     processingAlbum.value = null;
@@ -1107,7 +1108,7 @@ const batchAddAlbumsToDatabase = async () => {
         // Small delay to avoid overwhelming the database
         await new Promise(resolve => setTimeout(resolve, 50));
       } catch (err) {
-        console.error(`Error adding album ${album.id}:`, err);
+        logPlaylist(`Error adding album ${album.id}:`, err);
         albumsProcessed.value++; // Still increment on error to keep progress accurate
       }
     }
@@ -1121,7 +1122,7 @@ const batchAddAlbumsToDatabase = async () => {
     }, 2000);
     
   } catch (err) {
-    console.error('Error batch processing albums:', err);
+    logPlaylist('Error batch processing albums:', err);
     error.value = err.message || 'Failed to batch process albums';
     showProgressModal.value = false;
   } finally {
@@ -1292,7 +1293,7 @@ async function checkForIdMismatches() {
           }
         }
       } catch (err) {
-        console.error(`Error fetching albums for artist ${artist.artistName}:`, err);
+        logPlaylist(`Error fetching albums for artist ${artist.artistName}:`, err);
         // Continue with next artist even if this one fails
       }
     }
@@ -1306,7 +1307,7 @@ async function checkForIdMismatches() {
       successMessage.value = `Found ${mismatchReport.value.length} potential ID mismatch(es). See report below.`;
     }
   } catch (err) {
-    console.error('Error checking for ID mismatches:', err);
+    logPlaylist('Error checking for ID mismatches:', err);
     error.value = err.message || 'Failed to check for ID mismatches';
     showProgressModal.value = false;
   } finally {
@@ -1418,12 +1419,12 @@ async function checkForInvalidAlbums() {
     }
     
     // Log for debugging
-    console.log('Total albums in playlist:', sortedAlbumIds.value.length);
-    console.log('Albums loaded from Spotify:', allAlbumsFromPlaylist.length);
-    console.log('Albums that failed to load (null/missing):', invalidAlbumsReport.value.nullAlbums.length);
-    console.log('Albums in database:', albumsInDb.length);
-    console.log('Albums with artistId (would be checked):', Array.from(artistMap.values()).reduce((sum, artist) => sum + artist.albums.length, 0));
-    console.log('Albums without artistId (filtered out):', invalidAlbumsReport.value.noArtistId.length);
+    logPlaylist('Total albums in playlist:', sortedAlbumIds.value.length);
+    logPlaylist('Albums loaded from Spotify:', allAlbumsFromPlaylist.length);
+    logPlaylist('Albums that failed to load (null/missing):', invalidAlbumsReport.value.nullAlbums.length);
+    logPlaylist('Albums in database:', albumsInDb.length);
+    logPlaylist('Albums with artistId (would be checked):', Array.from(artistMap.values()).reduce((sum, artist) => sum + artist.albums.length, 0));
+    logPlaylist('Albums without artistId (filtered out):', invalidAlbumsReport.value.noArtistId.length);
     
     showInvalidReport.value = true;
     
@@ -1437,7 +1438,7 @@ async function checkForInvalidAlbums() {
       successMessage.value = `Found ${totalInvalid} invalid album(s). See report below.`;
     }
   } catch (err) {
-    console.error('Error checking for invalid albums:', err);
+    logPlaylist('Error checking for invalid albums:', err);
     error.value = err.message || 'Failed to check for invalid albums';
   } finally {
     checkingInvalid.value = false;
@@ -1473,7 +1474,7 @@ const handleCreateMapping = async (mismatch) => {
       error.value = 'Failed to create mapping';
     }
   } catch (err) {
-    console.error('Error creating mapping:', err);
+    logPlaylist('Error creating mapping:', err);
     error.value = err.message || 'Failed to create mapping';
   }
 };
@@ -1506,7 +1507,7 @@ const handleUpdateYear = async (mismatch) => {
       }
     }, 3000);
   } catch (err) {
-    console.error('Error updating year:', err);
+    logPlaylist('Error updating year:', err);
     error.value = err.message || 'Failed to update year';
   }
 };

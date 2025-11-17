@@ -6,6 +6,7 @@ import { useAlbumMappings } from './useAlbumMappings';
 import { albumTitleSimilarity } from '../utils/fuzzyMatch';
 import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
 import { setCache, getCache } from "@utils/cache";
+import { logAlbum } from '@utils/logger';
 
 /**
  * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
@@ -64,20 +65,20 @@ export function useAlbumsData() {
       }
 
       const data = albumDoc.data();
-      console.log(`Album ${albumId} data:`, data);
+      logAlbum(`Album ${albumId} data:`, data);
       
       // Check if userEntries exists and has data for current user
       if (!data.userEntries || !data.userEntries[user.value.uid]) {
-        console.log(`No user entries found for album ${albumId}`);
+        logAlbum(`No user entries found for album ${albumId}`);
         return null;
       }
 
       const userData = data.userEntries[user.value.uid];
-      console.log(`User data for album ${albumId}:`, userData);
+      logAlbum(`User data for album ${albumId}:`, userData);
 
       // Ensure playlistHistory is an array
       if (!Array.isArray(userData.playlistHistory)) {
-        console.log(`Invalid playlistHistory for album ${albumId}`);
+        logAlbum(`Invalid playlistHistory for album ${albumId}`);
         return null;
       }
 
@@ -92,7 +93,7 @@ export function useAlbumsData() {
       await setCache(cacheKey, result);
       return result;
     } catch (e) {
-      console.error('Error fetching album data:', e);
+      logAlbum('Error fetching album data:', e);
       error.value = 'Failed to fetch album data';
       return null;
     } finally {
@@ -106,20 +107,20 @@ export function useAlbumsData() {
    * @returns {Promise<{category: PlaylistCategory, type: PlaylistType, playlistId: string, playlistName: string} | null>}
    */
   const getCurrentPlaylistInfo = async (albumId) => {
-    console.log('Getting current playlist info for album:', albumId);
+    logAlbum('Getting current playlist info for album:', albumId);
     const data = await fetchUserAlbumData(albumId);
-    console.log('Fetched album data:', data);
+    logAlbum('Fetched album data:', data);
     
     if (!data || !data.playlistHistory) {
-      console.log('No data or playlist history found for album:', albumId);
+      logAlbum('No data or playlist history found for album:', albumId);
       return null;
     }
 
     const currentEntry = data.playlistHistory.find(entry => !entry.removedAt);
-    console.log('Current playlist entry:', currentEntry);
+    logAlbum('Current playlist entry:', currentEntry);
     
     if (!currentEntry) {
-      console.log('No current playlist entry found for album:', albumId);
+      logAlbum('No current playlist entry found for album:', albumId);
       return null;
     }
 
@@ -172,7 +173,7 @@ export function useAlbumsData() {
       }));
 
     } catch (e) {
-      console.error('Error searching albums:', e);
+      logAlbum('Error searching albums:', e);
       error.value = 'Failed to search albums';
       return [];
     } finally {
@@ -194,11 +195,11 @@ export function useAlbumsData() {
       loading.value = true;
       error.value = null;
 
-      console.log('Starting fuzzy search for:', albumTitle, 'by', artistName, 'with threshold:', similarityThreshold);
+      logAlbum('Starting fuzzy search for:', albumTitle, 'by', artistName, 'with threshold:', similarityThreshold);
 
       // First try exact match
       const exactMatches = await searchAlbumsByTitleAndArtist(albumTitle, artistName);
-      console.log('Exact matches found:', exactMatches.length);
+      logAlbum('Exact matches found:', exactMatches.length);
       
       if (exactMatches.length > 0) {
         return exactMatches.map(match => ({ ...match, similarity: 1 }));
@@ -209,14 +210,14 @@ export function useAlbumsData() {
       const q = query(albumsRef, where('artistName', '==', artistName));
       const querySnapshot = await getDocs(q);
       
-      console.log('Found albums by artist:', querySnapshot.size);
+      logAlbum('Found albums by artist:', querySnapshot.size);
 
       const fuzzyMatches = [];
       for (const doc of querySnapshot.docs) {
         const data = doc.data();
         const similarityScore = albumTitleSimilarity(albumTitle, data.albumTitle);
         
-        console.log('Comparing with:', data.albumTitle, 'Score:', similarityScore);
+        logAlbum('Comparing with:', data.albumTitle, 'Score:', similarityScore);
         
         // Since we're already matching by artist, we can use a lower threshold
         if (similarityScore >= similarityThreshold) {
@@ -232,13 +233,13 @@ export function useAlbumsData() {
         }
       }
 
-      console.log('Fuzzy matches found:', fuzzyMatches.length);
+      logAlbum('Fuzzy matches found:', fuzzyMatches.length);
       
       // Sort by similarity (highest first)
       return fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
 
     } catch (e) {
-      console.error('Error searching albums with fuzzy matching:', e);
+      logAlbum('Error searching albums with fuzzy matching:', e);
       error.value = 'Failed to search albums';
       return [];
     } finally {
@@ -276,7 +277,7 @@ export function useAlbumsData() {
         }))
         .filter(album => album.albumTitle && album.albumTitle.toLowerCase().includes(lowerPrefix));
     } catch (e) {
-      console.error('Error searching albums by title prefix:', e);
+      logAlbum('Error searching albums by title prefix:', e);
       error.value = 'Failed to search albums';
       return [];
     } finally {
@@ -311,7 +312,7 @@ export function useAlbumsData() {
         artistId: doc.data().artistId || ''
       }));
     } catch (e) {
-      console.error('Error searching albums by artist prefix:', e);
+      logAlbum('Error searching albums by artist prefix:', e);
       error.value = 'Failed to search albums';
       return [];
     } finally {
@@ -390,7 +391,7 @@ export function useAlbumsData() {
         }
       }, { merge: true });
     } catch (e) {
-      console.error('Error adding album to collection:', e);
+      logAlbum('Error adding album to collection:', e);
       error.value = e.message || 'Failed to add album to collection';
       throw e;
     } finally {
@@ -422,7 +423,7 @@ export function useAlbumsData() {
         };
       });
     } catch (e) {
-      console.error('Error fetching album details:', e);
+      logAlbum('Error fetching album details:', e);
       error.value = 'Failed to fetch album details';
       return [];
     } finally {
@@ -444,7 +445,7 @@ export function useAlbumsData() {
       const { albumTitle, artistName, albumCover, artistId, releaseYear } = data;
       return { albumTitle, artistName, albumCover, artistId, releaseYear };
     } catch (e) {
-      console.error('Error fetching album details:', e);
+      logAlbum('Error fetching album details:', e);
       return null;
     }
   };
@@ -488,7 +489,7 @@ export function useAlbumsData() {
       const results = await Promise.all(albumPromises);
       return Object.fromEntries(results);
     } catch (e) {
-      console.error('Error fetching album details in batch:', e);
+      logAlbum('Error fetching album details in batch:', e);
       return {};
     }
   };
@@ -536,7 +537,7 @@ export function useAlbumsData() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
     } catch (e) {
-      console.error('Error updating album details:', e);
+      logAlbum('Error updating album details:', e);
       throw e;
     }
   };
@@ -575,7 +576,7 @@ export function useAlbumsData() {
       const albumDoc = await getDoc(albumRef);
 
       if (!albumDoc.exists()) {
-        console.log(`Album ${albumId} not found`);
+        logAlbum(`Album ${albumId} not found`);
         return false;
       }
 
@@ -583,7 +584,7 @@ export function useAlbumsData() {
       const userEntry = data.userEntries?.[user.value.uid];
 
       if (!userEntry || !Array.isArray(userEntry.playlistHistory)) {
-        console.log(`No user entry or playlist history found for album ${albumId}`);
+        logAlbum(`No user entry or playlist history found for album ${albumId}`);
         return false;
       }
 
@@ -593,7 +594,7 @@ export function useAlbumsData() {
       );
 
       if (currentEntryIndex === -1) {
-        console.log(`No current entry found for playlist ${playlistId} in album ${albumId}`);
+        logAlbum(`No current entry found for playlist ${playlistId} in album ${albumId}`);
         return false;
       }
 
@@ -619,11 +620,11 @@ export function useAlbumsData() {
       const cacheKey = `albumDbData_${albumId}_${user.value.uid}`;
       await import("@utils/cache").then(({ clearCache }) => clearCache(cacheKey));
 
-      console.log(`Successfully removed album ${albumId} from playlist ${playlistId}`);
+      logAlbum(`Successfully removed album ${albumId} from playlist ${playlistId}`);
       return true;
 
     } catch (e) {
-      console.error('Error removing album from playlist:', e);
+      logAlbum('Error removing album from playlist:', e);
       error.value = e.message || 'Failed to remove album from playlist';
       throw e;
     } finally {

@@ -4,6 +4,7 @@ import { useLastFmApi } from '@/composables/useLastFmApi';
 import LoadingMessage from '@/components/common/LoadingMessage.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
 import { MusicalNoteIcon, UserIcon, CalendarIcon } from '@heroicons/vue/24/outline';
+import { logLastFm } from '@utils/logger';
 
 const props = defineProps({
   username: {
@@ -123,7 +124,7 @@ const fetchLastFmData = async () => {
     
   } catch (err) {
     fetchError.value = err.message;
-    console.error('Error fetching Last.fm data:', err);
+    logLastFm('Error fetching Last.fm data:', err);
   }
 };
 

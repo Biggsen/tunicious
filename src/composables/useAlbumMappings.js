@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { logAlbum } from '@utils/logger';
 
 export function useAlbumMappings() {
   const loading = ref(false);
@@ -22,7 +23,7 @@ export function useAlbumMappings() {
 
       return !querySnapshot.empty;
     } catch (e) {
-      console.error('Error checking if album is an alternate ID:', e);
+      logAlbum('Error checking if album is an alternate ID:', e);
       error.value = 'Failed to check if album is an alternate ID';
       return false;
     } finally {
@@ -45,18 +46,18 @@ export function useAlbumMappings() {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        console.log(`No mapping found for alternateId: ${alternateId}`);
+        logAlbum(`No mapping found for alternateId: ${alternateId}`);
         return null;
       }
 
       // Get the first matching document
       const mappingDoc = querySnapshot.docs[0];
       const data = mappingDoc.data();
-      console.log(`Found mapping for ${alternateId}:`, data);
+      logAlbum(`Found mapping for ${alternateId}:`, data);
       return data.primaryId || null;
 
     } catch (e) {
-      console.error('Error fetching album mapping:', e);
+      logAlbum('Error fetching album mapping:', e);
       error.value = 'Failed to fetch album mapping';
       return null;
     } finally {
@@ -81,7 +82,7 @@ export function useAlbumMappings() {
       return querySnapshot.docs.map(doc => doc.data().alternateId);
 
     } catch (e) {
-      console.error('Error fetching alternate IDs:', e);
+      logAlbum('Error fetching alternate IDs:', e);
       error.value = 'Failed to fetch alternate IDs';
       return [];
     } finally {
@@ -110,11 +111,11 @@ export function useAlbumMappings() {
         updatedAt: serverTimestamp()
       });
 
-      console.log(`Created mapping: ${alternateId} -> ${primaryId}`);
+      logAlbum(`Created mapping: ${alternateId} -> ${primaryId}`);
       return true;
 
     } catch (e) {
-      console.error('Error creating album mapping:', e);
+      logAlbum('Error creating album mapping:', e);
       error.value = 'Failed to create album mapping';
       return false;
     } finally {

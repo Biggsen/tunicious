@@ -5,6 +5,7 @@ import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBackendApi } from '@/composables/useBackendApi';
+import { logLastFm } from '@utils/logger';
 
 const router = useRouter();
 const currentUser = useCurrentUser();
@@ -23,7 +24,7 @@ const getSessionKey = async (token) => {
       throw new Error('No session key received from Last.fm');
     }
   } catch (err) {
-    console.error('Session key error:', err);
+    logLastFm('Session key error:', err);
     throw err;
   }
 };
@@ -63,7 +64,7 @@ onMounted(async () => {
     // Redirect to account page
     router.push('/account');
   } catch (err) {
-    console.error('Last.fm callback error:', err);
+    logLastFm('Last.fm callback error:', err);
     error.value = err.message;
   } finally {
     loading.value = false;

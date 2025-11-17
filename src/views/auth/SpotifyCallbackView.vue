@@ -6,6 +6,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { SpotifyAuth } from '@/constants';
 import { useBackendApi } from '@/composables/useBackendApi';
+import { logSpotify } from '@utils/logger';
 
 const router = useRouter();
 const currentUser = useCurrentUser();
@@ -18,7 +19,7 @@ const exchangeCodeForTokens = async (code) => {
     // Use our secure backend instead of direct API call
     return await exchangeSpotifyCode(code, SpotifyAuth.REDIRECT_URI);
   } catch (err) {
-    console.error('Token exchange error:', err);
+    logSpotify('Token exchange error:', err);
     throw err;
   }
 };
@@ -62,7 +63,7 @@ onMounted(async () => {
     // Redirect to account page or home
     router.push('/account');
   } catch (err) {
-    console.error('Spotify callback error:', err);
+    logSpotify('Spotify callback error:', err);
     error.value = err.message;
   } finally {
     loading.value = false;

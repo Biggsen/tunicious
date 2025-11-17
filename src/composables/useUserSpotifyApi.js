@@ -3,6 +3,7 @@ import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBackendApi } from '@/composables/useBackendApi';
+import { logSpotify } from '@utils/logger';
 
 export function useUserSpotifyApi() {
   const user = useCurrentUser();
@@ -55,7 +56,7 @@ export function useUserSpotifyApi() {
         }
         return updatedData.spotifyTokens;
       } catch (refreshErr) {
-        console.error('Token refresh failed in getUserTokens:', refreshErr);
+        logSpotify('Token refresh failed in getUserTokens:', refreshErr);
         // If refresh fails, throw an error indicating reconnection is needed
         throw new Error('Spotify token expired - please reconnect');
       }
@@ -97,10 +98,10 @@ export function useUserSpotifyApi() {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      console.log('Token refreshed successfully, new expiry:', new Date(Date.now() + (result.expiresIn * 1000)));
+      logSpotify('Token refreshed successfully, new expiry:', new Date(Date.now() + (result.expiresIn * 1000)));
       return result.accessToken;
     } catch (err) {
-      console.error('Token refresh error:', err);
+      logSpotify('Token refresh error:', err);
       
       // Check if this is a refresh token expiration error
       if (err.message.includes('Failed to refresh token') || err.message.includes('400')) {
@@ -152,7 +153,7 @@ export function useUserSpotifyApi() {
       const timeUntilExpiry = expiresAt - now;
       
       if (timeUntilExpiry < tenMinutes) {
-        console.log('Token expires soon, refreshing proactively...', {
+        logSpotify('Token expires soon, refreshing proactively...', {
           expiresAt: new Date(expiresAt),
           timeUntilExpiry: Math.round(timeUntilExpiry / 1000 / 60) + ' minutes'
         });
@@ -161,7 +162,7 @@ export function useUserSpotifyApi() {
 
       return userData.spotifyTokens.accessToken;
     } catch (err) {
-      console.error('Error in ensureTokenFresh:', err);
+      logSpotify('Error in ensureTokenFresh:', err);
       return null;
     }
   };
@@ -196,12 +197,12 @@ export function useUserSpotifyApi() {
         : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
       
       if (expiresAt && expiresAt < now) {
-        console.log('Token expired, attempting refresh...');
+        logSpotify('Token expired, attempting refresh...');
         try {
           await refreshUserToken();
           return { connected: true, error: null, refreshed: true };
         } catch (refreshErr) {
-          console.error('Token refresh failed:', refreshErr);
+          logSpotify('Token refresh failed:', refreshErr);
           return { connected: false, error: 'Token refresh failed - please reconnect' };
         }
       }
@@ -211,7 +212,7 @@ export function useUserSpotifyApi() {
         await makeUserRequest('/me');
         return { connected: true, error: null, refreshed: false };
       } catch (apiErr) {
-        console.error('API test failed:', apiErr);
+        logSpotify('API test failed:', apiErr);
         
         // If API call fails, try refreshing the token
         if (apiErr.message.includes('401') || apiErr.message.includes('expired')) {
@@ -226,7 +227,7 @@ export function useUserSpotifyApi() {
         return { connected: false, error: 'Connection test failed' };
       }
     } catch (err) {
-      console.error('Error checking connection status:', err);
+      logSpotify('Error checking connection status:', err);
       return { connected: false, error: 'Failed to check connection status' };
     }
   };
@@ -247,18 +248,18 @@ export function useUserSpotifyApi() {
         try {
           const tokens = await getUserTokens();
           accessToken = tokens.accessToken;
-          console.log('Using existing token, expires at:', new Date(tokens.expiresAt));
+          logSpotify('Using existing token, expires at:', new Date(tokens.expiresAt));
         } catch (err) {
-          console.log('Token error:', err.message);
+          logSpotify('Token error:', err.message);
           
           // Try to refresh token if expired or about to expire
           if (err.message.includes('expired') || err.message.includes('reconnect')) {
-            console.log('Attempting token refresh...');
+            logSpotify('Attempting token refresh...');
             try {
               accessToken = await refreshUserToken();
-              console.log('Token refreshed successfully');
+              logSpotify('Token refreshed successfully');
             } catch (refreshErr) {
-              console.error('Token refresh failed:', refreshErr.message);
+              logSpotify('Token refresh failed:', refreshErr.message);
               
               // If refresh fails, clear the tokens and ask user to reconnect
               if (refreshErr.message.includes('reconnect') || refreshErr.message.includes('expired')) {
@@ -277,7 +278,7 @@ export function useUserSpotifyApi() {
           }
         }
       } else {
-        console.log('Token was proactively refreshed, using fresh token');
+        logSpotify('Token was proactively refreshed, using fresh token');
       }
 
       // Use our secure backend proxy instead of direct API call
@@ -456,7 +457,7 @@ export function useUserSpotifyApi() {
       .filter(track => track.track && track.track.album && track.track.album.id === album.id)
       .map(track => track.track.uri);
     
-    console.log('DEBUG: Found track URIs for album:', albumTrackUris);
+    logSpotify('DEBUG: Found track URIs for album:', albumTrackUris);
     
     if (albumTrackUris.length === 0) {
       throw new Error('No tracks found for this album in the playlist');
@@ -478,7 +479,7 @@ export function useUserSpotifyApi() {
       tracks: trackUris.map(uri => ({ uri }))
     };
     
-    console.log('DEBUG: Request body for removal:', JSON.stringify(requestBody, null, 2));
+    logSpotify('DEBUG: Request body for removal:', JSON.stringify(requestBody, null, 2));
     
     return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
       method: 'DELETE',

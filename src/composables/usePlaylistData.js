@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
+import { logPlaylist } from '@utils/logger';
 
 /**
  * @typedef {Object} Playlist
@@ -49,15 +50,15 @@ export function usePlaylistData() {
         orderBy('priority')
       );
 
-      console.log('Fetching playlists for user:', userId);
+      logPlaylist('Fetching playlists for user:', userId);
       const querySnapshot = await getDocs(q);
-      console.log('Query snapshot size:', querySnapshot.size);
+      logPlaylist('Query snapshot size:', querySnapshot.size);
       
       const grouped = {};
 
       querySnapshot.forEach((doc) => {
         const playlist = doc.data();
-        console.log('Processing playlist:', playlist);
+        logPlaylist('Processing playlist:', playlist);
         
         // Use group field if available, fallback to type for backward compatibility
         const group = playlist.group || playlist.type || 'unknown';
@@ -82,10 +83,10 @@ export function usePlaylistData() {
         grouped[group].sort((a, b) => a.priority - b.priority);
       });
 
-      console.log('Final grouped playlists:', grouped);
+      logPlaylist('Final grouped playlists:', grouped);
       playlists.value = grouped;
     } catch (e) {
-      console.error('Error fetching playlists:', e);
+      logPlaylist('Error fetching playlists:', e);
       error.value = 'Failed to fetch playlists';
     } finally {
       loading.value = false;

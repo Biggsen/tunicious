@@ -66,6 +66,7 @@ import { ref, onMounted, computed } from 'vue';
 import { getCacheInfo, clearCache } from '@/utils/cache';
 import BaseButton from '@/components/common/BaseButton.vue';
 import { ArrowPathIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+import { logCache } from '@utils/logger';
 
 const cacheInfo = ref(null);
 const loading = ref(false);
@@ -100,7 +101,7 @@ const refreshInfo = async () => {
     cacheInfo.value = getCacheInfo();
     showMessage('Cache info refreshed', 'success');
   } catch (error) {
-    console.error('Error refreshing cache info:', error);
+    logCache('Error refreshing cache info:', error);
     showMessage('Error refreshing cache info', 'error');
   } finally {
     loading.value = false;
@@ -139,14 +140,14 @@ const cleanupExpired = async () => {
       try {
         localStorage.removeItem(key);
       } catch (error) {
-        console.error(`Error removing cache key ${key}:`, error);
+        logCache(`Error removing cache key ${key}:`, error);
       }
     });
     
     cacheInfo.value = getCacheInfo();
     showMessage(`Cleaned up ${keysToRemove.length} expired entries`, 'success');
   } catch (error) {
-    console.error('Error cleaning up cache:', error);
+    logCache('Error cleaning up cache:', error);
     showMessage('Error cleaning up cache', 'error');
   } finally {
     loading.value = false;
@@ -164,7 +165,7 @@ const clearAllCache = async () => {
     cacheInfo.value = getCacheInfo();
     showMessage('All cache cleared successfully', 'success');
   } catch (error) {
-    console.error('Error clearing cache:', error);
+    logCache('Error clearing cache:', error);
     showMessage('Error clearing cache', 'error');
   } finally {
     loading.value = false;

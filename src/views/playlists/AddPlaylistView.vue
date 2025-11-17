@@ -275,6 +275,7 @@ import { useForm } from '@composables/useForm';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
+import { logPlaylist } from '@utils/logger';
 
 const { user, userData, loading: userLoading, error: userError } = useUserData();
 const { getUserPlaylists, isAudioFoodiePlaylist } = useUserSpotifyApi();
@@ -337,8 +338,8 @@ const loadAvailablePlaylists = async () => {
     const response = await getUserPlaylists(50, 0);
     allPlaylists.value = response.items;
     
-    console.log('All playlists loaded:', allPlaylists.value.length);
-    console.log('Sample playlists:', allPlaylists.value.slice(0, 3).map(p => ({
+    logPlaylist('All playlists loaded:', allPlaylists.value.length);
+    logPlaylist('Sample playlists:', allPlaylists.value.slice(0, 3).map(p => ({
       name: p.name,
       description: p.description,
       isAudioFoodie: isAudioFoodiePlaylist(p)
@@ -346,11 +347,11 @@ const loadAvailablePlaylists = async () => {
     
     // Filter for AudioFoodie playlists only
     const audioFoodiePlaylists = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
-    console.log('AudioFoodie playlists found:', audioFoodiePlaylists.length);
+    logPlaylist('AudioFoodie playlists found:', audioFoodiePlaylists.length);
     
     availablePlaylists.value = audioFoodiePlaylists;
   } catch (err) {
-    console.error('Error loading playlists:', err);
+    logPlaylist('Error loading playlists:', err);
   } finally {
     loadingPlaylists.value = false;
   }

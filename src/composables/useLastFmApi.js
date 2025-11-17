@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { LastFmClient, ApiUrl } from '../constants';
 import { useBackendApi } from './useBackendApi';
+import { logLastFm } from '@utils/logger';
 
 export function useLastFmApi() {
   const loading = ref(false);
@@ -42,7 +43,7 @@ export function useLastFmApi() {
           }
         });
 
-        console.log('useLastFmApi: Making direct API call to:', url.toString());
+        logLastFm('useLastFmApi: Making direct API call to:', url.toString());
         const response = await fetch(url.toString());
 
         if (!response.ok) {
@@ -50,11 +51,11 @@ export function useLastFmApi() {
         }
 
         const data = await response.json();
-        console.log('useLastFmApi: API response data:', data);
+        logLastFm('useLastFmApi: API response data:', data);
 
         // Check for Last.fm API errors
         if (data.error) {
-          console.error('useLastFmApi: API error:', data.error, data.message);
+          logLastFm('useLastFmApi: API error:', data.error, data.message);
           throw new Error(`Last.fm API error: ${data.message}`);
         }
 

@@ -11,6 +11,7 @@ import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon
 import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 import TrackList from '@components/TrackList.vue';
+import { logAlbum } from '@utils/logger';
 
 const router = useRouter();
 const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album', 'track-loved', 'track-unloved']);
@@ -136,7 +137,7 @@ const handleAddToCollection = async () => {
     });
     emit('added-to-collection', props.album.id);
   } catch (err) {
-    console.error('Error saving album:', err);
+    logAlbum('Error saving album:', err);
     error.value = err.message || 'Failed to save album';
   } finally {
     saving.value = false;

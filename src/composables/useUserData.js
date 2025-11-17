@@ -3,6 +3,7 @@ import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useUserSpotifyApi } from './useUserSpotifyApi';
+import { logUser } from '@utils/logger';
 
 export function useUserData() {
   const user = useCurrentUser();
@@ -15,23 +16,23 @@ export function useUserData() {
     try {
       loading.value = true;
       error.value = null;
-      console.log('Fetching user data for UID:', uid);
+      logUser('Fetching user data for UID:', uid);
       const userDoc = await getDoc(doc(db, "users", uid));
-      console.log('User document exists:', userDoc.exists());
+      logUser('User document exists:', userDoc.exists());
       if (userDoc.exists()) {
         userData.value = userDoc.data();
-        console.log('User data fetched:', userData.value);
+        logUser('User data fetched:', userData.value);
         
         // Check Spotify connection status if user has Spotify connected
         if (userData.value.spotifyConnected) {
           try {
-            console.log('Checking Spotify connection status...');
+            logUser('Checking Spotify connection status...');
             const connectionStatus = await checkConnectionStatus();
-            console.log('Spotify connection status:', connectionStatus);
+            logUser('Spotify connection status:', connectionStatus);
             
             // If connection failed and we couldn't recover, update the user data
             if (!connectionStatus.connected) {
-              console.warn('Spotify connection lost, updating user data');
+              logUser('Spotify connection lost, updating user data');
               await setDoc(doc(db, 'users', uid), {
                 spotifyConnected: false,
                 updatedAt: serverTimestamp()
@@ -41,16 +42,16 @@ export function useUserData() {
               userData.value.spotifyConnected = false;
             }
           } catch (connectionError) {
-            console.error('Error checking Spotify connection:', connectionError);
+            logUser('Error checking Spotify connection:', connectionError);
             // Don't fail the entire user data fetch for connection check errors
           }
         }
       } else {
-        console.log('No user document found for UID:', uid);
+        logUser('No user document found for UID:', uid);
         userData.value = null;
       }
     } catch (e) {
-      console.error("Error fetching user data:", e);
+      logUser("Error fetching user data:", e);
       error.value = "Failed to fetch user data.";
     } finally {
       loading.value = false;
@@ -58,11 +59,11 @@ export function useUserData() {
   }
 
   onMounted(() => {
-    console.log('useUserData mounted, current user:', user.value);
+    logUser('useUserData mounted, current user:', user.value);
     if (user.value) {
       fetchUserData(user.value.uid);
     } else {
-      console.log('No user found in useUserData mounted');
+      logUser('No user found in useUserData mounted');
       loading.value = false;
     }
   });
@@ -82,7 +83,7 @@ export function useUserData() {
       // Refresh user data to reflect the changes
       await fetchUserData(user.value.uid);
     } catch (error) {
-      console.error('Error clearing Last.fm auth:', error);
+      logUser('Error clearing Last.fm auth:', error);
       throw error;
     }
   }

@@ -5,6 +5,7 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlayIcon, PauseIcon } from '@heroicons/vue/24/solid';
+import { logLastFm, logPlayer } from '@utils/logger';
 
 const props = defineProps({
   tracks: {
@@ -130,7 +131,7 @@ const fetchTrackPlaycounts = async () => {
           };
         }
       } catch (error) {
-        console.warn(`Failed to fetch playcount for track "${track.name}":`, error);
+        logLastFm(`Failed to fetch playcount for track "${track.name}":`, error);
       }
       return {
         trackName: track.name.toLowerCase(),
@@ -148,7 +149,7 @@ const fetchTrackPlaycounts = async () => {
     
     trackPlaycounts.value = playcountMap;
   } catch (error) {
-    console.error('Error fetching track playcounts:', error);
+    logLastFm('Error fetching track playcounts:', error);
   } finally {
     playcountLoading.value = false;
   }
@@ -319,7 +320,7 @@ const getTrackPlaycountFromLastFm = async (trackName, artistName) => {
       return parseInt(response.track.userplaycount) || 0;
     }
   } catch (error) {
-    console.warn(`Failed to fetch playcount for track "${trackName}":`, error);
+    logLastFm(`Failed to fetch playcount for track "${trackName}":`, error);
   }
   return 0;
 };
@@ -347,7 +348,7 @@ const fetchAllAlbumTracks = async (albumId) => {
         break; // No more tracks
       }
     } catch (error) {
-      console.warn(`Failed to fetch tracks for album ${albumId} at offset ${offset}:`, error);
+      logPlayer(`Failed to fetch tracks for album ${albumId} at offset ${offset}:`, error);
       break; // Stop fetching on error
     }
   }
@@ -416,7 +417,7 @@ const selectNextTrackToQueue = async (nextAlbum) => {
     
     return selectedTrack ? selectedTrack.uri : null;
   } catch (error) {
-    console.error('Error selecting next track to queue:', error);
+    logPlayer('Error selecting next track to queue:', error);
     return null;
   }
 };
@@ -426,7 +427,7 @@ const selectNextTrackToQueue = async (nextAlbum) => {
  */
 const handleTrackClick = async (track) => {
   if (!playerReady.value) {
-    console.warn('Spotify player not ready');
+    logPlayer('Spotify player not ready');
     return;
   }
 
@@ -458,16 +459,16 @@ const handleTrackClick = async (track) => {
             const nextTrackUri = await selectNextTrackToQueue(nextAlbum);
             if (nextTrackUri) {
               await addToQueue(nextTrackUri);
-              console.log('Added track to queue:', nextTrackUri);
+              logPlayer('Added track to queue:', nextTrackUri);
             }
           } catch (queueError) {
             // Continue with next album even if one fails - don't interrupt playback
-            console.warn('Failed to add track to queue:', queueError);
+            logPlayer('Failed to add track to queue:', queueError);
           }
         }
       }
     } catch (err) {
-      console.error('Error playing track:', err);
+      logPlayer('Error playing track:', err);
     }
   }
 };

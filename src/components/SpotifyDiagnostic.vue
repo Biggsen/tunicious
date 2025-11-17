@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
 import BaseButton from '@/components/common/BaseButton.vue';
+import { logSpotify } from '@utils/logger';
 
 const user = useCurrentUser();
 const { getUserTokens, makeUserRequest } = useUserSpotifyApi();
@@ -39,7 +40,7 @@ const runDiagnostic = async () => {
     // Check 1: User authenticated
     if (user.value) {
       diagnosticResults.value.userAuthenticated = true;
-      console.log('✅ User authenticated:', user.value.uid);
+      logSpotify('✅ User authenticated:', user.value.uid);
     } else {
       diagnosticResults.value.errors.push('User not authenticated');
       return;
@@ -50,12 +51,12 @@ const runDiagnostic = async () => {
     if (userDoc.exists()) {
       diagnosticResults.value.userDocExists = true;
       const userData = userDoc.data();
-      console.log('✅ User document exists');
+      logSpotify('✅ User document exists');
       
       // Check 3: Spotify connected flag
       if (userData.spotifyConnected) {
         diagnosticResults.value.spotifyConnected = true;
-        console.log('✅ Spotify connected flag is true');
+        logSpotify('✅ Spotify connected flag is true');
       } else {
         diagnosticResults.value.errors.push('Spotify connected flag is false');
       }
@@ -63,18 +64,18 @@ const runDiagnostic = async () => {
       // Check 4: Tokens exist
       if (userData.spotifyTokens) {
         diagnosticResults.value.tokensExist = true;
-        console.log('✅ Spotify tokens exist');
+        logSpotify('✅ Spotify tokens exist');
         
         // Check 5: Token expiration
         const now = Date.now();
         const expiresAt = userData.spotifyTokens.expiresAt;
         if (expiresAt && expiresAt > now) {
           diagnosticResults.value.tokenValid = true;
-          console.log('✅ Token is valid, expires at:', new Date(expiresAt));
+          logSpotify('✅ Token is valid, expires at:', new Date(expiresAt));
         } else {
           diagnosticResults.value.tokenExpired = true;
           diagnosticResults.value.errors.push(`Token expired at: ${new Date(expiresAt)}`);
-          console.log('❌ Token expired at:', new Date(expiresAt));
+          logSpotify('❌ Token expired at:', new Date(expiresAt));
         }
       } else {
         diagnosticResults.value.errors.push('No Spotify tokens found');
@@ -87,15 +88,15 @@ const runDiagnostic = async () => {
     try {
       await makeUserRequest('/me');
       diagnosticResults.value.apiTest = true;
-      console.log('✅ Spotify API test successful');
+      logSpotify('✅ Spotify API test successful');
     } catch (err) {
       diagnosticResults.value.errors.push(`API test failed: ${err.message}`);
-      console.log('❌ Spotify API test failed:', err.message);
+      logSpotify('❌ Spotify API test failed:', err.message);
     }
 
   } catch (err) {
     diagnosticResults.value.errors.push(`Diagnostic error: ${err.message}`);
-    console.error('Diagnostic error:', err);
+    logSpotify('Diagnostic error:', err);
   } finally {
     loading.value = false;
   }
@@ -123,7 +124,7 @@ const clearTokens = async () => {
     alert('Spotify tokens cleared. Please reconnect your account.');
     await runDiagnostic();
   } catch (err) {
-    console.error('Error clearing tokens:', err);
+    logSpotify('Error clearing tokens:', err);
     alert('Error clearing tokens: ' + err.message);
   }
 };

@@ -1,6 +1,7 @@
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { getCache, setCache } from './cache';
+import { logLastFm } from './logger';
 
 /**
  * Gets cached loved tracks or fetches them from Last.fm
@@ -60,7 +61,7 @@ export async function getCachedLovedTracks(lastFmUserName) {
     return allLovedTracks;
     
   } catch (error) {
-    console.error('Error fetching loved tracks:', error);
+    logLastFm('Error fetching loved tracks:', error);
     return [];
   }
 }
@@ -114,7 +115,7 @@ export async function getCachedAlbumTracks(albumId) {
     return allTracks;
     
   } catch (error) {
-    console.error('Error fetching album tracks:', error);
+    logLastFm('Error fetching album tracks:', error);
     return [];
   }
 }

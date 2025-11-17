@@ -284,6 +284,7 @@ import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import AlbumSearch from '@components/AlbumSearch.vue';
+import { logPlaylist } from '@utils/logger';
 
 const router = useRouter();
 const { userData } = useUserData();
@@ -344,7 +345,7 @@ const handleCreatePlaylist = async () => {
     // Refresh playlists
     await loadUserPlaylists();
      } catch (err) {
-     console.error('Error creating playlist:', err);
+     logPlaylist('Error creating playlist:', err);
      spotifyError.value = err.message || 'Failed to create playlist';
    }
 };
@@ -381,9 +382,9 @@ const handleAddAlbum = async () => {
        // Clear cached album data for this specific playlist only
        playlistAlbums.value.delete(targetPlaylistId);
      }
-    
+     
      } catch (err) {
-     console.error('Error adding album:', err);
+     logPlaylist('Error adding album:', err);
      spotifyError.value = err.message || 'Failed to add album to playlist';
    }
 };
@@ -412,7 +413,7 @@ const handleRemoveAlbum = async (playlistId, album) => {
     playlistAlbums.value.set(playlistId, albums);
     
   } catch (err) {
-    console.error('Error removing album:', err);
+    logPlaylist('Error removing album:', err);
     spotifyError.value = err.message || 'Failed to remove album from playlist';
   }
 };
@@ -437,7 +438,7 @@ const loadUserPlaylists = async () => {
     }
     
      } catch (err) {
-     console.error('Error loading playlists:', err);
+     logPlaylist('Error loading playlists:', err);
      spotifyError.value = err.message || 'Failed to load playlists';
    }
 };
@@ -495,7 +496,7 @@ const handleRenamePlaylist = async () => {
     cancelRenamePlaylist();
     
   } catch (err) {
-    console.error('Error renaming playlist:', err);
+    logPlaylist('Error renaming playlist:', err);
     spotifyError.value = err.message || 'Failed to rename playlist';
   }
 };
@@ -512,7 +513,7 @@ const togglePlaylistExpansion = async (playlistId) => {
         const albums = await getPlaylistAlbums(playlistId);
         playlistAlbums.value.set(playlistId, albums);
       } catch (err) {
-        console.error('Error loading playlist albums:', err);
+        logPlaylist('Error loading playlist albums:', err);
         playlistAlbums.value.set(playlistId, []);
       }
     }

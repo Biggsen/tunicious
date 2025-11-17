@@ -4,12 +4,13 @@ import { VueFire, VueFireAuth } from "vuefire";
 import { firebaseApp } from "./firebase";
 import App from "./App.vue";
 import router from "./router";
+import { logDebug } from "./utils/logger";
 
 const app = createApp(App);
 
 // Global error handler for quota exceeded errors
 app.config.errorHandler = (err, instance, info) => {
-  console.error('Global error handler:', err, info);
+  logDebug('Global error handler:', err, info);
   
   if (err.name === 'QuotaExceededError' || 
       err.message?.includes('quota') || 
@@ -22,7 +23,7 @@ app.config.errorHandler = (err, instance, info) => {
     if (window.showToast) {
       window.showToast(message, 'error');
     } else {
-      console.warn('Storage quota exceeded:', message);
+      logDebug('Storage quota exceeded:', message);
       // Only show alert in development to avoid annoying users
       if (import.meta.env.DEV) {
         alert(`Storage Issue: ${message}`);
@@ -38,7 +39,7 @@ window.addEventListener('unhandledrejection', (event) => {
       error?.message?.includes('quota') || 
       error?.message?.includes('QuotaExceededError')) {
     
-    console.warn('Unhandled localStorage quota exceeded error:', error);
+    logDebug('Unhandled localStorage quota exceeded error:', error);
     event.preventDefault(); // Prevent the error from being logged to console as unhandled
   }
 });

@@ -12,6 +12,7 @@ import { ArrowPathIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
+import { logAlbum } from '@utils/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -59,14 +60,14 @@ const cacheKey = computed(() => `artist_${id.value}_essential`);
 
 // Check if an album is in a playlist
 const checkPlaylistStatus = async (albumId) => {
-  console.log(`Checking playlist status for album ${albumId}`);
+  logAlbum(`Checking playlist status for album ${albumId}`);
   
   // First check if this is a mapped album (alternateId)
   const isMappedAlbum = await isAlternateId(albumId);
   mappedAlbums.value[albumId] = isMappedAlbum;
   
   if (isMappedAlbum) {
-    console.log(`Album ${albumId} is an alternateId (mapped album)`);
+    logAlbum(`Album ${albumId} is an alternateId (mapped album)`);
     // For mapped albums, we still want to show they're in a playlist if they map to a primary ID
     const primaryId = await getPrimaryId(albumId);
     playlistStatus.value[albumId] = primaryId !== null;
@@ -76,27 +77,27 @@ const checkPlaylistStatus = async (albumId) => {
   // For non-mapped albums, check direct album status
   const albumStatus = albumsStatus.value[albumId];
   if (albumStatus?.playlistHistory?.find(h => !h.removedAt)) {
-    console.log(`Album ${albumId} found directly in albums collection with current playlist`);
+    logAlbum(`Album ${albumId} found directly in albums collection with current playlist`);
     playlistStatus.value[albumId] = true;
     return;
   }
   
   // If not found in albums collection, check if it's an alternate ID
-  console.log(`Album ${albumId} not found in albums collection, checking mappings...`);
+  logAlbum(`Album ${albumId} not found in albums collection, checking mappings...`);
   const primaryId = await getPrimaryId(albumId);
-  console.log(`Album ${albumId} mapping result:`, primaryId);
+  logAlbum(`Album ${albumId} mapping result:`, primaryId);
   playlistStatus.value[albumId] = primaryId !== null;
   
   if (primaryId) {
-    console.log(`Album ${albumId} is mapped to ${primaryId}`);
+    logAlbum(`Album ${albumId} is mapped to ${primaryId}`);
   }
 };
 
 // Update playlist status for all albums
 const updatePlaylistStatuses = async (albums) => {
-  console.log('Updating playlist statuses for albums:', albums.map(a => ({ id: a.id, name: a.name })));
+  logAlbum('Updating playlist statuses for albums:', albums.map(a => ({ id: a.id, name: a.name })));
   await Promise.all(albums.map(album => checkPlaylistStatus(album.id)));
-  console.log('Final playlist status:', playlistStatus.value);
+  logAlbum('Final playlist status:', playlistStatus.value);
 };
 
 // Add a cache utility for album root details
@@ -202,7 +203,7 @@ async function loadArtistData() {
   try {
     await fetchArtistData(id.value);
   } catch (e) {
-    console.error("Error loading artist data:", e);
+    logAlbum("Error loading artist data:", e);
     error.value = e.message || "Failed to load artist data. Please try again.";
   } finally {
     loading.value = false;
@@ -231,7 +232,7 @@ onMounted(async () => {
   try {
     await loadArtistData();
   } catch (e) {
-    console.error("Error in ArtistView:", e);
+    logAlbum("Error in ArtistView:", e);
     error.value = e.message || "An unexpected error occurred. Please try again.";
   }
 });

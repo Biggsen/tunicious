@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useCurrentUser } from 'vuefire';
+import { logAlbum } from '@utils/logger';
 
 export function useLatestMovements() {
   const user = useCurrentUser();
@@ -17,7 +18,7 @@ export function useLatestMovements() {
    */
   const fetchLatestMovements = async (limitCount = 10) => {
     if (!user.value) {
-      console.log('No user found in fetchLatestMovements');
+      logAlbum('No user found in fetchLatestMovements');
       return [];
     }
 
@@ -25,13 +26,13 @@ export function useLatestMovements() {
       loading.value = true;
       error.value = null;
 
-      console.log('Fetching latest movements for user:', user.value.uid);
+      logAlbum('Fetching latest movements for user:', user.value.uid);
 
       // Get all albums - simpler approach without nested field queries
       const albumsRef = collection(db, 'albums');
       const querySnapshot = await getDocs(albumsRef);
       
-      console.log('Total albums in database:', querySnapshot.size);
+      logAlbum('Total albums in database:', querySnapshot.size);
       
       const albumMovements = [];
 
@@ -43,16 +44,16 @@ export function useLatestMovements() {
           continue;
         }
 
-        console.log('Found user entry for album:', doc.id, data.albumTitle);
+        logAlbum('Found user entry for album:', doc.id, data.albumTitle);
 
         const userEntry = data.userEntries[user.value.uid];
         
         if (!userEntry?.playlistHistory || !Array.isArray(userEntry.playlistHistory)) {
-          console.log('No playlist history for album:', doc.id);
+          logAlbum('No playlist history for album:', doc.id);
           continue;
         }
 
-        console.log('Playlist history for album', doc.id, ':', userEntry.playlistHistory);
+        logAlbum('Playlist history for album', doc.id, ':', userEntry.playlistHistory);
 
         const sortedHistory = [...userEntry.playlistHistory].sort(
           (a, b) => {
@@ -65,7 +66,7 @@ export function useLatestMovements() {
         // Get the most recent movement
         const latestEntry = sortedHistory[0];
         if (!latestEntry) {
-          console.log('No latest entry for album:', doc.id);
+          logAlbum('No latest entry for album:', doc.id);
           continue;
         }
         
@@ -78,7 +79,7 @@ export function useLatestMovements() {
         // Use updatedAt for sorting movements
         const updatedAt = userEntry.updatedAt?.toDate ? userEntry.updatedAt.toDate() : new Date(userEntry.updatedAt);
         
-        console.log('Processing movement for album:', doc.id, {
+        logAlbum('Processing movement for album:', doc.id, {
           isNewAddition,
           createdAt,
           addedAt,
@@ -104,20 +105,20 @@ export function useLatestMovements() {
         });
       }
 
-      console.log('Total movements found:', albumMovements.length);
+      logAlbum('Total movements found:', albumMovements.length);
 
       // Sort by updatedAt (most recent first) and limit
       const sortedMovements = albumMovements
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
         .slice(0, limitCount);
 
-      console.log('Sorted and limited movements:', sortedMovements);
+      logAlbum('Sorted and limited movements:', sortedMovements);
 
       movements.value = sortedMovements;
       return sortedMovements;
 
     } catch (e) {
-      console.error('Error fetching latest movements:', e);
+      logAlbum('Error fetching latest movements:', e);
       error.value = 'Failed to fetch latest movements';
       return [];
     } finally {
