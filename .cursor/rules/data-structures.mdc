@@ -12,6 +12,7 @@ interface User {
   displayName: string;
   email: string;
   lastFmUserName: string;
+  isAdmin?: boolean;  // Optional admin flag
 }
 
 // Example User Document
@@ -27,6 +28,7 @@ interface User {
 - `displayName`: User's display name in the application
 - `email`: User's email address
 - `lastFmUserName`: Last.FM username
+- `isAdmin`: Optional boolean flag indicating admin privileges
 
 ## Playlists Collection
 

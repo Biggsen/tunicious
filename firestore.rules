@@ -7,6 +7,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
     // Helper function to check if user is accessing their own document
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
@@ -14,7 +20,8 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || (isAdmin() && userId != request.auth.uid);
     }
 
     // Playlists collection rules

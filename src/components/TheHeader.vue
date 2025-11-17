@@ -2,8 +2,10 @@
 import { RouterLink } from "vue-router";
 import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
+import { useAdmin } from "@composables/useAdmin";
 
 const { user, userData } = useUserData();
+const { isAdmin } = useAdmin();
 </script>
 
 <template>
@@ -24,6 +26,9 @@ const { user, userData } = useUserData();
           </li>
           <li>
             <RouterLink to="/search">Search</RouterLink>
+          </li>
+          <li v-if="isAdmin">
+            <RouterLink to="/styleguide">Styleguide</RouterLink>
           </li>
         </ul>
         <div v-if="!user">

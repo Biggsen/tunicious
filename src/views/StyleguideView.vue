@@ -1,0 +1,232 @@
+<script setup>
+import { RouterLink } from 'vue-router';
+import BaseButton from '@components/common/BaseButton.vue';
+</script>
+
+<template>
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold text-delft-blue mb-2">Style Guide</h1>
+      <p class="text-delft-blue/70">
+        Design system and component documentation
+      </p>
+    </div>
+
+    <!-- Colors Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Colors</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-mindero border-2 border-delft-blue rounded-lg p-6">
+          <div class="mb-2">
+            <div class="w-full h-24 bg-mindero border-2 border-delft-blue rounded mb-2"></div>
+            <h3 class="font-semibold text-delft-blue">Mindero</h3>
+            <p class="text-sm text-delft-blue/70">#FFFD98</p>
+          </div>
+        </div>
+        <div class="bg-delft-blue border-2 border-delft-blue rounded-lg p-6">
+          <div class="mb-2">
+            <div class="w-full h-24 bg-delft-blue border-2 border-delft-blue rounded mb-2"></div>
+            <h3 class="font-semibold text-white">Delft Blue</h3>
+            <p class="text-sm text-white/70">#23395B</p>
+          </div>
+        </div>
+        <div class="bg-celadon border-2 border-delft-blue rounded-lg p-6">
+          <div class="mb-2">
+            <div class="w-full h-24 bg-celadon border-2 border-delft-blue rounded mb-2"></div>
+            <h3 class="font-semibold text-delft-blue">Celadon</h3>
+            <p class="text-sm text-delft-blue/70">#B9E3C6</p>
+          </div>
+        </div>
+        <div class="bg-mint border-2 border-delft-blue rounded-lg p-6">
+          <div class="mb-2">
+            <div class="w-full h-24 bg-mint border-2 border-delft-blue rounded mb-2"></div>
+            <h3 class="font-semibold text-delft-blue">Mint</h3>
+            <p class="text-sm text-delft-blue/70">#59C9A5</p>
+          </div>
+        </div>
+        <div class="bg-raspberry border-2 border-delft-blue rounded-lg p-6">
+          <div class="mb-2">
+            <div class="w-full h-24 bg-raspberry border-2 border-delft-blue rounded mb-2"></div>
+            <h3 class="font-semibold text-white">Raspberry</h3>
+            <p class="text-sm text-white/70">#D81E5B</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Typography</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-4">
+        <div>
+          <h1 class="text-4xl font-bold text-delft-blue mb-2">Heading 1</h1>
+          <p class="text-sm text-delft-blue/70">text-4xl font-bold</p>
+        </div>
+        <div>
+          <h2 class="text-3xl font-bold text-delft-blue mb-2">Heading 2</h2>
+          <p class="text-sm text-delft-blue/70">text-3xl font-bold</p>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-delft-blue mb-2">Heading 3</h3>
+          <p class="text-sm text-delft-blue/70">text-2xl font-bold</p>
+        </div>
+        <div>
+          <h4 class="text-xl font-semibold text-delft-blue mb-2">Heading 4</h4>
+          <p class="text-sm text-delft-blue/70">text-xl font-semibold</p>
+        </div>
+        <div>
+          <p class="text-base text-delft-blue mb-2">Body text - Regular paragraph text that is easy to read and provides good contrast.</p>
+          <p class="text-sm text-delft-blue/70">text-base</p>
+        </div>
+        <div>
+          <p class="text-sm text-delft-blue/70 mb-2">Small text - Used for secondary information, captions, and helper text.</p>
+          <p class="text-sm text-delft-blue/70">text-sm text-delft-blue/70</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Buttons</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button</h3>
+          <div class="flex flex-wrap gap-4">
+            <BaseButton>Default Button</BaseButton>
+            <BaseButton :disabled="true">Disabled</BaseButton>
+            <BaseButton :loading="true">Loading</BaseButton>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Custom Styled Buttons</h3>
+          <div class="flex flex-wrap gap-4">
+            <button class="px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
+              Mint Button
+            </button>
+            <button class="px-4 py-2 bg-mindero text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
+              Mindero Button
+            </button>
+            <button class="px-4 py-2 bg-raspberry text-white rounded-lg hover:bg-raspberry/80 transition-colors font-medium">
+              Raspberry Button
+            </button>
+            <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
+              Outlined Button
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cards Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Cards</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-celadon border-2 border-delft-blue rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Celadon Card</h3>
+          <p class="text-delft-blue/70">
+            This is an example of a card with celadon background. Used for informational content.
+          </p>
+        </div>
+        <div class="bg-white border-2 border-delft-blue rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">White Card</h3>
+          <p class="text-delft-blue/70">
+            This is an example of a card with white background. Used for primary content.
+          </p>
+        </div>
+        <div class="bg-mint border-2 border-delft-blue rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Mint Card</h3>
+          <p class="text-delft-blue/70">
+            This is an example of a card with mint background. Used for highlighted content.
+          </p>
+        </div>
+        <div class="bg-raspberry/10 border-2 border-raspberry rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-raspberry mb-4">Raspberry Card</h3>
+          <p class="text-raspberry/80">
+            This is an example of a card with raspberry accent. Used for warnings or important notices.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Links Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Links</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-4">
+        <div>
+          <a href="#" class="font-bold text-delft-blue hover:text-raspberry hover:underline">
+            Standard Link
+          </a>
+          <p class="text-sm text-delft-blue/70 mt-2">font-bold text-delft-blue hover:text-raspberry hover:underline</p>
+        </div>
+        <div>
+          <RouterLink to="/" class="font-bold text-delft-blue hover:text-raspberry hover:underline">
+            Router Link
+          </RouterLink>
+          <p class="text-sm text-delft-blue/70 mt-2">Same styling as standard link</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spacing Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Spacing</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6">
+        <div class="space-y-4">
+          <div class="flex items-center gap-4">
+            <div class="w-4 h-4 bg-delft-blue rounded"></div>
+            <span class="text-delft-blue">gap-4 (1rem / 16px)</span>
+          </div>
+          <div class="flex items-center gap-6">
+            <div class="w-6 h-6 bg-delft-blue rounded"></div>
+            <span class="text-delft-blue">gap-6 (1.5rem / 24px)</span>
+          </div>
+          <div class="flex items-center gap-8">
+            <div class="w-8 h-8 bg-delft-blue rounded"></div>
+            <span class="text-delft-blue">gap-8 (2rem / 32px)</span>
+          </div>
+        </div>
+        <div class="mt-6 space-y-2">
+          <div class="bg-mindero p-2 rounded">
+            <p class="text-sm text-delft-blue">p-2 (0.5rem / 8px)</p>
+          </div>
+          <div class="bg-mindero p-4 rounded">
+            <p class="text-sm text-delft-blue">p-4 (1rem / 16px)</p>
+          </div>
+          <div class="bg-mindero p-6 rounded">
+            <p class="text-sm text-delft-blue">p-6 (1.5rem / 24px)</p>
+          </div>
+          <div class="bg-mindero p-8 rounded">
+            <p class="text-sm text-delft-blue">p-8 (2rem / 32px)</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Borders Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Borders</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white border-2 border-delft-blue rounded-lg p-6">
+          <p class="text-delft-blue font-semibold mb-2">border-2 border-delft-blue</p>
+          <p class="text-sm text-delft-blue/70">Standard border (2px)</p>
+        </div>
+        <div class="bg-white border-4 border-delft-blue rounded-lg p-6">
+          <p class="text-delft-blue font-semibold mb-2">border-4 border-delft-blue</p>
+          <p class="text-sm text-delft-blue/70">Thick border (4px)</p>
+        </div>
+        <div class="bg-white border-2 border-raspberry rounded-lg p-6">
+          <p class="text-delft-blue font-semibold mb-2">border-2 border-raspberry</p>
+          <p class="text-sm text-delft-blue/70">Accent border</p>
+        </div>
+        <div class="bg-white border-2 border-delft-blue rounded-xl p-6">
+          <p class="text-delft-blue font-semibold mb-2">rounded-xl</p>
+          <p class="text-sm text-delft-blue/70">Extra rounded corners</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</template>
+
+<style scoped>
+</style>
+

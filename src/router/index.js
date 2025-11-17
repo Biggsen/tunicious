@@ -13,6 +13,7 @@ import AlbumView from '@views/music/AlbumView.vue';
 import SearchView from '@views/music/SearchView.vue';
 import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
+import StyleguideView from '@views/StyleguideView.vue';
 
 const routes = [
   {
@@ -111,6 +112,11 @@ const routes = [
     path: '/search',
     name: 'search',
     component: SearchView
+  },
+  {
+    path: '/styleguide',
+    name: 'styleguide',
+    component: StyleguideView
   }
 ];
 
