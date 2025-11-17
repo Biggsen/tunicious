@@ -21,6 +21,11 @@ const getSessionKey = async (token) => {
     if (response.session && response.session.key) {
       return response.session.key;
     } else {
+      // Check if there's an error in the response
+      if (response.error) {
+        const errorMsg = response.message || `Last.fm error ${response.error}`;
+        throw new Error(errorMsg);
+      }
       throw new Error('No session key received from Last.fm');
     }
   } catch (err) {

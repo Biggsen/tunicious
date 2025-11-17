@@ -1,19 +1,20 @@
 const {onRequest} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
+
+// Define secrets for Last.fm API (production)
+const lastfmApiKey = defineSecret("LASTFM_API_KEY_PROD");
+const lastfmApiSecret = defineSecret("LASTFM_API_SECRET_PROD");
 
 /**
  * Proxy for Last.fm API calls
  */
 exports.apiProxy = onRequest({
   cors: true,
-  secrets: [],
-  env: [
-    "LASTFM_API_KEY",
-    "LASTFM_API_SECRET",
-  ],
+  secrets: [lastfmApiKey, lastfmApiSecret],
 }, async (req, res) => {
   try {
     if (req.method !== "POST") {
@@ -28,11 +29,17 @@ exports.apiProxy = onRequest({
       return;
     }
 
-    // Use environment variables for Firebase Functions v2
-    const apiKey = process.env.LASTFM_API_KEY || "c69832d0d923f284e68fd6fdf8ac214a";
-    const apiSecret = process.env.LASTFM_API_SECRET || "44d152f6f2bd0e3960bf6405d492e726";
+    // Get credentials from secrets
+    const apiKey = lastfmApiKey.value();
+    const apiSecret = lastfmApiSecret.value();
     
-    logger.info("Using API key:", apiKey);
+    logger.info("Last.fm API call", {
+      method,
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + "..." : "none",
+      hasApiSecret: !!apiSecret,
+      paramsKeys: Object.keys(params),
+    });
 
     if (!apiKey) {
       logger.error("Missing Last.fm API key in environment");
