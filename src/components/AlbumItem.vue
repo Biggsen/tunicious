@@ -326,10 +326,11 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .album-image-container {
   @apply relative;
+  margin: 8px;
 }
 
 .album-image {
-  @apply w-full object-cover;
+  @apply w-full object-cover rounded-lg;
   aspect-ratio: 1 / 1;
 }
 

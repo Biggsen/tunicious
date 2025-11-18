@@ -4,7 +4,8 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
-import { PlayIcon, PauseIcon } from '@heroicons/vue/24/solid';
+import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
+import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 import { logLastFm, logPlayer } from '@utils/logger';
 
 const props = defineProps({
@@ -495,7 +496,7 @@ const handleTrackClick = async (track) => {
         ]"
         @click="playerReady ? handleTrackClick(track) : null"
       >
-        <span class="flex items-center flex-1">
+        <span class="flex items-start flex-1">
           <span 
             v-if="playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)" 
             class="mr-1 text-delft-blue flex-shrink-0 cursor-pointer" 
@@ -527,27 +528,18 @@ const handleTrackClick = async (track) => {
             ...
           </span>
         </span>
-        <svg 
+        <HeartIcon 
           v-if="isTrackLoved(track)" 
           class="w-4 h-4 text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors ml-2" 
-          fill="currentColor" 
-          viewBox="0 0 20 20"
           :title="allowLoving ? 'Click to unlike' : 'Loved on Last.fm'"
           @click="handleHeartClick(track, $event)"
-        >
-          <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-        </svg>
-        <svg 
+        />
+        <HeartIconOutline 
           v-else-if="allowLoving && sessionKey" 
           class="w-4 h-4 text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors ml-2" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
           title="Click to love"
           @click="handleHeartClick(track, $event)"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-        </svg>
+        />
       </li>
     </ul>
     
