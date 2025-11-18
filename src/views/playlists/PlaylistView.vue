@@ -4,7 +4,7 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
-import { useRoute } from 'vue-router';
+import { useRoute, RouterLink } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
@@ -230,25 +230,23 @@ onMounted(async () => {
   <main class="pt-6">
     <h1 class="h2 pb-4">Playlists</h1>
     <div class="flex gap-4 mb-6">
-      <RouterLink 
-        to="/playlist/add" 
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <PlusIcon class="h-5 w-5" />
-        Add playlist
+      <RouterLink to="/playlist/add" class="no-underline">
+        <BaseButton variant="secondary">
+          <template #icon-left><PlusIcon class="h-5 w-5" /></template>
+          Add playlist
+        </BaseButton>
       </RouterLink>
-      <RouterLink 
-        to="/playlist/management" 
-        class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center gap-2"
-      >
-        <PlusIcon class="h-5 w-5" />
-        Playlist Management
+      <RouterLink to="/playlist/management" class="no-underline">
+        <BaseButton variant="secondary">
+          <template #icon-left><PlusIcon class="h-5 w-5" /></template>
+          Playlist Management
+        </BaseButton>
       </RouterLink>
-      <BaseButton @click.prevent="handleClearCache">
+      <BaseButton variant="secondary" @click.prevent="handleClearCache">
         <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload
       </BaseButton>
-      <BaseButton @click="showEndPlaylists = !showEndPlaylists">
+      <BaseButton variant="secondary" @click="showEndPlaylists = !showEndPlaylists">
         <template #icon-left>
           <EyeSlashIcon v-if="showEndPlaylists" class="h-5 w-5" />
           <EyeIcon v-else class="h-5 w-5" />
