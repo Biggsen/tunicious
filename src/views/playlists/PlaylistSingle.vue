@@ -5,14 +5,18 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
+import { useAdmin } from "@composables/useAdmin";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
+import DropdownMenu from '@components/common/DropdownMenu.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
-import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/solid'
+import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/vue/24/solid'
+import { MusicalNoteIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@components/common/BaseButton.vue';
+import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ProgressModal from '@components/common/ProgressModal.vue';
@@ -27,6 +31,7 @@ import { logPlaylist } from '@utils/logger';
 const route = useRoute();
 const { user, userData } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
+const { isAdmin } = useAdmin();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
@@ -55,10 +60,28 @@ const albumsWithDates = ref([]);
 const sortedAlbumIds = ref([]);
 
 // Manual sorting state instead of useSorting composable
-const sortDirection = ref('asc'); // Default to oldest first
+const sortDirection = ref('asc'); // 'asc' or 'desc'
+const sortMode = ref('date'); // 'date', 'year', 'name', 'artist', 'loved'
+const sortDropdownOpen = ref(false);
+const sortDropdownRef = ref(null);
 
-const sortDirectionLabel = computed(() => {
-  return sortDirection.value === 'desc' ? 'Newest First' : 'Oldest First';
+const handleSortDropdownClickOutside = (event) => {
+  if (sortDropdownRef.value && !sortDropdownRef.value.contains(event.target)) {
+    sortDropdownOpen.value = false;
+  }
+};
+
+
+const sortModeLabels = {
+  date: 'Date added',
+  year: 'Release year',
+  name: 'Album name',
+  artist: 'Artist name',
+  loved: 'Loved'
+};
+
+const currentSortLabel = computed(() => {
+  return sortModeLabels[sortMode.value] || 'Date added';
 });
 
 // Tracklist display state - initialize from localStorage
@@ -68,7 +91,15 @@ const albumTracks = ref({}); // Store tracks for each album
 const tracksLoading = ref(false);
 const playlistTrackIds = ref({}); // Map of albumId -> Object with track IDs as keys (for fast lookup)
 
-const toggleSort = async () => {
+const setSortMode = async (mode) => {
+  // New mode, default to ascending
+  sortMode.value = mode;
+  sortDirection.value = 'asc';
+  sortDropdownOpen.value = false;
+  await applySortingAndReload();
+};
+
+const toggleSortDirection = async () => {
   sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc';
   await applySortingAndReload();
 };
@@ -283,14 +314,119 @@ const refreshLovedTracks = async () => {
 const applySortingAndReload = async () => {
   if (albumsWithDates.value.length === 0) return;
   
-  // Sort the full albums with dates list
-  const sorted = [...albumsWithDates.value].sort((a, b) => {
-    const dateA = new Date(a.addedAt);
-    const dateB = new Date(b.addedAt);
-    return sortDirection.value === 'desc' 
-      ? dateB - dateA 
-      : dateA - dateB;
-  });
+  let sorted;
+  
+  if (sortMode.value === 'year') {
+    // For year sorting, we need to fetch releaseYear for all albums
+    const allAlbumIds = albumsWithDates.value.map(a => a.id);
+    const albumDetailsMap = {};
+    
+    // Batch fetch album details to get releaseYear
+    const batchSize = 50;
+    for (let i = 0; i < allAlbumIds.length; i += batchSize) {
+      const batch = allAlbumIds.slice(i, i + batchSize);
+      const detailsArr = await Promise.all(batch.map(id => getCachedAlbumDetails(id)));
+      batch.forEach((id, idx) => {
+        albumDetailsMap[id] = detailsArr[idx];
+      });
+    }
+    
+    // Sort by releaseYear
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const yearA = albumDetailsMap[a.id]?.releaseYear || 0;
+      const yearB = albumDetailsMap[b.id]?.releaseYear || 0;
+      
+      // Albums without year go to the end (or beginning if descending)
+      if (yearA === 0 && yearB === 0) return 0;
+      if (yearA === 0) return sortDirection.value === 'desc' ? -1 : 1;
+      if (yearB === 0) return sortDirection.value === 'desc' ? 1 : -1;
+      
+      return sortDirection.value === 'desc' 
+        ? yearB - yearA 
+        : yearA - yearB;
+    });
+  } else if (sortMode.value === 'name' || sortMode.value === 'artist') {
+    // For name and artist sorting, we need to fetch album details for all albums
+    const allAlbumIds = albumsWithDates.value.map(a => a.id);
+    const albumDetailsMap = {};
+    
+    // Batch fetch album details
+    const batchSize = 50;
+    for (let i = 0; i < allAlbumIds.length; i += batchSize) {
+      const batch = allAlbumIds.slice(i, i + batchSize);
+      const detailsArr = await Promise.all(batch.map(id => getCachedAlbumDetails(id)));
+      batch.forEach((id, idx) => {
+        albumDetailsMap[id] = detailsArr[idx];
+      });
+    }
+    
+    if (sortMode.value === 'name') {
+      // Sort by album name
+      sorted = [...albumsWithDates.value].sort((a, b) => {
+        const nameA = albumDetailsMap[a.id]?.albumTitle || '';
+        const nameB = albumDetailsMap[b.id]?.albumTitle || '';
+        
+        const comparison = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        return sortDirection.value === 'desc' ? -comparison : comparison;
+      });
+    } else {
+      // Sort by artist name
+      sorted = [...albumsWithDates.value].sort((a, b) => {
+        const artistA = albumDetailsMap[a.id]?.artistName || '';
+        const artistB = albumDetailsMap[b.id]?.artistName || '';
+        
+        const comparison = artistA.localeCompare(artistB, undefined, { sensitivity: 'base' });
+        return sortDirection.value === 'desc' ? -comparison : comparison;
+      });
+    }
+  } else if (sortMode.value === 'loved') {
+    // For loved sorting, we need to calculate percentages for all albums
+    if (!userData.value?.lastFmUserName) {
+      // No Last.fm user, can't sort by loved
+      sorted = [...albumsWithDates.value];
+    } else {
+      // Fetch loved tracks if not already loaded
+      if (!lovedTracks.value.length) {
+        lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+      }
+      
+      // Load all albums to get their data
+      const allAlbumsFromPlaylist = await loadAlbumsBatched(albumsWithDates.value.map(a => a.id));
+      
+      // Calculate loved track percentages for all albums
+      const lovedDataMap = {};
+      for (const album of allAlbumsFromPlaylist) {
+        if (album && album.id) {
+          try {
+            const result = await calculateLovedTrackPercentage(album, lovedTracks.value);
+            lovedDataMap[album.id] = result.percentage;
+          } catch (err) {
+            logPlaylist(`Error calculating loved track percentage for album ${album.id}:`, err);
+            lovedDataMap[album.id] = 0;
+          }
+        }
+      }
+      
+      // Sort by loved track percentage
+      sorted = [...albumsWithDates.value].sort((a, b) => {
+        const lovedA = lovedDataMap[a.id] || 0;
+        const lovedB = lovedDataMap[b.id] || 0;
+        
+        return sortDirection.value === 'desc' 
+          ? lovedB - lovedA 
+          : lovedA - lovedB;
+      });
+    }
+  } else {
+    // Sort by date (addedAt) - default
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const dateA = new Date(a.addedAt);
+      const dateB = new Date(b.addedAt);
+      return sortDirection.value === 'desc' 
+        ? dateB - dateA 
+        : dateA - dateB;
+    });
+  }
   
   // Update the sorted album IDs for pagination
   sortedAlbumIds.value = sorted.map(a => a.id);
@@ -325,14 +461,61 @@ const showPagination = computed(() => totalAlbums.value > itemsPerPage.value);
 
 // Compute full sorted album list for queue functionality
 const sortedAlbumsList = computed(() => {
-  // Sort albumsWithDates by addedAt based on sortDirection
-  const sorted = [...albumsWithDates.value].sort((a, b) => {
-    const dateA = new Date(a.addedAt);
-    const dateB = new Date(b.addedAt);
-    return sortDirection.value === 'desc' 
-      ? dateB - dateA 
-      : dateA - dateB;
-  });
+  // Sort albumsWithDates based on current sort mode and direction
+  let sorted;
+  
+  if (sortMode.value === 'year') {
+    // For year sorting in computed, we use available data from albumRootDataMap
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const rootA = albumRootDataMap.value[a.id];
+      const rootB = albumRootDataMap.value[b.id];
+      const yearA = rootA?.releaseYear || 0;
+      const yearB = rootB?.releaseYear || 0;
+      
+      if (yearA === 0 && yearB === 0) return 0;
+      if (yearA === 0) return sortDirection.value === 'desc' ? -1 : 1;
+      if (yearB === 0) return sortDirection.value === 'desc' ? 1 : -1;
+      
+      return sortDirection.value === 'desc' 
+        ? yearB - yearA 
+        : yearA - yearB;
+    });
+  } else if (sortMode.value === 'name') {
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const rootA = albumRootDataMap.value[a.id];
+      const rootB = albumRootDataMap.value[b.id];
+      const nameA = rootA?.albumTitle || '';
+      const nameB = rootB?.albumTitle || '';
+      const comparison = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      return sortDirection.value === 'desc' ? -comparison : comparison;
+    });
+  } else if (sortMode.value === 'artist') {
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const rootA = albumRootDataMap.value[a.id];
+      const rootB = albumRootDataMap.value[b.id];
+      const artistA = rootA?.artistName || '';
+      const artistB = rootB?.artistName || '';
+      const comparison = artistA.localeCompare(artistB, undefined, { sensitivity: 'base' });
+      return sortDirection.value === 'desc' ? -comparison : comparison;
+    });
+  } else if (sortMode.value === 'loved') {
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const lovedA = albumLovedData.value[a.id]?.percentage || 0;
+      const lovedB = albumLovedData.value[b.id]?.percentage || 0;
+      return sortDirection.value === 'desc' 
+        ? lovedB - lovedA 
+        : lovedA - lovedB;
+    });
+  } else {
+    // Sort by date (addedAt) - default
+    sorted = [...albumsWithDates.value].sort((a, b) => {
+      const dateA = new Date(a.addedAt);
+      const dateB = new Date(b.addedAt);
+      return sortDirection.value === 'desc' 
+        ? dateB - dateA 
+        : dateA - dateB;
+    });
+  }
   
   // Map to album objects with id, artists, artistName from albumData or albumRootDataMap
   return sorted.map(albumWithDate => {
@@ -363,7 +546,7 @@ const sortedAlbumsList = computed(() => {
 
 // Update cache keys
 const albumIdListCacheKey = computed(() => `playlist_${id.value}_albumsWithDates`);
-const pageCacheKey = (page) => `playlist_${id.value}_page_${page}_${sortDirection.value}`;
+const pageCacheKey = (page) => `playlist_${id.value}_page_${page}_${sortMode.value}_${sortDirection.value}`;
 
 const inCollectionMap = ref({});
 const needsUpdateMap = ref({});
@@ -645,11 +828,16 @@ async function handleClearCache() {
   // Clear all related cache keys for this playlist
   await clearCache(albumIdListCacheKey.value);
   
-  // Clear page caches for both sort directions
+  // Clear page caches for all sort modes and directions
   const totalPagesToClear = totalPages.value || 50; // Fallback number
+  const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+  const directions = ['asc', 'desc'];
   for (let page = 1; page <= totalPagesToClear; page++) {
-    await clearCache(`playlist_${id.value}_page_${page}_asc`);
-    await clearCache(`playlist_${id.value}_page_${page}_desc`);
+    for (const mode of sortModes) {
+      for (const dir of directions) {
+        await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
+      }
+    }
   }
   
   // Clear playlist tracks cache
@@ -856,6 +1044,8 @@ async function loadPlaylistPage() {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', handleSortDropdownClickOutside);
+  
   try {
     await loadPlaylistPage();
     
@@ -880,6 +1070,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener('click', handleSortDropdownClickOutside);
   // Stop polling for current playing track when component is unmounted
   stopCurrentTrackPolling();
 });
@@ -1543,15 +1734,81 @@ const handleUpdateYear = async (mismatch) => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <BackButton to="/playlists" text="Back to Playlists" />
+      <BackButton to="/playlists" text="Back" />
     </div>
 
-    <h1 class="h2 pb-4">{{ playlistName }}</h1>
-    <div class="mb-4 flex gap-4">
-      <BaseButton @click.prevent="handleClearCache">
-        <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
-        Reload
-      </BaseButton>
+    <div class="flex items-center justify-between">
+      <h1 class="h2">{{ playlistName }}</h1>
+      <div class="flex items-center gap-4">
+        <BaseButton 
+          v-if="userData?.lastFmUserName && showTracklists"
+          variant="secondary"
+          @click="refreshLovedTracks"
+          :disabled="refreshingLovedTracks"
+          title="Refresh loved tracks and playcounts with Last.fm"
+        >
+          <template #icon-left>
+            <svg class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+            </svg>
+          </template>
+          {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh' }}
+        </BaseButton>
+        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit">
+          <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
+        </BaseButton>
+        <DropdownMenu aria-label="Playlist options">
+          <button
+            @click="checkForIdMismatches"
+            :disabled="checkingMismatches || loading || batchProcessingAlbums"
+            class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <ArrowPathIcon v-if="checkingMismatches" class="h-4 w-4 animate-spin" />
+              <span>{{ checkingMismatches ? 'Checking...' : 'Check for ID Mismatches' }}</span>
+            </div>
+          </button>
+          <button
+            @click="checkForInvalidAlbums"
+            :disabled="checkingInvalid || loading || batchProcessingAlbums"
+            class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <ArrowPathIcon v-if="checkingInvalid" class="h-4 w-4 animate-spin" />
+              <span>{{ checkingInvalid ? 'Checking...' : 'Check Invalid' }}</span>
+            </div>
+          </button>
+          <button
+            v-if="missingAlbumsCount > 0 && userData?.spotifyConnected"
+            @click="batchAddAlbumsToDatabase"
+            :disabled="batchProcessingAlbums || loading"
+            class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <ArrowPathIcon v-if="batchProcessingAlbums" class="h-4 w-4 animate-spin" />
+              <span>{{ batchProcessingAlbums 
+                ? 'Processing...' 
+                : `Add ${missingAlbumsCount} Missing Albums to DB` 
+              }}</span>
+            </div>
+          </button>
+        </DropdownMenu>
+      </div>
+    </div>
+    
+    <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
+    <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
+    
+    <div class="mb-4 flex gap-4 items-center">
+      <div class="flex items-center gap-3">
+        <ToggleSwitch v-model="showTracklists" variant="primary-on-celadon" />
+        <span class="text-delft-blue font-medium">
+          Tracklist
+        </span>
+      </div>
       <BaseButton v-if="playlistDoc && !playlistDoc.data().name"
         @click="updatePlaylistName"
         :disabled="updating"
@@ -1559,80 +1816,102 @@ const handleUpdateYear = async (mismatch) => {
         <template #icon-left><PencilIcon class="h-5 w-5" /></template>
         {{ updating ? 'Updating...' : 'Update Playlist Name' }}
       </BaseButton>
-      <BaseButton @click="toggleSort">
-        <template #icon-left>
-          <BarsArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
-          <BarsArrowDownIcon v-else class="h-5 w-5" />
-        </template>
-        Sort: {{ sortDirectionLabel }}
-      </BaseButton>
-      <BaseButton @click="showTracklists = !showTracklists" :class="{ 'bg-mint text-delft-blue': showTracklists }">
-        <template #icon-left>
-          <svg v-if="showTracklists" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-          </svg>
-          <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-          </svg>
-        </template>
-        {{ showTracklists ? 'Hide Tracklists' : 'Show Tracklists' }}
-      </BaseButton>
-      <BaseButton 
-        v-if="userData?.lastFmUserName && showTracklists"
-        @click="refreshLovedTracks"
-        :disabled="refreshingLovedTracks"
-        title="Refresh loved tracks and playcounts with Last.fm"
-      >
-        <template #icon-left>
-          <svg class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-          </svg>
-        </template>
-        {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh Tracks' }}
-      </BaseButton>
-      <BaseButton 
-        v-if="missingAlbumsCount > 0 && userData?.spotifyConnected"
-        @click="batchAddAlbumsToDatabase"
-        :disabled="batchProcessingAlbums || loading"
-        customClass="bg-mint text-delft-blue hover:bg-celadon"
-      >
-        <template #icon-left>
-          <ArrowPathIcon v-if="batchProcessingAlbums" class="h-5 w-5 animate-spin" />
-        </template>
-        {{ batchProcessingAlbums 
-          ? 'Processing...' 
-          : `Add ${missingAlbumsCount} Missing Albums to DB` 
-        }}
-      </BaseButton>
-      <BaseButton 
-        @click="checkForIdMismatches"
-        :disabled="checkingMismatches || loading || batchProcessingAlbums"
-        customClass="bg-delft-blue text-white hover:bg-blue-700"
-      >
-        <template #icon-left>
-          <ArrowPathIcon v-if="checkingMismatches" class="h-5 w-5 animate-spin" />
-        </template>
-        {{ checkingMismatches ? 'Checking...' : 'Check for ID Mismatches' }}
-      </BaseButton>
-      <BaseButton 
-        @click="checkForInvalidAlbums"
-        :disabled="checkingInvalid || loading || batchProcessingAlbums"
-        customClass="bg-red-600 text-white hover:bg-red-700"
-      >
-        <template #icon-left>
-          <ArrowPathIcon v-if="checkingInvalid" class="h-5 w-5 animate-spin" />
-        </template>
-        {{ checkingInvalid ? 'Checking...' : 'Check Invalid' }}
-      </BaseButton>
+      <div class="flex items-center gap-2 ml-auto">
+        <span class="text-delft-blue font-medium uppercase text-xs tracking-wide">Sort by:</span>
+        <div class="relative" ref="sortDropdownRef">
+          <button
+            @click="sortDropdownOpen = !sortDropdownOpen"
+            class="inline-flex items-center justify-between px-3 py-1.5 min-w-[140px] rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+            :aria-expanded="sortDropdownOpen"
+          >
+            <span>{{ currentSortLabel }}</span>
+            <ChevronDownIcon class="h-4 w-4 ml-2" />
+          </button>
+          
+          <Transition
+            enter-active-class="transition ease-out duration-100"
+            enter-from-class="transform opacity-0 scale-95"
+            enter-to-class="transform opacity-100 scale-100"
+            leave-active-class="transition ease-in duration-75"
+            leave-from-class="transform opacity-100 scale-100"
+            leave-to-class="transform opacity-0 scale-95"
+          >
+            <div
+              v-if="sortDropdownOpen"
+              class="absolute left-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+              role="menu"
+              @click.stop
+            >
+              <div class="py-1" role="none">
+                <button
+                  @click="setSortMode('date')"
+                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                  role="menuitem"
+                >
+                  <span>Date added</span>
+                  <svg v-if="sortMode === 'date'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  @click="setSortMode('year')"
+                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                  role="menuitem"
+                >
+                  <span>Release year</span>
+                  <svg v-if="sortMode === 'year'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  @click="setSortMode('name')"
+                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                  role="menuitem"
+                >
+                  <span>Album name</span>
+                  <svg v-if="sortMode === 'name'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  @click="setSortMode('artist')"
+                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                  role="menuitem"
+                >
+                  <span>Artist name</span>
+                  <svg v-if="sortMode === 'artist'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  v-if="userData?.lastFmUserName"
+                  @click="setSortMode('loved')"
+                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                  role="menuitem"
+                >
+                  <span>Loved</span>
+                  <svg v-if="sortMode === 'loved'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+        <button
+          @click="toggleSortDirection"
+          class="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+          :title="sortDirection === 'asc' ? 'Ascending' : 'Descending'"
+        >
+          <ArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
+          <ArrowDownIcon v-else class="h-5 w-5" />
+        </button>
+      </div>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
       Cache cleared! Reloading playlist...
     </p>
-
-    <p class="text-lg mb-2">Total unique albums: {{ totalAlbums }}</p>
-    <p class="text-lg mb-2">Albums in database: {{ albumsInDbCount }}</p>
-    <p class="text-lg mb-6">Total tracks: {{ totalTracks }}</p>
 
     <!-- ID Mismatch Report -->
     <div v-if="showMismatchReport && mismatchReport.length > 0" class="mb-6 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6">

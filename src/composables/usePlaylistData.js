@@ -24,13 +24,40 @@ export function usePlaylistData() {
   const error = ref(null);
 
   /**
-   * Gets all available groups that have playlists
-   * @returns {string[]} Array of group names that have playlists
+   * Gets all available groups that have playlists, sorted by earliest createdAt
+   * @returns {string[]} Array of group names that have playlists, sorted by creation date
    */
   const getAvailableGroups = () => {
-    return Object.keys(playlists.value).filter(group => 
+    const groupsWithPlaylists = Object.keys(playlists.value).filter(group => 
       playlists.value[group]?.length > 0
     );
+    
+    // Sort groups by the earliest createdAt date in each group
+    return groupsWithPlaylists.sort((groupA, groupB) => {
+      const playlistsA = playlists.value[groupA] || [];
+      const playlistsB = playlists.value[groupB] || [];
+      
+      // Find earliest createdAt in each group
+      const earliestA = playlistsA.reduce((earliest, playlist) => {
+        if (!playlist.createdAt) return earliest;
+        const date = playlist.createdAt?.toDate ? playlist.createdAt.toDate() : new Date(playlist.createdAt);
+        return !earliest || date < earliest ? date : earliest;
+      }, null);
+      
+      const earliestB = playlistsB.reduce((earliest, playlist) => {
+        if (!playlist.createdAt) return earliest;
+        const date = playlist.createdAt?.toDate ? playlist.createdAt.toDate() : new Date(playlist.createdAt);
+        return !earliest || date < earliest ? date : earliest;
+      }, null);
+      
+      // If one group has no dates, put it at the end
+      if (!earliestA && !earliestB) return 0;
+      if (!earliestA) return 1;
+      if (!earliestB) return -1;
+      
+      // Sort by earliest date (oldest first)
+      return earliestA - earliestB;
+    });
   };
 
   /**
@@ -99,7 +126,8 @@ export function usePlaylistData() {
           pipelineRole: playlist.pipelineRole || 'transient', // Include pipeline role
           name: playlist.name,
           type: playlist.type,
-          group: playlist.group
+          group: playlist.group,
+          createdAt: playlist.createdAt // Include createdAt for sorting groups
         });
       });
 
