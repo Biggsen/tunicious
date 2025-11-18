@@ -69,7 +69,7 @@ const isCurrentlyPlaying = computed(() => {
     </div>
     <div class="flex-1">
       <h2 :class="['mb-1 text-mindero truncate', isSinkPlaylist ? 'text-[16px]' : 'text-[20px]']">{{ playlist.name }}</h2>
-      <p class="text-mindero">{{ playlist.tracks.total }} songs</p>
+      <p class="text-mindero">{{ playlist.tracks.total }} tracks</p>
     </div>
     
     <!-- Edit Button -->

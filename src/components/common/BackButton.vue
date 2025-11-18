@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { RouterLink } from 'vue-router';
+import { ArrowLeftIcon } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
   to: {
@@ -24,16 +25,17 @@ const goBack = () => {
   <RouterLink 
     v-if="to" 
     :to="to" 
-    class="text-blue-500 hover:underline"
+    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-mint text-delft-blue hover:bg-delft-blue hover:text-white"
   >
-    &larr; {{ text }}
+    <ArrowLeftIcon class="h-5 w-5" />
+    {{ text }}
   </RouterLink>
-  <a 
+  <button 
     v-else
-    href="#" 
     @click.prevent="goBack" 
-    class="text-blue-500 hover:underline"
+    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-mint text-delft-blue hover:bg-delft-blue hover:text-white"
   >
-    &larr; {{ text }}
-  </a>
+    <ArrowLeftIcon class="h-5 w-5" />
+    {{ text }}
+  </button>
 </template> 
