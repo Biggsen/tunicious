@@ -1,6 +1,11 @@
 <script setup>
+import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
+import ToggleSwitch from '@components/common/ToggleSwitch.vue';
+
+const togglePrimary = ref(false);
+const toggleOnCeladon = ref(false);
 </script>
 
 <template>
@@ -57,30 +62,58 @@ import BaseButton from '@components/common/BaseButton.vue';
     <!-- Typography Section -->
     <section class="mb-12">
       <h2 class="text-2xl font-bold text-delft-blue mb-6">Typography</h2>
-      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-4">
-        <div>
-          <h1 class="text-4xl font-bold text-delft-blue mb-2">Heading 1</h1>
-          <p class="text-sm text-delft-blue/70">text-4xl font-bold</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-4">
+          <div>
+            <h1 class="text-4xl font-bold text-delft-blue mb-2">Heading 1</h1>
+            <p class="text-sm text-delft-blue/70">text-4xl font-bold</p>
+          </div>
+          <div>
+            <h2 class="text-3xl font-bold text-delft-blue mb-2">Heading 2</h2>
+            <p class="text-sm text-delft-blue/70">text-3xl font-bold</p>
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-delft-blue mb-2">Heading 3</h3>
+            <p class="text-sm text-delft-blue/70">text-2xl font-bold</p>
+          </div>
+          <div>
+            <h4 class="text-xl font-semibold text-delft-blue mb-2">Heading 4</h4>
+            <p class="text-sm text-delft-blue/70">text-xl font-semibold</p>
+          </div>
+          <div>
+            <p class="text-base text-delft-blue mb-2">Body text - Regular paragraph text that is easy to read and provides good contrast.</p>
+            <p class="text-sm text-delft-blue/70">text-base</p>
+          </div>
+          <div>
+            <p class="text-sm text-delft-blue/70 mb-2">Small text - Used for secondary information, captions, and helper text.</p>
+            <p class="text-sm text-delft-blue/70">text-sm text-delft-blue/70</p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-3xl font-bold text-delft-blue mb-2">Heading 2</h2>
-          <p class="text-sm text-delft-blue/70">text-3xl font-bold</p>
-        </div>
-        <div>
-          <h3 class="text-2xl font-bold text-delft-blue mb-2">Heading 3</h3>
-          <p class="text-sm text-delft-blue/70">text-2xl font-bold</p>
-        </div>
-        <div>
-          <h4 class="text-xl font-semibold text-delft-blue mb-2">Heading 4</h4>
-          <p class="text-sm text-delft-blue/70">text-xl font-semibold</p>
-        </div>
-        <div>
-          <p class="text-base text-delft-blue mb-2">Body text - Regular paragraph text that is easy to read and provides good contrast.</p>
-          <p class="text-sm text-delft-blue/70">text-base</p>
-        </div>
-        <div>
-          <p class="text-sm text-delft-blue/70 mb-2">Small text - Used for secondary information, captions, and helper text.</p>
-          <p class="text-sm text-delft-blue/70">text-sm text-delft-blue/70</p>
+        <div class="bg-celadon border-2 border-delft-blue rounded-lg p-6 space-y-4">
+          <div>
+            <h1 class="text-4xl font-bold text-delft-blue mb-2">Heading 1</h1>
+            <p class="text-sm text-delft-blue/70">text-4xl font-bold</p>
+          </div>
+          <div>
+            <h2 class="text-3xl font-bold text-delft-blue mb-2">Heading 2</h2>
+            <p class="text-sm text-delft-blue/70">text-3xl font-bold</p>
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-delft-blue mb-2">Heading 3</h3>
+            <p class="text-sm text-delft-blue/70">text-2xl font-bold</p>
+          </div>
+          <div>
+            <h4 class="text-xl font-semibold text-delft-blue mb-2">Heading 4</h4>
+            <p class="text-sm text-delft-blue/70">text-xl font-semibold</p>
+          </div>
+          <div>
+            <p class="text-base text-delft-blue mb-2">Body text - Regular paragraph text that is easy to read and provides good contrast.</p>
+            <p class="text-sm text-delft-blue/70">text-base</p>
+          </div>
+          <div>
+            <p class="text-sm text-delft-blue/70 mb-2">Small text - Used for secondary information, captions, and helper text.</p>
+            <p class="text-sm text-delft-blue/70">text-sm text-delft-blue/70</p>
+          </div>
         </div>
       </div>
     </section>
@@ -88,52 +121,123 @@ import BaseButton from '@components/common/BaseButton.vue';
     <!-- Buttons Section -->
     <section class="mb-12">
       <h2 class="text-2xl font-bold text-delft-blue mb-6">Buttons</h2>
-      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-6">
-        <div>
-          <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button Variants</h3>
-          
-          <div class="mb-6">
-            <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
-            <div class="flex flex-wrap gap-4">
-              <BaseButton>Default</BaseButton>
-              <BaseButton :disabled="true">Disabled</BaseButton>
-              <BaseButton :loading="true">Loading</BaseButton>
-            </div>
-          </div>
-          
-          <div class="mb-6">
-            <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
-            <div class="flex flex-wrap gap-4">
-              <BaseButton variant="primary">Primary</BaseButton>
-              <BaseButton variant="primary" :disabled="true">Disabled</BaseButton>
-              <BaseButton variant="primary" :loading="true">Loading</BaseButton>
-            </div>
-          </div>
-          
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-6">
           <div>
-            <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button Variants</h3>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton>Default</BaseButton>
+                <BaseButton :disabled="true">Disabled</BaseButton>
+                <BaseButton :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton variant="primary">Primary</BaseButton>
+                <BaseButton variant="primary" :disabled="true">Disabled</BaseButton>
+                <BaseButton variant="primary" :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton variant="secondary">Secondary</BaseButton>
+                <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
+                <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Custom Styled Buttons</h3>
             <div class="flex flex-wrap gap-4">
-              <BaseButton variant="secondary">Secondary</BaseButton>
-              <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
-              <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+              <button class="px-4 py-2 bg-mindero text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
+                Mindero Button
+              </button>
+              <button class="px-4 py-2 bg-raspberry text-white rounded-lg hover:bg-raspberry/80 transition-colors font-medium">
+                Raspberry Button
+              </button>
+              <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
+                Outlined Button
+              </button>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Toggle Switches</h3>
+            <div class="flex flex-wrap items-center gap-6">
+            <div class="flex items-center gap-3">
+              <ToggleSwitch v-model="togglePrimary" variant="primary" />
+              <span class="text-delft-blue">Primary</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <ToggleSwitch :model-value="true" :disabled="true" variant="primary" />
+              <span class="text-delft-blue">Disabled</span>
+            </div>
             </div>
           </div>
         </div>
-        <div>
-          <h3 class="text-lg font-semibold text-delft-blue mb-4">Custom Styled Buttons</h3>
-          <div class="flex flex-wrap gap-4">
-            <button class="px-4 py-2 bg-mindero text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
-              Mindero Button
-            </button>
-            <button class="px-4 py-2 bg-raspberry text-white rounded-lg hover:bg-raspberry/80 transition-colors font-medium">
-              Raspberry Button
-            </button>
-            <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
-              Outlined Button
-            </button>
-            <button class="px-4 py-2 bg-delft-blue text-mindero rounded-lg hover:bg-delft-blue/90 transition-colors font-medium">
-              Delft Blue Button
-            </button>
+        <div class="bg-celadon border-2 border-delft-blue rounded-lg p-6 space-y-6">
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button Variants</h3>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton>Default</BaseButton>
+                <BaseButton :disabled="true">Disabled</BaseButton>
+                <BaseButton :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton variant="primary">Primary</BaseButton>
+                <BaseButton variant="primary" :disabled="true">Disabled</BaseButton>
+                <BaseButton variant="primary" :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton variant="secondary">Secondary</BaseButton>
+                <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
+                <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Custom Styled Buttons</h3>
+            <div class="flex flex-wrap gap-4">
+              <button class="px-4 py-2 bg-mindero text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
+                Mindero Button
+              </button>
+              <button class="px-4 py-2 bg-raspberry text-white rounded-lg hover:bg-raspberry/80 transition-colors font-medium">
+                Raspberry Button
+              </button>
+              <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
+                Outlined Button
+              </button>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Toggle Switches</h3>
+            <div class="flex flex-wrap items-center gap-6">
+              <div class="flex items-center gap-3">
+                <ToggleSwitch v-model="toggleOnCeladon" variant="primary-on-celadon" />
+                <span class="text-delft-blue">Primary on Celadon</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <ToggleSwitch :model-value="true" :disabled="true" variant="primary-on-celadon" />
+                <span class="text-delft-blue">Disabled</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
