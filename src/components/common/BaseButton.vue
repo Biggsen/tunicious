@@ -32,8 +32,8 @@ const props = defineProps({
 defineEmits(['click']);
 
 const variantPadding = computed(() => {
-  // Secondary has border, so reduce padding to match height
-  return props.variant === 'secondary' ? 'py-1.5' : 'py-2';
+  // No longer need special padding since border is removed
+  return 'py-2';
 });
 
 const variantClasses = computed(() => {
@@ -41,7 +41,7 @@ const variantClasses = computed(() => {
     case 'primary':
       return 'bg-delft-blue text-mindero hover:bg-raspberry';
     case 'secondary':
-      return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white border-2 border-delft-blue';
+      return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white';
     case 'default':
     default:
       return 'bg-blue-500 text-white hover:bg-blue-600';
