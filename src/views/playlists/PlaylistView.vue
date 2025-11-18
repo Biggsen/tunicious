@@ -9,6 +9,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
+import DropdownMenu from '@components/common/DropdownMenu.vue';
 import { logPlaylist } from '@utils/logger';
 
 const { user, userData, fetchUserData } = useUserData();
@@ -228,20 +229,32 @@ onMounted(async () => {
 
 <template>
   <main class="pt-6">
-    <h1 class="h2 pb-4">Playlists</h1>
+    <div class="flex items-center justify-between pb-4">
+      <h1 class="h2">Playlists</h1>
+      <DropdownMenu aria-label="Playlist actions">
+        <RouterLink
+          to="/playlist/add"
+          class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+          role="menuitem"
+        >
+          <div class="flex items-center gap-2">
+            <PlusIcon class="h-4 w-4" />
+            <span>Add playlist</span>
+          </div>
+        </RouterLink>
+        <RouterLink
+          to="/playlist/management"
+          class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+          role="menuitem"
+        >
+          <div class="flex items-center gap-2">
+            <PlusIcon class="h-4 w-4" />
+            <span>Playlist Management</span>
+          </div>
+        </RouterLink>
+      </DropdownMenu>
+    </div>
     <div class="flex gap-4 mb-6">
-      <RouterLink to="/playlist/add" class="no-underline">
-        <BaseButton variant="secondary">
-          <template #icon-left><PlusIcon class="h-5 w-5" /></template>
-          Add playlist
-        </BaseButton>
-      </RouterLink>
-      <RouterLink to="/playlist/management" class="no-underline">
-        <BaseButton variant="secondary">
-          <template #icon-left><PlusIcon class="h-5 w-5" /></template>
-          Playlist Management
-        </BaseButton>
-      </RouterLink>
       <BaseButton variant="secondary" @click.prevent="handleClearCache">
         <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload
