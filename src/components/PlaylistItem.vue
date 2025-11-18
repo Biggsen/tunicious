@@ -1,15 +1,19 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { computed } from "vue";
-import { PencilIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, TrashIcon } from '@heroicons/vue/24/solid';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { usePlaylistData } from '@composables/usePlaylistData';
 
 const router = useRouter();
 const { playingFrom, isPlaying } = useSpotifyPlayer();
+const { deletePlaylist, fetchUserPlaylists } = usePlaylistData();
 
 const props = defineProps({
   playlist: Object,
 });
+
+const emit = defineEmits(['playlist-deleted']);
 
 const navigateToPlaylist = (id) => {
   router.push({ path: `playlist/${id}` });
@@ -18,6 +22,24 @@ const navigateToPlaylist = (id) => {
 const navigateToEdit = (event, firebaseId) => {
   event.stopPropagation(); // Prevent triggering the main playlist click
   router.push({ path: `playlist/${firebaseId}/edit` });
+};
+
+const handleDelete = async (event, firebaseId, playlistName) => {
+  event.stopPropagation(); // Prevent triggering the main playlist click
+  
+  if (!confirm(`Are you sure you want to delete "${playlistName}"? This will remove the playlist from this app. The playlist will remain in Spotify.`)) {
+    return;
+  }
+
+  try {
+    const success = await deletePlaylist(firebaseId);
+    if (success) {
+      emit('playlist-deleted', firebaseId);
+    }
+  } catch (error) {
+    console.error('Error deleting playlist:', error);
+    alert('Failed to delete playlist. Please try again.');
+  }
 };
 
 const isEndPlaylist = computed(() => {
@@ -72,13 +94,22 @@ const isCurrentlyPlaying = computed(() => {
       <p class="text-mindero">{{ playlist.tracks.total }} songs</p>
     </div>
     
-    <!-- Edit Button -->
-    <button
-      @click="navigateToEdit($event, playlist.firebaseId)"
-      class="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-md hover:bg-white/20"
-      title="Edit playlist"
-    >
-      <PencilIcon class="h-4 w-4 text-mindero" />
-    </button>
+    <!-- Action Buttons -->
+    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+      <button
+        @click="navigateToEdit($event, playlist.firebaseId)"
+        class="p-1 rounded-md hover:bg-white/20"
+        title="Edit playlist"
+      >
+        <PencilIcon class="h-4 w-4 text-mindero" />
+      </button>
+      <button
+        @click="handleDelete($event, playlist.firebaseId, playlist.name)"
+        class="p-1 rounded-md hover:bg-white/20"
+        title="Delete playlist"
+      >
+        <TrashIcon class="h-4 w-4 text-mindero" />
+      </button>
+    </div>
   </li>
 </template>

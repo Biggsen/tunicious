@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
-import { setCache, getCache, clearCache } from "@utils/cache";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { setCache, getCache, clearCache, updatePlaylistInCache, removePlaylistFromCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
+import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
 import { useRoute, RouterLink } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
@@ -14,6 +15,7 @@ import { logPlaylist } from '@utils/logger';
 
 const { user, userData, fetchUserData } = useUserData();
 const { playlists: userPlaylists, fetchUserPlaylists, getAvailableGroups } = usePlaylistData();
+const { refreshSpecificPlaylists: refreshSpecificPlaylistsComposable } = usePlaylistUpdates();
 
 const route = useRoute();
 const { getPlaylist} = useUserSpotifyApi();
@@ -118,6 +120,13 @@ async function loadPlaylists() {
   error.value = null;
   cacheCleared.value = false;
 
+  logPlaylist('loadPlaylists called');
+  console.log('[DEBUG] loadPlaylists called');
+  logPlaylist('availableGroups:', availableGroups.value);
+  console.log('[DEBUG] availableGroups:', availableGroups.value);
+  logPlaylist('userPlaylists:', userPlaylists.value);
+  console.log('[DEBUG] userPlaylists:', userPlaylists.value);
+
   const cachedPlaylists = await getCache(cacheKey.value);
 
   if (cachedPlaylists) {
@@ -127,18 +136,27 @@ async function loadPlaylists() {
     return;
   }
 
-  try {
-    const playlistSummaries = {};
-    
-    // Load all playlists for each group
-    for (const group of availableGroups.value) {
-      logPlaylist(`Loading ${group} playlists...`);
+    try {
+      logPlaylist('Starting loadPlaylists, availableGroups:', availableGroups.value);
+      console.log('[DEBUG] Starting loadPlaylists, availableGroups:', availableGroups.value);
+      logPlaylist('userPlaylists data:', userPlaylists.value);
+      console.log('[DEBUG] userPlaylists data:', userPlaylists.value);
       
-      // Collect all playlists for this group
-      const allPlaylistsForGroup = [];
-      const groupPlaylists = userPlaylists.value[group] || [];
+      const playlistSummaries = {};
       
-      for (const playlistData of groupPlaylists) {
+      // Load all playlists for each group
+      for (const group of availableGroups.value) {
+        logPlaylist(`Loading ${group} playlists...`);
+        console.log(`[DEBUG] Loading ${group} playlists...`);
+        
+        // Collect all playlists for this group
+        const allPlaylistsForGroup = [];
+        const groupPlaylists = userPlaylists.value[group] || [];
+        
+        logPlaylist(`Group ${group} has ${groupPlaylists.length} playlists from userPlaylists`);
+        console.log(`[DEBUG] Group ${group} has ${groupPlaylists.length} playlists from userPlaylists`);
+        
+        for (const playlistData of groupPlaylists) {
         if (!playlistData?.playlistId) {
           logPlaylist(`Missing playlist data for ${group}:`, playlistData);
           continue;
@@ -199,10 +217,83 @@ async function handleClearCache() {
   await loadPlaylists();
 }
 
+/**
+ * Refresh specific playlists from Spotify without reloading everything
+ * @param {string[]} spotifyPlaylistIds - Array of Spotify playlist IDs to refresh
+ */
+async function refreshSpecificPlaylists(spotifyPlaylistIds) {
+  if (!user.value || !spotifyPlaylistIds || spotifyPlaylistIds.length === 0) return;
+  
+  const updatedState = await refreshSpecificPlaylistsComposable(
+    spotifyPlaylistIds,
+    playlists.value,
+    cacheKey.value
+  );
+  
+  // Update local state with refreshed playlists
+  if (updatedState) {
+    playlists.value = updatedState;
+  }
+}
+
+/**
+ * Optimistically remove a playlist from the UI and cache
+ * @param {string} firebaseId - The Firebase document ID of the playlist to remove
+ */
+function removePlaylistFromState(firebaseId) {
+  logPlaylist(`Optimistically removing playlist ${firebaseId} from state`);
+  
+  // Remove from local state
+  let removed = false;
+  for (const group in playlists.value) {
+    if (Array.isArray(playlists.value[group])) {
+      const initialLength = playlists.value[group].length;
+      playlists.value[group] = playlists.value[group].filter(p => p.firebaseId !== firebaseId);
+      if (playlists.value[group].length < initialLength) {
+        removed = true;
+      }
+    }
+  }
+  
+  if (removed) {
+    logPlaylist(`Removed playlist ${firebaseId} from state`);
+  }
+}
+
+async function handlePlaylistDeleted(firebaseId) {
+  // Optimistic update: remove from UI immediately
+  removePlaylistFromState(firebaseId);
+  
+  // Remove from cache
+  if (cacheKey.value) {
+    await removePlaylistFromCache(cacheKey.value, firebaseId);
+  }
+  
+  // Refresh from Firestore (will filter out deleted playlists)
+  if (user.value) {
+    await fetchUserPlaylists(user.value.uid);
+    // No need to reload from Spotify - we've already removed it optimistically
+  }
+}
+
+// Listen for playlist updates from other views
+const handlePlaylistsUpdated = (event) => {
+  const { playlistIds } = event.detail;
+  logPlaylist('Received playlists-updated event for:', playlistIds);
+  
+  if (playlistIds && playlistIds.length > 0) {
+    // Refresh the affected playlists
+    refreshSpecificPlaylists(playlistIds);
+  }
+};
+
 onMounted(async () => {
   try {
     loading.value = true;
     logPlaylist('PlaylistView mounted, user:', user.value);
+    
+    // Listen for playlist updates from other views
+    window.addEventListener('playlists-updated', handlePlaylistsUpdated);
     
     if (user.value) {
       if (!userData.value) {
@@ -224,6 +315,11 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+});
+
+// Clean up event listener on unmount
+onUnmounted(() => {
+  window.removeEventListener('playlists-updated', handlePlaylistsUpdated);
 });
 </script>
 
@@ -302,6 +398,7 @@ onMounted(async () => {
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
           :playlist="playlist"
+          @playlist-deleted="handlePlaylistDeleted"
         />
       </div>
       <p v-else class="text-gray-500 text-center py-8">

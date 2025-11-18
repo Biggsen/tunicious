@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, getDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logPlaylist } from '@utils/logger';
 
@@ -51,14 +51,39 @@ export function usePlaylistData() {
       );
 
       logPlaylist('Fetching playlists for user:', userId);
+      console.log('[DEBUG] Fetching playlists for user:', userId);
       const querySnapshot = await getDocs(q);
       logPlaylist('Query snapshot size:', querySnapshot.size);
+      console.log('[DEBUG] Query snapshot size:', querySnapshot.size);
+      logPlaylist('Query snapshot docs:', querySnapshot.docs.map(d => ({ id: d.id, data: d.data() })));
+      console.log('[DEBUG] Query snapshot docs:', querySnapshot.docs.map(d => ({ id: d.id, data: d.data() })));
       
       const grouped = {};
+      let skippedCount = 0;
+      let processedCount = 0;
 
-      querySnapshot.forEach((doc) => {
-        const playlist = doc.data();
-        logPlaylist('Processing playlist:', playlist);
+      querySnapshot.forEach((docSnap) => {
+        const playlist = docSnap.data();
+        const playlistInfo = {
+          id: docSnap.id,
+          playlistId: playlist.playlistId,
+          name: playlist.name,
+          deletedAt: playlist.deletedAt,
+          hasDeletedAt: 'deletedAt' in playlist
+        };
+        logPlaylist('Processing playlist:', playlistInfo);
+        console.log('[DEBUG] Processing playlist:', playlistInfo);
+        
+        // Skip if deleted (deletedAt exists and is not null)
+        // Existing playlists without deletedAt field are considered active
+        if (playlist.deletedAt != null) {
+          logPlaylist('Skipping deleted playlist:', playlist.name, 'deletedAt:', playlist.deletedAt);
+          console.log('[DEBUG] Skipping deleted playlist:', playlist.name, 'deletedAt:', playlist.deletedAt);
+          skippedCount++;
+          return;
+        }
+        
+        processedCount++;
         
         // Use group field if available, fallback to type for backward compatibility
         const group = playlist.group || playlist.type || 'unknown';
@@ -69,7 +94,7 @@ export function usePlaylistData() {
         
         grouped[group].push({
           playlistId: playlist.playlistId,
-          firebaseId: doc.id, // Include Firebase document ID
+          firebaseId: docSnap.id, // Include Firebase document ID
           priority: playlist.priority,
           pipelineRole: playlist.pipelineRole || 'transient', // Include pipeline role
           name: playlist.name,
@@ -84,10 +109,55 @@ export function usePlaylistData() {
       });
 
       logPlaylist('Final grouped playlists:', grouped);
+      console.log('[DEBUG] Final grouped playlists:', grouped);
+      logPlaylist(`Summary: ${processedCount} processed, ${skippedCount} skipped, ${Object.keys(grouped).length} groups`);
+      console.log(`[DEBUG] Summary: ${processedCount} processed, ${skippedCount} skipped, ${Object.keys(grouped).length} groups`);
       playlists.value = grouped;
     } catch (e) {
       logPlaylist('Error fetching playlists:', e);
-      error.value = 'Failed to fetch playlists';
+      logPlaylist('Error details:', {
+        message: e.message,
+        code: e.code,
+        stack: e.stack
+      });
+      error.value = e.message || 'Failed to fetch playlists';
+      console.error('Playlist fetch error:', e);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Soft deletes a playlist (albums collection remains unchanged as it's an archive)
+   * @param {string} playlistFirebaseId - The Firebase document ID of the playlist
+   * @returns {Promise<boolean>} Success status
+   */
+  const deletePlaylist = async (playlistFirebaseId) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Get the playlist document
+      const playlistRef = doc(db, 'playlists', playlistFirebaseId);
+      const playlistSnap = await getDoc(playlistRef);
+      
+      if (!playlistSnap.exists()) {
+        throw new Error('Playlist not found');
+      }
+
+      // Soft delete the playlist
+      await updateDoc(playlistRef, {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      logPlaylist(`Playlist ${playlistFirebaseId} soft deleted`);
+
+      return true;
+    } catch (e) {
+      logPlaylist('Error deleting playlist:', e);
+      error.value = 'Failed to delete playlist';
+      return false;
     } finally {
       loading.value = false;
     }
@@ -98,6 +168,7 @@ export function usePlaylistData() {
     loading,
     error,
     fetchUserPlaylists,
-    getAvailableGroups
+    getAvailableGroups,
+    deletePlaylist
   };
 } 

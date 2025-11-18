@@ -338,12 +338,26 @@ export function useAlbumsData() {
       let _playlistData = playlistData;
       if (!_playlistData) {
         const playlistsRef = collection(db, 'playlists');
-        const q = query(playlistsRef, where('playlistId', '==', playlistId));
+        const q = query(
+          playlistsRef, 
+          where('playlistId', '==', playlistId)
+        );
         const querySnapshot = await getDocs(q);
         if (querySnapshot.empty) {
           throw new Error('Playlist not found');
         }
-        _playlistData = querySnapshot.docs[0].data();
+        
+        // Filter out deleted playlists
+        const activePlaylists = querySnapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.deletedAt == null; // null or undefined both mean active
+        });
+        
+        if (activePlaylists.length === 0) {
+          throw new Error('Playlist not found or has been deleted');
+        }
+        
+        _playlistData = activePlaylists[0].data();
       }
       // Get the Spotify added date for this album if not provided
       let _spotifyAddedAt = spotifyAddedAt;

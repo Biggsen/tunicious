@@ -179,6 +179,90 @@ function aggressiveCleanup() {
 }
 
 /**
+ * Update a specific playlist in the cache without clearing the entire cache
+ * @param {string} cacheKey - The cache key (e.g., 'playlist_summaries_userId')
+ * @param {string} playlistId - The Spotify playlist ID to update
+ * @param {Object} playlistData - The updated playlist data
+ */
+export async function updatePlaylistInCache(cacheKey, playlistId, playlistData) {
+  try {
+    const cachedData = getCache(cacheKey);
+    if (!cachedData) {
+      logCache(`No cache found for key ${cacheKey}, cannot update playlist`);
+      return;
+    }
+
+    // Find and update the playlist in all groups
+    let updated = false;
+    for (const group in cachedData) {
+      if (Array.isArray(cachedData[group])) {
+        const index = cachedData[group].findIndex(
+          p => p.id === playlistId || p.firebaseId === playlistId
+        );
+        if (index !== -1) {
+          cachedData[group][index] = {
+            ...cachedData[group][index],
+            ...playlistData,
+            id: playlistData.id || cachedData[group][index].id,
+            firebaseId: playlistData.firebaseId || cachedData[group][index].firebaseId
+          };
+          // Re-sort by priority if priority changed
+          if (playlistData.priority !== undefined) {
+            cachedData[group].sort((a, b) => a.priority - b.priority);
+          }
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      await setCache(cacheKey, cachedData);
+      logCache(`Updated playlist ${playlistId} in cache`);
+    } else {
+      logCache(`Playlist ${playlistId} not found in cache for update`);
+    }
+  } catch (error) {
+    logCache('Error updating playlist in cache:', error);
+  }
+}
+
+/**
+ * Remove a specific playlist from the cache by Firebase ID
+ * @param {string} cacheKey - The cache key (e.g., 'playlist_summaries_userId')
+ * @param {string} firebaseId - The Firebase document ID of the playlist to remove
+ */
+export async function removePlaylistFromCache(cacheKey, firebaseId) {
+  try {
+    const cachedData = getCache(cacheKey);
+    if (!cachedData) {
+      logCache(`No cache found for key ${cacheKey}, cannot remove playlist`);
+      return;
+    }
+
+    // Find and remove the playlist from all groups
+    let removed = false;
+    for (const group in cachedData) {
+      if (Array.isArray(cachedData[group])) {
+        const initialLength = cachedData[group].length;
+        cachedData[group] = cachedData[group].filter(p => p.firebaseId !== firebaseId);
+        if (cachedData[group].length < initialLength) {
+          removed = true;
+        }
+      }
+    }
+
+    if (removed) {
+      await setCache(cacheKey, cachedData);
+      logCache(`Removed playlist ${firebaseId} from cache`);
+    } else {
+      logCache(`Playlist ${firebaseId} not found in cache for removal`);
+    }
+  } catch (error) {
+    logCache('Error removing playlist from cache:', error);
+  }
+}
+
+/**
  * Get information about current cache usage
  */
 export function getCacheInfo() {

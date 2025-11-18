@@ -40,6 +40,7 @@ interface Playlist {
   category: 'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful';
   priority: number;    // Arbitrary number for flexible ordering (e.g. 10, 20, 25)
   userId: string;      // Reference to the user's document ID
+  deletedAt: timestamp | null;  // Timestamp when playlist was soft deleted (null = active)
   createdAt: timestamp;
   updatedAt: timestamp;
 }
@@ -65,13 +66,16 @@ interface Playlist {
 - `category`: The rating category of the playlist
 - `priority`: Arbitrary number used for flexible ordering within categories
 - `userId`: Reference to the user who owns this playlist
+- `deletedAt`: Timestamp when the playlist was soft deleted (null indicates the playlist is active)
 - `createdAt`: Timestamp when the playlist was created
 - `updatedAt`: Timestamp when the playlist was last updated
 
 ### Notes
 - The `priority` field can be any number, allowing for flexible ordering (e.g. 10, 20, 25)
 - Playlist metadata (name, images, etc.) is fetched from Spotify API on demand
-- Composite index required on `userId`, `type`, and `category` for efficient querying
+- Composite index required on `userId`, `deletedAt`, and `priority` for efficient querying of active playlists
+- `deletedAt` is `null` for active playlists, set to a timestamp when soft deleted
+- Soft deleted playlists are filtered out of all queries automatically
 
 ## Albums Collection
 

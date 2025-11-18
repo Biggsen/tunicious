@@ -144,6 +144,12 @@ async function loadAvailablePlaylists() {
     const allPlaylists = [];
     querySnapshot.forEach((doc) => {
       const playlistData = doc.data();
+      
+      // Skip deleted playlists
+      if (playlistData.deletedAt != null) {
+        return;
+      }
+      
       allPlaylists.push({
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID

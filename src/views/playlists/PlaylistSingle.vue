@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
+import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import BackButton from '@components/common/BackButton.vue';
@@ -25,6 +26,7 @@ import { logPlaylist } from '@utils/logger';
 
 const route = useRoute();
 const { user, userData } = useUserData();
+const { refreshSpecificPlaylists } = usePlaylistUpdates();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
@@ -691,7 +693,10 @@ async function getPlaylistDocument() {
   if (!user.value) return null;
   
   const playlistsRef = collection(db, 'playlists');
-  const q = query(playlistsRef, where('playlistId', '==', id.value));
+  const q = query(
+    playlistsRef, 
+    where('playlistId', '==', id.value)
+  );
   const querySnapshot = await getDocs(q);
   
   if (querySnapshot.empty) {
@@ -699,7 +704,18 @@ async function getPlaylistDocument() {
     return null;
   }
   
-  return querySnapshot.docs[0];
+  // Filter out deleted playlists
+  const activePlaylists = querySnapshot.docs.filter(doc => {
+    const data = doc.data();
+    return data.deletedAt == null; // null or undefined both mean active
+  });
+  
+  if (activePlaylists.length === 0) {
+    logPlaylist('No active playlist document found');
+    return null;
+  }
+  
+  return activePlaylists[0];
 }
 
 async function updatePlaylistName() {
@@ -1010,16 +1026,27 @@ const handleProcessAlbum = async ({ album, action }) => {
     const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
     successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
     
-    // Clear cache and reload the playlist to reflect the changes
+    // Clear cache and reload the current playlist to reflect the changes
     await handleClearCache();
     
     // Update count of albums in database
     await countAlbumsInDatabase();
     
-    // Also clear the PlaylistView cache to update track counts
+    // Refresh only the affected playlists in PlaylistView cache (source and target)
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      await clearCache(playlistViewCacheKey);
+      
+      // Refresh both playlists from Spotify and update cache
+      await refreshSpecificPlaylists(
+        [id.value, targetSpotifyPlaylistId], // Source and target playlists
+        null, // No state to update here, just cache
+        playlistViewCacheKey
+      );
+      
+      // Dispatch custom event to notify PlaylistView if it's open
+      window.dispatchEvent(new CustomEvent('playlists-updated', {
+        detail: { playlistIds: [id.value, targetSpotifyPlaylistId] }
+      }));
     }
     
   } catch (err) {
