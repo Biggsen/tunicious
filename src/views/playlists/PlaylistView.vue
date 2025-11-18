@@ -6,8 +6,9 @@ import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
 import { useRoute, RouterLink } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
-import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/solid'
+import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
 import BaseButton from '@components/common/BaseButton.vue';
+import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import DropdownMenu from '@components/common/DropdownMenu.vue';
 import { logPlaylist } from '@utils/logger';
@@ -231,43 +232,37 @@ onMounted(async () => {
   <main class="pt-6">
     <div class="flex items-center justify-between pb-4">
       <h1 class="h2">Playlists</h1>
-      <DropdownMenu aria-label="Playlist actions">
-        <RouterLink
-          to="/playlist/add"
-          class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
-          role="menuitem"
-        >
-          <div class="flex items-center gap-2">
-            <PlusIcon class="h-4 w-4" />
-            <span>Add playlist</span>
-          </div>
-        </RouterLink>
-        <RouterLink
-          to="/playlist/management"
-          class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
-          role="menuitem"
-        >
-          <div class="flex items-center gap-2">
-            <PlusIcon class="h-4 w-4" />
-            <span>Playlist Management</span>
-          </div>
-        </RouterLink>
-      </DropdownMenu>
+      <div class="flex items-center gap-4">
+        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit">
+          <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
+        </BaseButton>
+        <DropdownMenu aria-label="Playlist actions">
+          <RouterLink
+            to="/playlist/add"
+            class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <PlusIcon class="h-4 w-4" />
+              <span>Add playlist</span>
+            </div>
+          </RouterLink>
+          <RouterLink
+            to="/playlist/management"
+            class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <PlusIcon class="h-4 w-4" />
+              <span>Playlist Management</span>
+            </div>
+          </RouterLink>
+        </DropdownMenu>
+      </div>
     </div>
-    <div class="flex gap-4 mb-6">
-      <BaseButton variant="secondary" @click.prevent="handleClearCache">
-        <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
-        Reload
-      </BaseButton>
-      <BaseButton variant="secondary" @click="showEndPlaylists = !showEndPlaylists">
-        <template #icon-left>
-          <EyeSlashIcon v-if="showEndPlaylists" class="h-5 w-5" />
-          <EyeIcon v-else class="h-5 w-5" />
-        </template>
-        <span v-if="showEndPlaylists">Hide</span>
-        <span v-else>Show</span>
-        end playlists
-      </BaseButton>
+    <div class="flex items-center gap-3 mb-6">
+      <ToggleSwitch v-model="showEndPlaylists" variant="primary-on-celadon" />
+      <span class="text-delft-blue">Rating Playlists</span>
     </div>
 
     <p v-if="cacheCleared" class="mb-4 text-green-500">
@@ -278,17 +273,17 @@ onMounted(async () => {
     <ErrorMessage v-else-if="error" :message="error" />
     <div v-else-if="allPlaylistsLoaded && availableGroups.length > 0">
       <!-- Tab Navigation -->
-      <div class="mb-6 border-b border-gray-600">
-        <nav class="-mb-px flex space-x-8">
+      <div>
+        <nav class="-mb-px flex space-x-2 ml-[20px]">
           <button
             v-for="group in availableGroups"
             :key="group"
             @click="activeTab = group"
             :class="[
-              'py-3 px-4 border-b-2 font-semibold text-sm capitalize rounded-t-lg transition-all duration-200',
+              'py-3 px-4 font-semibold text-base capitalize rounded-t-lg transition-all duration-200',
               activeTab === group
-                ? 'border-delft-blue text-delft-blue bg-white shadow-sm'
-                : 'border-transparent text-gray-600 hover:text-delft-blue hover:border-gray-300 hover:bg-gray-50'
+                ? 'text-delft-blue bg-mint'
+                : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
             ]"
           >
             {{ group }} ({{ filteredPlaylists[group]?.length || 0 }})
@@ -297,7 +292,7 @@ onMounted(async () => {
       </div>
 
       <!-- Tab Content -->
-      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4">
+      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl">
         <PlaylistItem 
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
