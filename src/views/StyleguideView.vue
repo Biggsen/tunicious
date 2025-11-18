@@ -90,19 +90,38 @@ import BaseButton from '@components/common/BaseButton.vue';
       <h2 class="text-2xl font-bold text-delft-blue mb-6">Buttons</h2>
       <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-6">
         <div>
-          <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button</h3>
-          <div class="flex flex-wrap gap-4">
-            <BaseButton>Default Button</BaseButton>
-            <BaseButton :disabled="true">Disabled</BaseButton>
-            <BaseButton :loading="true">Loading</BaseButton>
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Base Button Variants</h3>
+          
+          <div class="mb-6">
+            <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
+            <div class="flex flex-wrap gap-4">
+              <BaseButton>Default</BaseButton>
+              <BaseButton :disabled="true">Disabled</BaseButton>
+              <BaseButton :loading="true">Loading</BaseButton>
+            </div>
+          </div>
+          
+          <div class="mb-6">
+            <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
+            <div class="flex flex-wrap gap-4">
+              <BaseButton variant="primary">Primary</BaseButton>
+              <BaseButton variant="primary" :disabled="true">Disabled</BaseButton>
+              <BaseButton variant="primary" :loading="true">Loading</BaseButton>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+            <div class="flex flex-wrap gap-4">
+              <BaseButton variant="secondary">Secondary</BaseButton>
+              <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
+              <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+            </div>
           </div>
         </div>
         <div>
           <h3 class="text-lg font-semibold text-delft-blue mb-4">Custom Styled Buttons</h3>
           <div class="flex flex-wrap gap-4">
-            <button class="px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
-              Mint Button
-            </button>
             <button class="px-4 py-2 bg-mindero text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium">
               Mindero Button
             </button>
@@ -111,6 +130,9 @@ import BaseButton from '@components/common/BaseButton.vue';
             </button>
             <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
               Outlined Button
+            </button>
+            <button class="px-4 py-2 bg-delft-blue text-mindero rounded-lg hover:bg-delft-blue/90 transition-colors font-medium">
+              Delft Blue Button
             </button>
           </div>
         </div>

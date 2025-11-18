@@ -3,8 +3,9 @@
     :type="type"
     :disabled="disabled || loading"
     :class="[
-      'inline-flex items-center gap-2 px-4 py-2 rounded transition-colors duration-200 font-semibold',
-      'bg-blue-500 text-white hover:bg-blue-600',
+      'inline-flex items-center gap-2 px-4 rounded-lg transition-colors duration-200 font-medium',
+      variantPadding,
+      variantClasses,
       'disabled:opacity-50 disabled:cursor-not-allowed',
       customClass
     ]"
@@ -18,12 +19,32 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
   type: { type: String, default: 'button' },
   disabled: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
-  customClass: { type: String, default: '' }
+  customClass: { type: String, default: '' },
+  variant: { type: String, default: 'default' }
 });
 
 defineEmits(['click']);
+
+const variantPadding = computed(() => {
+  // Secondary has border, so reduce padding to match height
+  return props.variant === 'secondary' ? 'py-1.5' : 'py-2';
+});
+
+const variantClasses = computed(() => {
+  switch (props.variant) {
+    case 'primary':
+      return 'bg-delft-blue text-mindero hover:bg-raspberry';
+    case 'secondary':
+      return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white border-2 border-delft-blue';
+    case 'default':
+    default:
+      return 'bg-blue-500 text-white hover:bg-blue-600';
+  }
+});
 </script> 
