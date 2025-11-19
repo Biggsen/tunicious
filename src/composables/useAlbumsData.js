@@ -9,12 +9,10 @@ import { setCache, getCache } from "@utils/cache";
 import { logAlbum } from '@utils/logger';
 
 /**
- * @typedef {'queued' | 'curious' | 'interested' | 'great' | 'excellent' | 'wonderful'} PlaylistCategory
  * @typedef {'known' | 'new'} PlaylistType
  * 
  * @typedef {Object} PlaylistHistoryEntry
  * @property {string} playlistId
- * @property {PlaylistCategory} category
  * @property {PlaylistType} type
  * @property {number} priority
  * @property {Date} addedAt
@@ -104,7 +102,7 @@ export function useAlbumsData() {
   /**
    * Gets the current playlist information for an album
    * @param {string} albumId - The Spotify album ID
-   * @returns {Promise<{category: PlaylistCategory, type: PlaylistType, playlistId: string, playlistName: string} | null>}
+   * @returns {Promise<{type: PlaylistType, playlistId: string, playlistName: string} | null>}
    */
   const getCurrentPlaylistInfo = async (albumId) => {
     logAlbum('Getting current playlist info for album:', albumId);
@@ -363,7 +361,6 @@ export function useAlbumsData() {
       const newEntry = {
         playlistId: _playlistData.playlistId,
         playlistName: _playlistData.name,
-        category: _playlistData.category, // Keep for backward compatibility
         pipelineRole: _playlistData.pipelineRole || 'transient',
         type: entryType,
         priority: _playlistData.priority,
@@ -543,9 +540,9 @@ export function useAlbumsData() {
   };
 
   /**
-   * Gets the rating data (priority, category, type, playlistId) for the current playlist entry of an album
+   * Gets the rating data (priority, type, playlistId) for the current playlist entry of an album
    * @param {string} albumId - The Spotify album ID
-   * @returns {Promise<{priority: number, category: string, type: string, playlistId: string} | null>}
+   * @returns {Promise<{priority: number, type: string, playlistId: string} | null>}
    */
   const getAlbumRatingData = async (albumId) => {
     const data = await fetchUserAlbumData(albumId);
@@ -553,8 +550,8 @@ export function useAlbumsData() {
     const currentEntry = data.playlistHistory.find(entry => !entry.removedAt);
     if (!currentEntry) return null;
     // Only return the relevant fields
-    const { priority, category, type, playlistId } = currentEntry;
-    return { priority, category, type, playlistId };
+    const { priority, type, playlistId } = currentEntry;
+    return { priority, type, playlistId };
   };
 
   /**

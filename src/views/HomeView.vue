@@ -60,10 +60,6 @@ const user = useCurrentUser();
               <span class="text-delft-blue/70">This Month</span>
               <span class="font-medium text-delft-blue">Coming soon</span>
             </div>
-            <div class="flex justify-between items-center">
-              <span class="text-delft-blue/70">Favorite Category</span>
-              <span class="font-medium text-delft-blue">Coming soon</span>
-            </div>
           </div>
         </div>
 
