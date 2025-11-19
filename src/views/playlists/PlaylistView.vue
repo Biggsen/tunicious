@@ -122,11 +122,8 @@ async function loadPlaylists() {
   cacheCleared.value = false;
 
   logPlaylist('loadPlaylists called');
-  console.log('[DEBUG] loadPlaylists called');
   logPlaylist('availableGroups:', availableGroups.value);
-  console.log('[DEBUG] availableGroups:', availableGroups.value);
   logPlaylist('userPlaylists:', userPlaylists.value);
-  console.log('[DEBUG] userPlaylists:', userPlaylists.value);
 
   const cachedPlaylists = await getCache(cacheKey.value);
 
@@ -139,23 +136,19 @@ async function loadPlaylists() {
 
     try {
       logPlaylist('Starting loadPlaylists, availableGroups:', availableGroups.value);
-      console.log('[DEBUG] Starting loadPlaylists, availableGroups:', availableGroups.value);
       logPlaylist('userPlaylists data:', userPlaylists.value);
-      console.log('[DEBUG] userPlaylists data:', userPlaylists.value);
       
       const playlistSummaries = {};
       
       // Load all playlists for each group
       for (const group of availableGroups.value) {
         logPlaylist(`Loading ${group} playlists...`);
-        console.log(`[DEBUG] Loading ${group} playlists...`);
         
         // Collect all playlists for this group
         const allPlaylistsForGroup = [];
         const groupPlaylists = userPlaylists.value[group] || [];
         
         logPlaylist(`Group ${group} has ${groupPlaylists.length} playlists from userPlaylists`);
-        console.log(`[DEBUG] Group ${group} has ${groupPlaylists.length} playlists from userPlaylists`);
         
         for (const playlistData of groupPlaylists) {
         if (!playlistData?.playlistId) {

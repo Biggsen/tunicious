@@ -78,12 +78,9 @@ export function usePlaylistData() {
       );
 
       logPlaylist('Fetching playlists for user:', userId);
-      console.log('[DEBUG] Fetching playlists for user:', userId);
       const querySnapshot = await getDocs(q);
       logPlaylist('Query snapshot size:', querySnapshot.size);
-      console.log('[DEBUG] Query snapshot size:', querySnapshot.size);
       logPlaylist('Query snapshot docs:', querySnapshot.docs.map(d => ({ id: d.id, data: d.data() })));
-      console.log('[DEBUG] Query snapshot docs:', querySnapshot.docs.map(d => ({ id: d.id, data: d.data() })));
       
       const grouped = {};
       let skippedCount = 0;
@@ -99,13 +96,11 @@ export function usePlaylistData() {
           hasDeletedAt: 'deletedAt' in playlist
         };
         logPlaylist('Processing playlist:', playlistInfo);
-        console.log('[DEBUG] Processing playlist:', playlistInfo);
         
         // Skip if deleted (deletedAt exists and is not null)
         // Existing playlists without deletedAt field are considered active
         if (playlist.deletedAt != null) {
           logPlaylist('Skipping deleted playlist:', playlist.name, 'deletedAt:', playlist.deletedAt);
-          console.log('[DEBUG] Skipping deleted playlist:', playlist.name, 'deletedAt:', playlist.deletedAt);
           skippedCount++;
           return;
         }
@@ -137,9 +132,7 @@ export function usePlaylistData() {
       });
 
       logPlaylist('Final grouped playlists:', grouped);
-      console.log('[DEBUG] Final grouped playlists:', grouped);
       logPlaylist(`Summary: ${processedCount} processed, ${skippedCount} skipped, ${Object.keys(grouped).length} groups`);
-      console.log(`[DEBUG] Summary: ${processedCount} processed, ${skippedCount} skipped, ${Object.keys(grouped).length} groups`);
       playlists.value = grouped;
     } catch (e) {
       logPlaylist('Error fetching playlists:', e);
