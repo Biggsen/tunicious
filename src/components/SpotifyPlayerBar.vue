@@ -4,7 +4,7 @@ import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { getCachedLovedTracks } from '@utils/lastFmUtils';
-import { clearCache, setCache } from '@utils/cache';
+import { clearCache, setCache, getCache } from '@utils/cache';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 
@@ -21,6 +21,7 @@ const { userData } = useUserData();
 const { loveTrack, unloveTrack } = useLastFmApi();
 const lovedTracks = ref([]);
 const isLoving = ref(false);
+const albumInfo = ref({ name: null, year: null });
 
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
@@ -207,6 +208,75 @@ watch(() => userData.value?.lastFmUserName, async (newUserName) => {
     lovedTracks.value = [];
   }
 });
+
+// Helper function to find album in cache by name and artist
+const findAlbumInCache = (albumName, artistName) => {
+  if (!albumName || !artistName) return null;
+  
+  const normalizedAlbumName = albumName.toLowerCase().trim();
+  const normalizedArtistName = artistName.toLowerCase().trim();
+  
+  try {
+    // Collect only albumRootData_ keys
+    const albumKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('albumRootData_')) {
+        albumKeys.push(key);
+      }
+    }
+    
+    // Search through album cache entries
+    for (const key of albumKeys) {
+      try {
+        const item = localStorage.getItem(key);
+        if (!item) continue;
+        
+        const parsed = JSON.parse(item);
+        if (!parsed.data) continue;
+        
+        const cachedAlbum = parsed.data;
+        const cachedAlbumName = (cachedAlbum.albumTitle || '').toLowerCase().trim();
+        const cachedArtistName = (cachedAlbum.artistName || '').toLowerCase().trim();
+        
+        if (cachedAlbumName === normalizedAlbumName && 
+            cachedArtistName === normalizedArtistName) {
+          return {
+            name: cachedAlbum.albumTitle || albumName,
+            year: cachedAlbum.releaseYear ? String(cachedAlbum.releaseYear) : null
+          };
+        }
+      } catch (parseError) {
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('Error searching cache:', error);
+  }
+  
+  return null;
+};
+
+// Fetch album info when track changes
+const fetchAlbumInfo = () => {
+  if (!currentTrack.value) {
+    albumInfo.value = { name: null, year: null };
+    return;
+  }
+
+  const albumName = currentTrack.value.album;
+  const artistName = currentTrack.value.artists?.[0];
+  
+  if (albumName && artistName) {
+    const found = findAlbumInCache(albumName, artistName);
+    albumInfo.value = found || { name: albumName, year: null };
+  } else {
+    albumInfo.value = { name: albumName || null, year: null };
+  }
+};
+
+// Watch for track changes
+watch(() => currentTrack.value?.id, fetchAlbumInfo, { immediate: true });
 </script>
 
 <template>
@@ -229,6 +299,9 @@ watch(() => userData.value?.lastFmUserName, async (newUserName) => {
           <h3 class="font-semibold truncate">{{ currentTrack?.name }}</h3>
           <p class="text-sm text-gray-300 truncate">
             {{ currentTrack?.artists?.join(', ') }}
+          </p>
+          <p v-if="albumInfo.year || albumInfo.name" class="text-xs text-gray-400 truncate">
+            {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
           </p>
         </div>
         
