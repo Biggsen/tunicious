@@ -1053,9 +1053,69 @@ const handlePlaylistAlbumsUpdated = async (event) => {
   }
 };
 
+// Listen for track loved/unloved from player
+const handleTrackLovedFromPlayer = async (event) => {
+  const { track } = event.detail;
+  if (!track || !userData.value?.lastFmUserName) return;
+  
+  // Find the album that contains this track
+  const album = albumData.value.find(alb => {
+    const tracks = albumTracks.value[alb.id] || [];
+    return tracks.some(t => 
+      t.name.toLowerCase() === track.name.toLowerCase() &&
+      t.artists?.some(a => a.name.toLowerCase() === track.artists[0]?.name?.toLowerCase())
+    );
+  });
+  
+  if (album) {
+    // Use the existing handler which will update lovedTracks and recalculate percentages
+    await handleTrackLoved({ album, track });
+  } else {
+    // If album not found, just update lovedTracks directly
+    const lovedTrack = {
+      name: track.name,
+      artist: { name: track.artists[0].name },
+      date: { uts: Math.floor(Date.now() / 1000).toString() }
+    };
+    lovedTracks.value = [...lovedTracks.value, lovedTrack];
+    const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+    await setCache(cacheKey, lovedTracks.value);
+  }
+};
+
+const handleTrackUnlovedFromPlayer = async (event) => {
+  const { track } = event.detail;
+  if (!track || !userData.value?.lastFmUserName) return;
+  
+  // Find the album that contains this track
+  const album = albumData.value.find(alb => {
+    const tracks = albumTracks.value[alb.id] || [];
+    return tracks.some(t => 
+      t.name.toLowerCase() === track.name.toLowerCase() &&
+      t.artists?.some(a => a.name.toLowerCase() === track.artists[0]?.name?.toLowerCase())
+    );
+  });
+  
+  if (album) {
+    // Use the existing handler which will update lovedTracks and recalculate percentages
+    await handleTrackUnloved({ album, track });
+  } else {
+    // If album not found, just update lovedTracks directly
+    lovedTracks.value = lovedTracks.value.filter(lovedTrack => {
+      const trackNameMatch = lovedTrack.name?.toLowerCase() === track.name.toLowerCase();
+      const artistMatch = lovedTrack.artist?.name?.toLowerCase() === track.artists[0]?.name?.toLowerCase();
+      return !(trackNameMatch && artistMatch);
+    });
+    const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+    await setCache(cacheKey, lovedTracks.value);
+  }
+};
+
 onMounted(async () => {
   document.addEventListener('click', handleSortDropdownClickOutside);
   window.addEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
+  window.addEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
+  window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   
   try {
     await loadPlaylistPage();
@@ -1083,6 +1143,8 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('click', handleSortDropdownClickOutside);
   window.removeEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
+  window.removeEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
+  window.removeEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   // Stop polling for current playing track when component is unmounted
   stopCurrentTrackPolling();
 });
