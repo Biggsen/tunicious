@@ -146,7 +146,7 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       alert('You must be logged in to access this page');
-      next('/login');
+      next({ path: '/login', query: { redirect: to.fullPath } });
     }
   } else {
     next();
