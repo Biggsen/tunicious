@@ -1707,7 +1707,7 @@ const handleUpdateYear = async (mismatch) => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <BackButton to="/playlists" text="Back" />
+      <BackButton text="Back" />
     </div>
 
     <div class="flex items-center justify-between">
