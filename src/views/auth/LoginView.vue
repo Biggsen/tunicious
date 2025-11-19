@@ -1,7 +1,9 @@
 <script setup>
+import { watch } from "vue";
 import { useForm } from "@composables/useForm";
 import { useAuth } from "@composables/useAuth";
 import { useCurrentUser } from "vuefire";
+import { useRoute, useRouter } from "vue-router";
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
@@ -12,10 +14,24 @@ const { form, isSubmitting, error: formError, success, handleSubmit } = useForm(
 
 const { loading: authLoading, error: authError, login } = useAuth();
 const currentUser = useCurrentUser();
+const route = useRoute();
+const router = useRouter();
 
 const onSubmit = async (formData) => {
   await login(formData.email, formData.password);
+  
+  // Redirect after successful login
+  const redirectTo = route.query.redirect || '/';
+  router.push(redirectTo);
 };
+
+// Redirect already logged-in users to homepage
+watch(currentUser, (user) => {
+  if (user?.email) {
+    const redirectTo = route.query.redirect || '/';
+    router.push(redirectTo);
+  }
+}, { immediate: true });
 </script>
 
 <template>

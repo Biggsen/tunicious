@@ -13,7 +13,7 @@ import DropdownMenu from '@components/common/DropdownMenu.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
-import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/vue/24/solid'
+import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon } from '@heroicons/vue/24/solid'
 import { MusicalNoteIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
@@ -1734,7 +1734,7 @@ const handleUpdateYear = async (mismatch) => {
 <template>
   <main class="pt-6">
     <div class="mb-6">
-      <BackButton to="/playlists" text="Back" />
+      <BackButton text="Back" />
     </div>
 
     <div class="flex items-center justify-between">
@@ -1748,9 +1748,7 @@ const handleUpdateYear = async (mismatch) => {
           title="Refresh loved tracks and playcounts with Last.fm"
         >
           <template #icon-left>
-            <svg class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-            </svg>
+            <HeartIcon class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" />
           </template>
           {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh' }}
         </BaseButton>
@@ -2286,6 +2284,12 @@ const handleUpdateYear = async (mismatch) => {
   grid-template-columns: repeat(4, minmax(150px, 304px));
   gap: 1rem;
   justify-content: center;
+}
+
+@media (min-width: 1536px) {
+  .album-grid {
+    grid-template-columns: repeat(5, minmax(150px, 304px));
+  }
 }
 
 @media (max-width: 639px) {

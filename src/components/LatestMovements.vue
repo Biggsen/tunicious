@@ -32,6 +32,24 @@ const navigateToAlbum = (movement) => {
   });
 };
 
+const navigateToArtist = (movement) => {
+  if (movement.artistId) {
+    router.push({ 
+      name: 'artist', 
+      params: { id: movement.artistId }
+    });
+  }
+};
+
+const navigateToPlaylist = (playlistId) => {
+  if (playlistId) {
+    router.push({ 
+      name: 'playlistSingle', 
+      params: { id: playlistId }
+    });
+  }
+};
+
 const getRoleColor = (pipelineRole) => {
   const colors = {
     'source': 'bg-gray-800 text-white',
@@ -117,7 +135,7 @@ const fallbackImage = '/placeholder.png';
                   by 
                   <span 
                     class="cursor-pointer hover:underline"
-                    @click="navigateToAlbum(movement)"
+                    @click="navigateToArtist(movement)"
                   >
                     {{ movement.artistName }}
                   </span>
@@ -136,7 +154,19 @@ const fallbackImage = '/placeholder.png';
             <div class="mt-2 flex items-center gap-2 text-sm">
               <!-- Show badges for moved albums, text for added albums -->
               <div v-if="movement.movementType === 'moved' && movement.fromPlaylist" class="flex items-center gap-2">
+                <button
+                  v-if="movement.fromPlaylistId"
+                  @click.stop="navigateToPlaylist(movement.fromPlaylistId)"
+                  :class="[
+                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
+                    movement.fromPipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.fromPipelineRole)
+                  ]"
+                >
+                  {{ movement.fromPlaylist }}
+                </button>
                 <span
+                  v-else
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
                     movement.fromPipelineRole === 'sink' ? 'rounded' : 'rounded-full',
@@ -146,7 +176,19 @@ const fallbackImage = '/placeholder.png';
                   {{ movement.fromPlaylist }}
                 </span>
                 <ArrowRightIcon class="h-3 w-3 text-delft-blue/50" />
+                <button
+                  v-if="movement.toPlaylistId"
+                  @click.stop="navigateToPlaylist(movement.toPlaylistId)"
+                  :class="[
+                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
+                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.pipelineRole)
+                  ]"
+                >
+                  {{ movement.toPlaylist }}
+                </button>
                 <span
+                  v-else
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
                     movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
@@ -157,7 +199,19 @@ const fallbackImage = '/placeholder.png';
                 </span>
               </div>
               <div v-else-if="movement.movementType === 'moved'" class="flex items-center gap-2">
+                <button
+                  v-if="movement.toPlaylistId"
+                  @click.stop="navigateToPlaylist(movement.toPlaylistId)"
+                  :class="[
+                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
+                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
+                    getRoleColor(movement.pipelineRole)
+                  ]"
+                >
+                  {{ movement.toPlaylist }}
+                </button>
                 <span
+                  v-else
                   :class="[
                     'inline-flex items-center px-2 py-1 text-xs font-medium',
                     movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
