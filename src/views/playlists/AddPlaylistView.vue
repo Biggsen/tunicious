@@ -267,18 +267,19 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useUserData } from '@composables/useUserData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useForm } from '@composables/useForm';
+import { getCache, setCache } from '@utils/cache';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import { logPlaylist } from '@utils/logger';
 
 const { user, userData, loading: userLoading, error: userError } = useUserData();
-const { getUserPlaylists, isAudioFoodiePlaylist } = useUserSpotifyApi();
+const { getUserPlaylists, isAudioFoodiePlaylist, getPlaylist } = useUserSpotifyApi();
 
 // Initialize form with all required fields
 const initialFormData = {
@@ -404,12 +405,59 @@ const onSubmit = async (formData) => {
     throw new Error('Please fill in all required fields');
   }
 
-  await addDoc(collection(db, 'playlists'), {
+  // Add playlist to Firestore and get the document reference
+  const docRef = await addDoc(collection(db, 'playlists'), {
     ...formData,
     userId: user.value.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+
+  // Update PlaylistView cache with the new playlist
+  if (user.value) {
+    try {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      const currentCacheState = await getCache(playlistViewCacheKey) || {};
+      
+      // Fetch playlist from Spotify to get track count and images
+      const spotifyPlaylist = await getPlaylist(formData.playlistId);
+      
+      // Get the Firebase document to get full data
+      const playlistDoc = await getDoc(docRef);
+      const playlistData = playlistDoc.data();
+      
+      // Create playlist object for cache
+      const newPlaylist = {
+        id: spotifyPlaylist.id,
+        firebaseId: docRef.id,
+        name: spotifyPlaylist.name,
+        images: spotifyPlaylist.images,
+        tracks: { total: spotifyPlaylist.tracks.total },
+        priority: playlistData.priority || 0,
+        pipelineRole: playlistData.pipelineRole || 'transient'
+      };
+      
+      // Add to cache state
+      const group = playlistData.group || playlistData.type || 'unknown';
+      if (!currentCacheState[group]) {
+        currentCacheState[group] = [];
+      }
+      currentCacheState[group].push(newPlaylist);
+      currentCacheState[group].sort((a, b) => a.priority - b.priority);
+      
+      // Save updated cache
+      await setCache(playlistViewCacheKey, currentCacheState);
+      logPlaylist(`Added new playlist ${formData.playlistId} to cache (group: ${group})`);
+      
+      // Dispatch event to notify PlaylistView
+      window.dispatchEvent(new CustomEvent('playlists-updated', {
+        detail: { playlistIds: [formData.playlistId] }
+      }));
+    } catch (cacheError) {
+      logPlaylist('Error updating cache after adding playlist:', cacheError);
+      // Don't throw - playlist was added successfully, cache update is secondary
+    }
+  }
 
   // Reset form after successful submission
   form.playlistId = '';
