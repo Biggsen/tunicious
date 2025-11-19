@@ -400,12 +400,17 @@ export function useSpotifyPlayer() {
 
   /**
    * Disconnect the player (only when last component unmounts)
+   * Note: App.vue and SpotifyPlayerBar are always mounted, so we should
+   * never disconnect during normal navigation - only decrement the count.
    */
   const disconnect = async () => {
+    // Decrement count first
     componentCount--;
     
-    // Only disconnect when the last component using the player unmounts
+    // Only disconnect if we're truly the last component (shouldn't happen during navigation)
+    // App.vue and SpotifyPlayerBar should always keep count >= 2
     if (componentCount <= 0 && player.value) {
+      logPlayer('Disconnecting player - componentCount reached 0');
       try {
         await player.value.disconnect();
       } catch (err) {
@@ -419,6 +424,8 @@ export function useSpotifyPlayer() {
       currentTrack.value = null;
       player.value._connected = false;
       componentCount = 0;
+    } else {
+      logPlayer(`Component unmounting, componentCount now: ${componentCount} (player stays connected)`);
     }
   };
 

@@ -227,23 +227,23 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
               {{ album.releaseYear || displayYear(album.release_date) }}
             </p>
-            <a
+            <router-link
               class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-              :href="router.resolve({ 
+              :to="{ 
                 name: 'album', 
                 params: { id: album.id },
                 query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
-              }).href"
+              }"
             >
               {{ album.name || album.albumTitle || 'Unknown Album' }}
-            </a>
-            <a
+            </router-link>
+            <router-link
               v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
               class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-              :href="router.resolve({ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }).href"
+              :to="{ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }"
             >
               {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
-            </a>
+            </router-link>
             <span
               v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
               class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
