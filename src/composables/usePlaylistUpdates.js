@@ -40,6 +40,46 @@ export function usePlaylistUpdates() {
         }
       }
       
+      logPlaylist(`Found ${playlistsToRefresh.length} playlists in userPlaylists.value (looking for ${spotifyPlaylistIds.length})`);
+      
+      // If not all playlists found in userPlaylists, also check the cache state
+      if (playlistsToRefresh.length < spotifyPlaylistIds.length && currentPlaylistsState) {
+        const missingIds = spotifyPlaylistIds.filter(id => !playlistsToRefresh.find(p => p.playlistId === id));
+        logPlaylist(`Not all playlists found in userPlaylists.value. Checking cache state for:`, missingIds);
+        
+        // Search for missing playlists in cache state
+        for (const group of Object.keys(currentPlaylistsState)) {
+          const groupPlaylists = currentPlaylistsState[group] || [];
+          for (const cachedPlaylist of groupPlaylists) {
+            if (missingIds.includes(cachedPlaylist.id)) {
+              // Try to find Firebase data for this playlist
+              let firebaseData = null;
+              for (const fbGroup of Object.keys(userPlaylists.value)) {
+                const fbPlaylists = userPlaylists.value[fbGroup] || [];
+                firebaseData = fbPlaylists.find(p => p.playlistId === cachedPlaylist.id);
+                if (firebaseData) break;
+              }
+              
+              // Use Firebase data if found, otherwise use cache data
+              playlistsToRefresh.push({
+                playlistId: cachedPlaylist.id,
+                firebaseId: firebaseData?.firebaseId || cachedPlaylist.firebaseId,
+                priority: firebaseData?.priority || cachedPlaylist.priority || 0,
+                pipelineRole: firebaseData?.pipelineRole || cachedPlaylist.pipelineRole || 'transient',
+                group: group
+              });
+              
+              logPlaylist(`Found playlist ${cachedPlaylist.id} in cache state (group: ${group})`);
+            }
+          }
+        }
+        
+        const stillMissing = spotifyPlaylistIds.filter(id => !playlistsToRefresh.find(p => p.playlistId === id));
+        if (stillMissing.length > 0) {
+          logPlaylist(`WARNING: Still missing playlists after checking cache:`, stillMissing);
+        }
+      }
+      
       // Refresh each playlist from Spotify
       for (const playlistData of playlistsToRefresh) {
         try {
@@ -65,8 +105,10 @@ export function usePlaylistUpdates() {
           );
           
           if (existingIndex !== -1) {
+            logPlaylist(`Updating existing playlist in state: ${playlistData.playlistId} (group: ${playlistData.group}, index: ${existingIndex})`);
             updatedState[playlistData.group][existingIndex] = updatedPlaylist;
           } else {
+            logPlaylist(`Adding new playlist to state: ${playlistData.playlistId} (group: ${playlistData.group})`);
             updatedState[playlistData.group].push(updatedPlaylist);
           }
           
@@ -87,6 +129,7 @@ export function usePlaylistUpdates() {
       logPlaylist('Error refreshing specific playlists:', error);
     }
 
+    logPlaylist(`Returning updated state with ${Object.keys(updatedState).length} groups`);
     return updatedState;
   };
 

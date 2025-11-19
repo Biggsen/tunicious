@@ -1043,8 +1043,19 @@ async function loadPlaylistPage() {
   }
 }
 
+// Listen for playlist album updates from other views
+const handlePlaylistAlbumsUpdated = async (event) => {
+  const { playlistId } = event.detail;
+  // If this is the playlist we're currently viewing, reload it
+  if (playlistId === id.value) {
+    logPlaylist(`Received playlist-albums-updated event for current playlist, reloading...`);
+    await loadPlaylistPage();
+  }
+};
+
 onMounted(async () => {
   document.addEventListener('click', handleSortDropdownClickOutside);
+  window.addEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
   
   try {
     await loadPlaylistPage();
@@ -1071,6 +1082,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleSortDropdownClickOutside);
+  window.removeEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
   // Stop polling for current playing track when component is unmounted
   stopCurrentTrackPolling();
 });
@@ -1227,16 +1239,69 @@ const handleProcessAlbum = async ({ album, action }) => {
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
       
+      // Get current cache state so we can properly update it
+      const currentCacheState = await getCache(playlistViewCacheKey) || {};
+      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`, 
+        Object.keys(currentCacheState).map(g => `${g}: ${currentCacheState[g]?.length || 0}`).join(', '));
+      
       // Refresh both playlists from Spotify and update cache
-      await refreshSpecificPlaylists(
+      const updatedState = await refreshSpecificPlaylists(
         [id.value, targetSpotifyPlaylistId], // Source and target playlists
-        null, // No state to update here, just cache
+        currentCacheState, // Pass cache state so it can be properly updated
         playlistViewCacheKey
       );
+      
+      // Explicitly save the updated state to ensure cache is persisted
+      if (updatedState && Object.keys(updatedState).length > 0) {
+        logPlaylist(`Saving updated state to cache with ${Object.keys(updatedState).length} groups`);
+        await setCache(playlistViewCacheKey, updatedState);
+        logPlaylist(`Cache saved successfully`);
+      } else {
+        logPlaylist(`WARNING: Updated state is empty, not saving to cache`);
+      }
       
       // Dispatch custom event to notify PlaylistView if it's open
       window.dispatchEvent(new CustomEvent('playlists-updated', {
         detail: { playlistIds: [id.value, targetSpotifyPlaylistId] }
+      }));
+      
+      // Update target playlist's album cache
+      const targetAlbumCacheKey = `playlist_${targetSpotifyPlaylistId}_albumsWithDates`;
+      const targetAlbumsCache = await getCache(targetAlbumCacheKey);
+      
+      if (targetAlbumsCache && Array.isArray(targetAlbumsCache)) {
+        // Check if album already exists in cache
+        const albumExists = targetAlbumsCache.some(a => a.id === album.id);
+        if (!albumExists) {
+          // Add album with current date
+          targetAlbumsCache.push({
+            id: album.id,
+            addedAt: new Date().toISOString()
+          });
+          await setCache(targetAlbumCacheKey, targetAlbumsCache);
+          logPlaylist(`Added album ${album.id} to target playlist cache`);
+        }
+      } else {
+        // Cache doesn't exist, fetch fresh data
+        const freshAlbums = await getPlaylistAlbumsWithDates(targetSpotifyPlaylistId);
+        await setCache(targetAlbumCacheKey, freshAlbums);
+        logPlaylist(`Fetched and cached fresh album list for target playlist`);
+      }
+      
+      // Clear page caches for target playlist (album list changed)
+      const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+      const directions = ['asc', 'desc'];
+      for (let page = 1; page <= 50; page++) {
+        for (const mode of sortModes) {
+          for (const dir of directions) {
+            await clearCache(`playlist_${targetSpotifyPlaylistId}_page_${page}_${mode}_${dir}`);
+          }
+        }
+      }
+      
+      // Dispatch event for target playlist if it's currently open
+      window.dispatchEvent(new CustomEvent('playlist-albums-updated', {
+        detail: { playlistId: targetSpotifyPlaylistId }
       }));
     }
     

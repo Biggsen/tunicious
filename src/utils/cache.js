@@ -192,6 +192,8 @@ export async function updatePlaylistInCache(cacheKey, playlistId, playlistData) 
       return;
     }
 
+    logCache(`Looking for playlist ${playlistId} in cache (groups: ${Object.keys(cachedData).join(', ')})`);
+    
     // Find and update the playlist in all groups
     let updated = false;
     for (const group in cachedData) {
@@ -200,6 +202,7 @@ export async function updatePlaylistInCache(cacheKey, playlistId, playlistData) 
           p => p.id === playlistId || p.firebaseId === playlistId
         );
         if (index !== -1) {
+          logCache(`Found playlist ${playlistId} in group ${group} at index ${index}`);
           cachedData[group][index] = {
             ...cachedData[group][index],
             ...playlistData,
