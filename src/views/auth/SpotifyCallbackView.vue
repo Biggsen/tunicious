@@ -44,11 +44,22 @@ onMounted(async () => {
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const state = urlParams.get('state');
     const error = urlParams.get('error');
 
     if (error) {
       throw new Error(`Spotify authorization failed: ${error}`);
     }
+
+    // Validate state parameter for CSRF protection
+    const storedState = sessionStorage.getItem('spotify_oauth_state');
+    if (!state || !storedState || state !== storedState) {
+      sessionStorage.removeItem('spotify_oauth_state');
+      throw new Error('Invalid state parameter - possible CSRF attack. Please try again.');
+    }
+
+    // Clear state from sessionStorage after validation
+    sessionStorage.removeItem('spotify_oauth_state');
 
     if (!code) {
       throw new Error('No authorization code received');
