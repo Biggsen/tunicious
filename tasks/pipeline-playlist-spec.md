@@ -1,5 +1,9 @@
 # Pipeline Playlist System Specification
 
+## **Status**: ✅ Implementation Complete
+
+The pipeline playlist refactor has been completed. All core functionality is implemented and old field references have been removed from the codebase.
+
 ## Overview
 
 This document specifies the new pipeline-based playlist system for AudioFoodie, which introduces flexible music evaluation pipelines with source, transient, terminal, and sink nodes.
@@ -25,18 +29,18 @@ This document specifies the new pipeline-based playlist system for AudioFoodie, 
 {
   "playlistId": "spotifyId123",
   "name": "Rock Checking",
-  "type": "rock",                      // Backward compatibility
-  "category": "checking",              // Backward compatibility - custom stage name
-  "group": "rock",                     // NEW: Flexible grouping (rock, jazz, 90s, etc.)
-  "pipelineRole": "transient",         // NEW: "source", "transient", "terminal", "sink"
-  "nextStagePlaylistId": "nicePlaylistId",     // NEW: Progressive connection
-  "terminationPlaylistId": "notCheckingId",    // NEW: Termination connection (transient only)
+  "group": "rock",                     // Flexible grouping (rock, jazz, 90s, etc.)
+  "pipelineRole": "transient",         // "source", "transient", "terminal", "sink"
+  "nextStagePlaylistId": "nicePlaylistId",     // Progressive connection
+  "terminationPlaylistId": "notCheckingId",    // Termination connection (transient only)
   "priority": 20,
   "userId": "user123",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
 ```
+
+**Note**: The `type` and `category` fields are no longer used in application code. They may still exist in the database for historical records but are not read or written by the application.
 
 ## Pipeline Roles
 
@@ -64,35 +68,47 @@ This document specifies the new pipeline-based playlist system for AudioFoodie, 
 - **Track Limit**: None (can accumulate)
 - **Example**: "Rock Not Checking"
 
+## Implementation Summary
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Add New Fields | ✅ Complete | All new pipeline fields implemented |
+| Phase 2: Migrate Existing Playlists | ✅ Complete | Manual migration completed |
+| Phase 3: Update UI and Logic | ✅ Core Complete | Enhancements documented separately |
+| Phase 4: Cleanup | ✅ Complete | All old field references removed |
+
+**Optional Enhancements**: See `tasks/enhancements/pipeline-enhancements.md` for track-based backpressure, pipeline visualization, and navigation UI improvements.
+
 ## Migration Strategy
 
 ### Phase 1: Add New Fields (Backward Compatible)
 **Goal**: Add new pipeline fields without breaking existing functionality
 
-**Tasks**:
-1. Update Firebase schema to include new fields
-2. Modify playlist creation/editing to populate new fields
-3. Ensure existing code continues to work with old fields
-4. Add validation for new field combinations
+**Status**: ✅ Complete
 
-**New Fields to Add**:
-- `group` (string)
+**Tasks**:
+1. ✅ Update Firebase schema to include new fields
+2. ✅ Modify playlist creation/editing to populate new fields
+3. ✅ Ensure existing code continues to work with old fields
+4. ✅ Add validation for new field combinations
+
+**New Fields Added**:
+- `group` (string) - Flexible grouping (rock, jazz, 90s, etc.)
 - `pipelineRole` (enum: "source", "transient", "terminal", "sink")
-- `nextStagePlaylistId` (string, optional)
-- `terminationPlaylistId` (string, optional)
+- `nextStagePlaylistId` (string, optional) - Progressive connection
+- `terminationPlaylistId` (string, optional) - Termination connection (transient only)
 
 ### Phase 2: Migrate Existing Playlists
 **Goal**: Convert existing playlists to new pipeline structure
 
+**Status**: ✅ Complete (manual migration)
+
 **Tasks**:
-1. Create migration script to update existing playlists
-2. Map current categories to new pipeline roles:
-   - `"queued"` → `pipelineRole: "source"`
-   - `"curious"`, `"interested"`, `"great"`, `"excellent"`, `"wonderful"` → `pipelineRole: "transient"`
-   - `"end"` categories → `pipelineRole: "sink"`
-3. Set appropriate `group` values based on existing `type`
-4. Establish `nextStagePlaylistId` connections between progressive stages
-5. Set `terminationPlaylistId` for transient nodes
+1. ✅ Create migration script to update existing playlists (not needed - manual migration completed)
+2. ✅ Map current categories to new pipeline roles (completed manually)
+3. ✅ Set appropriate `group` values (completed manually)
+4. ✅ Establish `nextStagePlaylistId` connections (completed manually)
+5. ✅ Set `terminationPlaylistId` for transient nodes (completed manually)
 
 **Migration Mapping**:
 ```javascript
@@ -117,20 +133,26 @@ const migrationMap = {
 **Goal**: Implement pipeline-aware interface and functionality
 
 **Tasks**:
-1. Update playlist display to show pipeline connections
-2. Add pipeline navigation (promote/terminate actions)
-3. Implement track-based backpressure logic
-4. Add pipeline management interface
-5. Update album movement logic to use new structure
+1. ✅ Update playlist display to show pipeline connections
+2. ✅ Add pipeline navigation (promote/terminate actions)
+3. ⏸️ Implement track-based backpressure logic (see `tasks/enhancements/pipeline-enhancements.md`)
+4. ⏸️ Add pipeline management interface (see `tasks/enhancements/pipeline-enhancements.md`)
+5. ✅ Update album movement logic to use new structure
+
+**Status**: Core functionality complete. Optional enhancements documented separately.
 
 ### Phase 4: Cleanup
 **Goal**: Remove old fields and complete migration
 
+**Status**: ✅ Complete
+
 **Tasks**:
-1. Update all code to use new pipeline fields
-2. Remove references to old `type` and `category` fields
-3. Update database queries and indexes
-4. Remove backward compatibility code
+1. ✅ Update all code to use new pipeline fields
+2. ✅ Remove references to old `type` and `category` fields from code
+3. ✅ Update database queries and indexes (no queries/indexes used old fields)
+4. ✅ Remove backward compatibility code
+
+**Note**: The `type` and `category` fields may still exist in the database for historical records, but are no longer used by the application code.
 
 ## Implementation Requirements
 
