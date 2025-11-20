@@ -102,7 +102,7 @@ This document specifies the refactoring to remove the `priority` field from the 
    - Remove priority from Playlist interface
    - Document position calculation
    - Document connection-based ordering
-2. Update pipeline-playlist-spec.md:
+2. Update `tasks/completed/pipeline-playlist-spec.md`:
    - Remove priority references
    - Document position-based rating system
 
