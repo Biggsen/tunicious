@@ -80,6 +80,12 @@ interface UnifiedTrackCache {
     totalTracks: number;           // Total unique tracks
     totalAlbums: number;            // Total albums
     totalPlaylists: number;         // Total playlists
+    unsyncedLovedTracks: Array<{   // Failed sync operations
+      trackId: string;
+      loved: boolean;
+      timestamp: number;
+      retryCount: number;
+    }>;
   };
 
   // Tracks indexed by Spotify track ID (primary data store)
@@ -108,6 +114,7 @@ interface UnifiedTrackCache {
       playcount: number;                 // Last.fm playcount
       lastPlaycountUpdate: number;       // Timestamp of last playcount fetch
       lastLovedUpdate: number;           // Timestamp of last loved status update
+      lastAccessed: number;              // Timestamp of last access (for LRU eviction)
       
       // Relationships
       albumIds: string[];                // Albums this track appears on
@@ -173,11 +180,21 @@ interface UnifiedTrackCache {
 ```javascript
 /**
  * Initialize or load the unified track cache
+ * Loads cache from localStorage and keeps in memory
  * @param {string} userId - Firebase user ID
  * @param {string} lastFmUserName - Last.fm username
  * @returns {Promise<UnifiedTrackCache>}
  */
 export async function loadUnifiedTrackCache(userId, lastFmUserName)
+
+/**
+ * Save unified track cache to localStorage (debounced)
+ * Called automatically after updates, or explicitly for critical operations
+ * @param {string} userId - Firebase user ID
+ * @param {boolean} immediate - Force immediate save (skip debounce)
+ * @returns {Promise<void>}
+ */
+export async function saveUnifiedTrackCache(userId, immediate = false)
 
 /**
  * Get tracks for an album
@@ -250,13 +267,14 @@ export async function addAlbumTracks(albumId, tracks, albumData)
 export async function addPlaylistTracks(playlistId, playlistTracks, playlistName)
 
 /**
- * Build initial cache from all user playlists and loved tracks
+ * Build cache for a specific playlist when tracklist is enabled
+ * @param {string} playlistId - Spotify playlist ID
  * @param {string} userId - Firebase user ID
  * @param {string} lastFmUserName - Last.fm username
- * @param {Function} progressCallback - Callback for progress updates
+ * @param {Function} progressCallback - Optional callback for progress updates
  * @returns {Promise<void>}
  */
-export async function buildInitialCache(userId, lastFmUserName, progressCallback)
+export async function buildPlaylistCache(playlistId, userId, lastFmUserName, progressCallback)
 
 /**
  * Refresh playcounts for tracks (from Last.fm API)
@@ -272,6 +290,21 @@ export async function refreshPlaycounts(trackIds, lastFmUserName)
  * @returns {Promise<void>}
  */
 export async function refreshLovedTracks(lastFmUserName)
+
+/**
+ * Retry failed sync operations (loved/unloved tracks)
+ * @param {string} userId - Firebase user ID
+ * @param {string} lastFmUserName - Last.fm username
+ * @returns {Promise<void>}
+ */
+export async function retryFailedSyncs(userId, lastFmUserName)
+
+/**
+ * Get count of unsynced changes
+ * @param {string} userId - Firebase user ID
+ * @returns {number}
+ */
+export function getUnsyncedChangesCount(userId)
 
 /**
  * Calculate loved track percentage for an album
@@ -300,26 +333,62 @@ export async function clearUnifiedTrackCache(userId)
 
 1. **Check if cache exists** for user
 2. **If exists**: Load and validate version
-3. **If missing or invalid**: Build initial cache (see below)
+3. **If missing or invalid**: Create empty cache structure
+4. **Load into memory**: Keep entire cache in memory during app session
+   - All reads/writes use in-memory copy
+   - localStorage used for persistence only
 
-### Initial Cache Build
+### Per-Playlist Tracklist Preference
+
+**Storage:**
+- Key: `audiofoodie_showTracklists_${playlistId}` in localStorage
+- Value: `'true'` or `'false'` (string)
+- Default: `'false'` for new playlists
+
+**Behavior:**
+- When user visits a playlist, check if tracklist was previously enabled
+- If enabled, automatically show tracklist and load cached tracks
+- If disabled (or first visit), tracklist is off by default
+
+### Lazy Cache Building (When Tracklist Enabled)
+
+**Trigger:** User enables tracklist toggle for a specific playlist
 
 **Process:**
-1. Fetch all loved tracks from Last.fm API
-2. For each playlist the user has:
-   - Fetch all playlist tracks from Spotify API
-   - Extract unique tracks
+1. **Phase 1 (Primary):** Fetch playlist tracks
+   - Fetch all tracks from Spotify playlist API
+   - Extract unique tracks and albums
    - For each track:
-     - Fetch playcount from Last.fm API (if not in loved tracks)
-     - Store track with loved status and playcount
-3. Build indexes
-4. Save to cache
+     - Check if already in cache
+     - If new: Add track data to cache
+     - Update `lastAccessed` timestamp
+     - Update album and playlist relationships
+   - Build/update indexes
+
+2. **Phase 2 (Secondary):** Match loved tracks
+   - Fetch loved tracks from Last.fm API (if not already cached)
+   - For each cached track:
+     - Try exact match: `trackName.toLowerCase() === lovedTrackName.toLowerCase()`
+     - If no match, try fuzzy matching (similarity threshold 0.85)
+     - Match artist: check if loved artist matches album artist or any track artist
+     - Update `loved` status in cache
+   - Update `indexes.lovedTrackIds`
+
+3. **Phase 3 (Background):** Fetch playcounts
+   - Batch fetch playcounts for tracks (50-100 per batch)
+   - Update `playcount` and `lastPlaycountUpdate` in cache
+   - Continue in background, non-blocking
 
 **Progress Tracking:**
-- Show progress modal with:
-  - Current step (e.g., "Fetching playlist tracks...")
-  - Progress: X/Y playlists processed
-  - Estimated time remaining
+- Show progress indicator:
+  - "Loading tracks for [Playlist Name]..."
+  - "Matching loved tracks (X of Y)..."
+  - "Fetching playcounts..." (background, no blocking)
+
+**Error Handling:**
+- Playlist fetch fails: Log error, skip playlist, continue
+- Playcount fetch fails: Mark track with `playcount: null`, `needsRefresh: true`, continue
+- Loved tracks fetch fails: Retry 3 times, then continue without loved status (can refresh later)
 
 ### Incremental Updates
 
@@ -332,22 +401,93 @@ export async function clearUnifiedTrackCache(userId)
    - Update album and playlist relationships
 
 **When track is loved/unloved:**
-1. Update `tracks[trackId].loved` immediately
+1. Update `tracks[trackId].loved` immediately (cache-first)
 2. Update `indexes.lovedTrackIds` array
 3. Save cache
 4. Sync to Last.fm API in background (non-blocking)
+   - If sync succeeds: Remove from `metadata.unsyncedLovedTracks` (if present)
+   - If sync fails: Add to `metadata.unsyncedLovedTracks` with retryCount: 0
+5. Update UI immediately (optimistic update)
+
+**Background Sync Error Handling:**
+
+**Failed Sync Storage:**
+- Store failed syncs in `metadata.unsyncedLovedTracks`
+- Track: `trackId`, `loved` (new status), `timestamp`, `retryCount`
+
+**Retry Strategy:**
+1. **On next love/unlove operation:**
+   - Before syncing new operation, batch retry all unsynced changes
+   - Limit to max 10 retries per track (to prevent infinite retries)
+
+2. **On page refresh:**
+   - Check for unsynced changes on cache load
+   - Retry all unsynced changes (non-blocking)
+
+3. **On next Last.fm API call:**
+   - If making any Last.fm API call, batch retry unsynced changes first
+   - Natural opportunity to sync without extra API calls
+
+4. **Optional: Timer-based retry:**
+   - Retry unsynced changes after 5 minutes (timer-based)
+   - Still non-blocking, runs in background
+   - Limits retry attempts (max 10 per track)
+
+**User Feedback:**
+- Show subtle indicator if unsynced changes exist
+- Small badge: "X unsynced changes" in header or account settings
+- Manual retry button in account settings to retry all failed syncs
+- Toast notification only if sync fails after retry (don't show on first failure)
 
 **When playcount is refreshed:**
-1. Fetch playcount from Last.fm API
-2. Update `tracks[trackId].playcount`
-3. Update `tracks[trackId].lastPlaycountUpdate`
-4. Save cache
+1. Check if playcount is stale: `lastPlaycountUpdate` is missing or `> 24 hours` old
+2. If stale: Fetch playcount from Last.fm API (background, non-blocking)
+   - Show cached playcount immediately (optimistic display)
+   - Fetch new playcount in background
+   - Update when ready
+3. Update `tracks[trackId].playcount`
+4. Update `tracks[trackId].lastPlaycountUpdate`
+5. Update `tracks[trackId].lastAccessed` (for LRU eviction)
+6. Save cache
+7. If not stale: Use cached playcount (no API call)
+
+**Note on Last.fm Scrobbling Threshold:**
+- Last.fm uses a scrobbling threshold: tracks must be played for ~50% duration or 4 minutes (whichever is shorter) to count as a play
+- Tracks played for less than the threshold don't register as scrobbles
+- This means playcounts change slowly/occasionally, not in real-time
+- No need for aggressive refresh - playcounts are relatively stable
+- 24-hour refresh window is sufficient to keep playcounts reasonably aligned
+
+### Track Matching (Last.fm to Spotify)
+
+**Normalization:**
+- Track names and artist names: `.toLowerCase()` only
+- No punctuation removal or accent handling
+
+**Matching Strategy:**
+1. **Exact Match First:**
+   - `trackName.toLowerCase() === lovedTrackName.toLowerCase()`
+   - Artist match: loved artist matches album artist OR any track artist
+
+2. **Fuzzy Match Fallback:**
+   - If no exact match, use `isSimilar()` from `fuzzyMatch.js`
+   - Similarity threshold: 0.85
+   - Match track name + artist name together
+   - Prefer accuracy over speed
+
+3. **No Match:**
+   - Track remains in cache without loved status
+   - Can be matched later when loved tracks are refreshed
+
+**Index Building:**
+- `byTrackName` index uses normalized (lowercase) track and artist names
+- Format: `indexes.byTrackName[normalizedTrackName][normalizedArtistName] = [trackIds]`
 
 ### Index Maintenance
 
 Indexes are updated automatically when tracks are added/updated:
 
-- **byTrackName**: Updated when track name changes
+- **byTrackName**: Updated when track name changes (normalized to lowercase)
 - **byArtist**: Updated when track artists change
 - **lovedTrackIds**: Updated when loved status changes
 - **albumsByArtist**: Updated when album tracks are added
@@ -355,9 +495,63 @@ Indexes are updated automatically when tracks are added/updated:
 ### Cache Persistence
 
 - Uses existing `src/utils/cache.js` utilities
-- Stored in `localStorage` with 24-hour expiration
+- Stored in `localStorage` without automatic expiration
 - Cache key: `user_tracks_${userId}`
 - Format: `{ data: UnifiedTrackCache, timestamp: number }`
+- Tracks persist indefinitely (evict only via LRU on storage limits)
+
+**Concurrent Access Handling:**
+
+1. **In-Memory Cache Copy:**
+   - Load entire cache into memory at app startup
+   - Keep in-memory copy during app session
+   - All reads/writes use in-memory copy (fast, no localStorage reads)
+   - In-memory copy is the single source of truth during session
+
+2. **Debounced Saves:**
+   - Save to localStorage after updates (debounced, 500ms delay)
+   - Batch multiple rapid updates into one save operation
+   - Explicit immediate save on critical operations (love/unlove, eviction)
+   - Reduces localStorage writes for better performance
+
+3. **No Locking Required:**
+   - JavaScript is single-threaded, so operations queue naturally
+   - No race conditions since writes are sequential
+   - localStorage.setItem is atomic
+   - All cache operations go through unified cache utility functions
+
+4. **Error Handling:**
+   - If save fails (QuotaExceededError), trigger LRU eviction
+   - Retry save after eviction
+   - If save fails after retry, log error but keep working with in-memory cache
+   - In-memory cache remains functional even if localStorage save fails
+
+**Cache Refresh Strategy:**
+
+1. **No Automatic Expiration:**
+   - Tracks remain in cache indefinitely
+   - Only evicted via LRU when storage limit reached
+   - Track metadata (Spotify) rarely changes, so no need to expire
+
+2. **Incremental Refresh on Access:**
+   - **Playcounts:** Refresh on track access if `lastPlaycountUpdate > 24 hours` (or never updated)
+     - Background fetch (non-blocking)
+     - Show cached playcount immediately, update when ready
+     - Playcounts change slowly due to Last.fm scrobbling threshold
+   - **Loved status:** Refresh on access if `lastLovedUpdate > 7 days`
+     - Background fetch (non-blocking)
+     - Show cached status immediately, update when ready
+
+3. **Manual Refresh:**
+   - Button in account settings to force refresh all playcounts
+   - Button to force refresh all loved status
+   - Full cache rebuild option (for troubleshooting)
+
+**Refresh Timing:**
+- **Playcounts:** Refresh if `lastPlaycountUpdate` is missing or >24 hours old
+- **Loved status:** Refresh if `lastLovedUpdate` is missing or >7 days old
+- **Background:** All refreshes happen in background (non-blocking UI)
+- **On-demand:** Refresh triggered when track is accessed/viewed
 
 ### Cache Size Management
 
@@ -372,18 +566,48 @@ Indexes are updated automatically when tracks are added/updated:
 - Firefox: ~10 MB
 - Safari: ~5 MB
 
-**Optimization Strategies:**
+**LRU Eviction Strategy:**
+
+**Trigger:** Reactive - only on `QuotaExceededError` (matches current system)
+
+**Eviction Priority (in order):**
+1. **Orphaned tracks** (not in any `playlistIds` array) - lowest priority
+2. Among orphaned tracks, evict **oldest by `lastAccessed`** timestamp
+3. If still not enough space, evict **non-loved tracks** by `lastAccessed` (but always keep loved tracks)
+4. Continue evicting until write succeeds
+
+**Protected from Eviction:**
+- **Always keep:** Loved tracks (`loved: true`)
+- **Always keep:** Tracks in playlists (`playlistIds.length > 0`)
+
+**Implementation:**
+- On `QuotaExceededError`:
+  1. Find tracks where `playlistIds.length === 0` (orphaned)
+  2. Sort by `lastAccessed` (oldest first)
+  3. Evict oldest orphaned tracks
+  4. If still failing, evict non-loved tracks by `lastAccessed`
+  5. Retry cache write
+  6. Repeat until successful
+
+**Track Access Tracking:**
+- Update `lastAccessed` when:
+  - Track is displayed in playlist/album view
+  - Loved status is checked/updated
+  - Playcount is fetched/updated
+  - Track is played
+
+**Other Optimization Strategies:**
 1. Compress track data (remove unused fields)
 2. Store only essential metadata
-3. Implement LRU eviction for old/unused tracks
-4. Split cache if needed (tracks vs. indexes)
+3. Split cache if needed (tracks vs. indexes)
 
 ## Migration Strategy
 
 ### Phase 1: Create New Cache System
 1. Create `src/utils/unifiedTrackCache.js`
 2. Implement core functions
-3. Add cache build UI component
+3. Implement lazy cache building (triggered by tracklist toggle)
+4. Add per-playlist tracklist preference storage
 
 ### Phase 2: Parallel Operation
 1. New cache system works alongside old caches
@@ -491,16 +715,31 @@ export async function migrateFromOldCache(userId, lastFmUserName) {
 
 ## User Experience
 
-### Initial Cache Build
-- Show progress modal
-- Allow cancellation
-- Resume on next session if interrupted
-- Estimate completion time
+### Tracklist Toggle
+- Per-playlist preference stored in localStorage
+- When visiting playlist: check if tracklist was previously enabled
+- If enabled: automatically show tracklist and load from cache
+- If disabled: tracklist off by default
+
+### Cache Building (When Tracklist Enabled)
+- Show loading indicator: "Loading tracks..."
+- Show progress: "Matching loved tracks (X of Y)..."
+- Background playcount fetching (non-blocking)
+- Allow user to interact with playlist while cache builds
 
 ### Cache Updates
-- Silent background updates
-- Show toast notifications for loved/unloved
-- Progress indicator for playcount refresh
+- Optimistic updates: loved/unloved changes show immediately
+- Silent background sync to Last.fm API
+- Subtle indicator if unsynced changes exist (badge in header)
+- Toast notification only if sync fails after retries
+- Incremental refresh: playcounts/loved status refreshed on access if stale
+- Playcount refresh happens in background (non-blocking, shows cached value first)
+- Update `lastAccessed` on track interactions (for LRU eviction)
+- Manual refresh buttons in account settings:
+  - Retry failed syncs
+  - Force refresh all playcounts
+  - Force refresh all loved status
+  - Full cache rebuild (troubleshooting)
 
 ### Cache Management
 - Add to existing Cache Manager component
@@ -529,7 +768,8 @@ export async function migrateFromOldCache(userId, lastFmUserName) {
 ### Week 1: Core Implementation
 - Create unified cache utility
 - Implement core functions
-- Build initial cache functionality
+- Implement lazy cache building (per-playlist)
+- Add per-playlist tracklist preference storage
 
 ### Week 2: Component Integration
 - Migrate PlaylistSingle.vue
@@ -571,8 +811,8 @@ export async function migrateFromOldCache(userId, lastFmUserName) {
 ## Open Questions
 
 1. Should we compress track data to reduce size?
-2. Should we implement cache versioning for schema changes?
-3. Should we sync cache to Firebase for backup?
-4. How should we handle tracks that are removed from playlists?
-5. Should we implement cache sharding for very large caches?
+2. Should we sync cache to Firebase for backup?
+3. How should we handle tracks that are removed from playlists? (Mark as orphaned, evict after X days?)
+4. Should we implement cache sharding for very large caches?
+5. How often should we refresh playcounts for cached tracks? (Background job?)
 
