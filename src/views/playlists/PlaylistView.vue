@@ -167,7 +167,8 @@ async function loadPlaylists() {
             name: playlist.name,
             images: playlist.images,
             tracks: { total: playlist.tracks.total },
-            priority: playlistData.priority,
+            pipelinePosition: playlistData.pipelinePosition,
+            totalPositions: playlistData.totalPositions,
             pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
           });
         } catch (playlistError) {
@@ -179,14 +180,16 @@ async function loadPlaylists() {
             name: playlistData.name || `${group} playlist`, // Fallback name
             images: [],
             tracks: { total: 0 }, // Assume empty if we can't get data
-            priority: playlistData.priority,
+            pipelinePosition: playlistData.pipelinePosition,
+            totalPositions: playlistData.totalPositions,
             pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
           });
         }
       }
       
-      // Sort all playlists by priority
-      playlistSummaries[group] = allPlaylistsForGroup.sort((a, b) => a.priority - b.priority);
+      // Playlists are already ordered by derivePipelineOrder in usePlaylistData
+      // Just preserve the order from userPlaylists
+      playlistSummaries[group] = allPlaylistsForGroup;
     }
 
     logPlaylist('Final playlist summaries:', playlistSummaries);

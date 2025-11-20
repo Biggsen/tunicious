@@ -1,48 +1,75 @@
 <script setup>
-import { MusicalNoteIcon, StarIcon } from '@heroicons/vue/24/solid';
+import { MusicalNoteIcon, StarIcon, ClockIcon } from '@heroicons/vue/24/solid';
 import { computed } from 'vue';
 
 const props = defineProps({
-  priority: {
+  pipelinePosition: {
     type: Number,
     required: true
   },
   pipelineRole: {
     type: String,
     required: true
+  },
+  totalPositions: {
+    type: Number,
+    default: 1
   }
 });
 
-const computeRatingFromPriority = (pri) => {
-  if (pri === 5) return 0;
-  if (pri === 10 || pri === 15) return 1;
-  if (pri === 20 || pri === 25) return 2;
-  if (pri === 30 || pri === 35) return 3;
-  if (pri === 40 || pri === 45) return 4;
-  if (pri === 50) return 5;
-  return 0;
-};
-
-const rating = computed(() => computeRatingFromPriority(props.priority));
-const barWidths = ["20%", "40%", "60%", "80%", "100%"];
 const bgClass = computed(() => (props.pipelineRole === 'sink' || props.pipelineRole === 'terminal') ? 'bg-raspberry' : 'bg-mint');
+
+// Calculate width based on position and total positions
+const width = computed(() => {
+  if (props.pipelineRole === 'source') {
+    return '100%';
+  }
+  if (props.pipelineRole === 'terminal') {
+    return '100%';
+  }
+  // For sink and transient: use 1-based position for width calculation
+  // Transients share the same position as their sink
+  if ((props.pipelineRole === 'sink' || props.pipelineRole === 'transient') && props.totalPositions > 0) {
+    // pipelinePosition is 0-based (0, 1, 2, 3), convert to 1-based (1, 2, 3, 4) for calculation
+    const oneBasedPosition = props.pipelinePosition + 1;
+    return `${(oneBasedPosition / props.totalPositions) * 100}%`;
+  }
+  return '100%';
+});
+
+// Calculate rating (stars) for sink and terminal
+const rating = computed(() => {
+  if (props.pipelineRole === 'sink') {
+    // Sink rating = position (1-based for display, but position is 0-based)
+    // So we add 1 to make it 1-based for star display
+    return Math.max(1, props.pipelinePosition + 1);
+  }
+  if (props.pipelineRole === 'terminal') {
+    // Terminal always gets max rating (5 stars)
+    return 5;
+  }
+  return 0;
+});
 </script>
 
 <template>
   <div
     :class="['h-6', 'py-1', bgClass, 'flex items-center justify-end pr-2']"
-    :style="{ width: barWidths[Math.max(0, rating - 1)] }"
+    :style="{ width: width }"
   >
     <div class="flex justify-end gap-1">
-      <template v-if="props.pipelineRole === 'sink' || props.pipelineRole === 'terminal'">
+      <template v-if="props.pipelineRole === 'source'">
+        <ClockIcon class="w-5 h-5 text-delft-blue" />
+      </template>
+      <template v-else-if="props.pipelineRole === 'transient'">
+        <MusicalNoteIcon class="w-5 h-5 text-delft-blue" />
+      </template>
+      <template v-else-if="props.pipelineRole === 'sink' || props.pipelineRole === 'terminal'">
         <StarIcon
           v-for="n in rating"
           :key="n"
           class="w-5 h-5 text-mindero"
         />
-      </template>
-      <template v-else>
-        <MusicalNoteIcon class="w-5 h-5 text-delft-blue" />
       </template>
     </div>
   </div>

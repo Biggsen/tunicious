@@ -28,7 +28,6 @@ const availablePlaylists = ref([]);
 // Form data
 const form = ref({
   name: '',
-  priority: 0,
   group: 'known',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
@@ -109,7 +108,6 @@ async function loadPlaylist() {
     // Populate form with existing data
     form.value = {
       name: playlistData.name || '',
-      priority: playlistData.priority || 0,
       group: playlistData.group || 'unknown',
       pipelineRole: playlistData.pipelineRole || 'source',
       nextStagePlaylistId: playlistData.nextStagePlaylistId || '',
@@ -152,7 +150,6 @@ async function loadAvailablePlaylists() {
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID
         name: playlistData.name || `${playlistData.group || 'unknown'} ${playlistData.pipelineRole}`, // Use Firebase name, fallback to generated
-        priority: playlistData.priority,
         group: playlistData.group || 'unknown',
         pipelineRole: playlistData.pipelineRole || 'transient'
       });
@@ -204,7 +201,6 @@ async function savePlaylist() {
     
     const updateData = {
       name: form.value.name.trim(),
-      priority: form.value.priority,
       group: form.value.group,
       pipelineRole: form.value.pipelineRole,
       updatedAt: serverTimestamp()
@@ -295,19 +291,6 @@ onMounted(async () => {
             <p v-if="formErrors.name" class="text-red-500 text-sm mt-1">
               {{ formErrors.name }}
             </p>
-          </div>
-          
-          <div class="form-group">
-            <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <input 
-              type="number" 
-              id="priority" 
-              v-model="form.priority"
-              class="form-input w-full border-gray-300"
-              placeholder="0"
-            />
           </div>
         </div>
       </div>

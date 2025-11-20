@@ -137,19 +137,6 @@
                </div>
              </div>
 
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-               <div class="form-group">
-                 <label for="priority">Priority</label>
-                 <input 
-                   type="number" 
-                   id="priority" 
-                   v-model="form.priority"
-                   placeholder="0"
-                   :class="{ 'error': formError?.priority }"
-                 />
-                 <span v-if="formError?.priority" class="error-text">{{ formError.priority }}</span>
-               </div>
-             </div>
            </div>
 
            <!-- Pipeline Configuration -->
@@ -264,7 +251,6 @@ const { getUserPlaylists, isAudioFoodiePlaylist, getPlaylist } = useUserSpotifyA
 const initialFormData = {
   playlistId: '',
   name: '',
-  priority: 0,
   group: '',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
@@ -411,7 +397,6 @@ const onSubmit = async (formData) => {
         name: spotifyPlaylist.name,
         images: spotifyPlaylist.images,
         tracks: { total: spotifyPlaylist.tracks.total },
-        priority: playlistData.priority || 0,
         pipelineRole: playlistData.pipelineRole || 'transient'
       };
       
@@ -421,7 +406,7 @@ const onSubmit = async (formData) => {
         currentCacheState[group] = [];
       }
       currentCacheState[group].push(newPlaylist);
-      currentCacheState[group].sort((a, b) => a.priority - b.priority);
+      // Playlists are already ordered by derivePipelineOrder in usePlaylistData
       
       // Save updated cache
       await setCache(playlistViewCacheKey, currentCacheState);
@@ -440,7 +425,6 @@ const onSubmit = async (formData) => {
   // Reset form after successful submission
   form.playlistId = '';
   form.name = '';
-  form.priority = 0;
   form.group = '';
   form.pipelineRole = 'source';
   form.nextStagePlaylistId = '';

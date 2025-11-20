@@ -209,10 +209,7 @@ export async function updatePlaylistInCache(cacheKey, playlistId, playlistData) 
             id: playlistData.id || cachedData[group][index].id,
             firebaseId: playlistData.firebaseId || cachedData[group][index].firebaseId
           };
-          // Re-sort by priority if priority changed
-          if (playlistData.priority !== undefined) {
-            cachedData[group].sort((a, b) => a.priority - b.priority);
-          }
+          // Playlists are already ordered by derivePipelineOrder in usePlaylistData
           updated = true;
         }
       }

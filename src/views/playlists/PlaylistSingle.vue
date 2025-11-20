@@ -5,6 +5,7 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
+import { usePlaylistData } from "@composables/usePlaylistData";
 import { useAdmin } from "@composables/useAdmin";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -31,6 +32,7 @@ import { logPlaylist } from '@utils/logger';
 const route = useRoute();
 const { user, userData } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
+const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { isAdmin } = useAdmin();
 const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks } = useUserSpotifyApi();
 
@@ -447,6 +449,22 @@ const paginatedAlbums = computed(() => {
 // Update totalAlbums to use sortedAlbumIds
 const totalAlbums = computed(() => sortedAlbumIds.value.length);
 
+// Get current playlist's position data from userPlaylists
+const currentPlaylistPosition = computed(() => {
+  if (!playlistDoc.value?.id || !userPlaylists.value) return null;
+  
+  const firebaseId = playlistDoc.value.id;
+  const group = playlistDoc.value.data()?.group;
+  
+  if (!group || !userPlaylists.value[group]) return null;
+  
+  const playlist = userPlaylists.value[group].find(p => p.firebaseId === firebaseId);
+  return playlist ? {
+    pipelinePosition: playlist.pipelinePosition,
+    totalPositions: playlist.totalPositions
+  } : null;
+});
+
 // Compute missing albums count
 const missingAlbumsCount = computed(() => {
   if (totalAlbums.value === 0) return 0;
@@ -801,7 +819,6 @@ async function loadCurrentPage() {
     if (userData && userData.playlistHistory) {
       const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
       album.ratingData = currentEntry ? {
-        priority: currentEntry.priority,
         pipelineRole: currentEntry.pipelineRole || 'transient',
         type: currentEntry.type,
         playlistId: currentEntry.playlistId
@@ -1118,6 +1135,11 @@ onMounted(async () => {
   window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   
   try {
+    // Fetch user playlists to get position data
+    if (user.value) {
+      await fetchUserPlaylists(user.value.uid);
+    }
+    
     await loadPlaylistPage();
     
     // Load loved tracks from cache if user has Last.fm connected
@@ -2295,6 +2317,8 @@ const handleUpdateYear = async (mismatch) => {
           :lastFmUserName="userData?.lastFmUserName"
           :currentPlaylist="playlistDoc?.data() || { playlistId: id }"
           :ratingData="album.ratingData"
+          :pipelinePosition="currentPlaylistPosition?.pipelinePosition ?? null"
+          :totalPositions="currentPlaylistPosition?.totalPositions ?? null"
           :isMappedAlbum="false"
           :inCollection="!!inCollectionMap[album.id]"
           :needsUpdate="needsUpdateMap[album.id]"

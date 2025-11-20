@@ -14,7 +14,7 @@ import { logAlbum } from '@utils/logger';
  * @typedef {Object} PlaylistHistoryEntry
  * @property {string} playlistId
  * @property {PlaylistType} type
- * @property {number} priority
+ * @property {string} pipelineRole
  * @property {Date} addedAt
  * @property {Date|null} removedAt
  * 
@@ -377,7 +377,6 @@ export function useAlbumsData() {
         playlistName: _playlistData.name,
         pipelineRole: _playlistData.pipelineRole || 'transient',
         type: entryType,
-        priority: _playlistData.priority,
         addedAt: _spotifyAddedAt,
         removedAt: null
       };
@@ -554,9 +553,9 @@ export function useAlbumsData() {
   };
 
   /**
-   * Gets the rating data (priority, type, playlistId) for the current playlist entry of an album
+   * Gets the rating data (type, playlistId) for the current playlist entry of an album
    * @param {string} albumId - The Spotify album ID
-   * @returns {Promise<{priority: number, type: string, playlistId: string} | null>}
+   * @returns {Promise<{type: string, playlistId: string} | null>}
    */
   const getAlbumRatingData = async (albumId) => {
     const data = await fetchUserAlbumData(albumId);
@@ -564,8 +563,8 @@ export function useAlbumsData() {
     const currentEntry = data.playlistHistory.find(entry => !entry.removedAt);
     if (!currentEntry) return null;
     // Only return the relevant fields
-    const { priority, type, playlistId } = currentEntry;
-    return { priority, type, playlistId };
+    const { type, playlistId } = currentEntry;
+    return { type, playlistId };
   };
 
   /**

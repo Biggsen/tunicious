@@ -64,7 +64,6 @@ export function usePlaylistUpdates() {
               playlistsToRefresh.push({
                 playlistId: cachedPlaylist.id,
                 firebaseId: firebaseData?.firebaseId || cachedPlaylist.firebaseId,
-                priority: firebaseData?.priority || cachedPlaylist.priority || 0,
                 pipelineRole: firebaseData?.pipelineRole || cachedPlaylist.pipelineRole || 'transient',
                 group: group
               });
@@ -91,7 +90,6 @@ export function usePlaylistUpdates() {
             name: spotifyPlaylist.name,
             images: spotifyPlaylist.images,
             tracks: { total: spotifyPlaylist.tracks.total },
-            priority: playlistData.priority,
             pipelineRole: playlistData.pipelineRole || 'transient'
           };
           
@@ -112,8 +110,7 @@ export function usePlaylistUpdates() {
             updatedState[playlistData.group].push(updatedPlaylist);
           }
           
-          // Re-sort by priority
-          updatedState[playlistData.group].sort((a, b) => a.priority - b.priority);
+          // Playlists are already ordered by derivePipelineOrder in usePlaylistData
           
           // Update cache if cacheKey provided
           if (cacheKey) {

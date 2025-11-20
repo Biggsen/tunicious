@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
+import { usePlaylistData } from "@composables/usePlaylistData";
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
 import BackButton from '@components/common/BackButton.vue';
@@ -16,7 +17,8 @@ import { logAlbum } from '@utils/logger';
 
 const route = useRoute();
 const router = useRouter();
-const { userData } = useUserData();
+const { userData, user } = useUserData();
+const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { fetchAlbumsData, loading: albumsLoading, getAlbumRatingData } = useAlbumsData();
 const { getPrimaryId, isAlternateId, loading: mappingsLoading } = useAlbumMappings();
 const { getArtist, getArtistAlbums} = useUserSpotifyApi();
@@ -31,6 +33,7 @@ const albumData = ref([]);
 const albumsStatus = ref({});
 const albumDbDataMap = ref({});
 const albumRootDataMap = ref({});
+const positionDataMap = ref({});
 
 // Track which albums are in playlists
 const playlistStatus = ref({});
@@ -121,17 +124,36 @@ async function fetchArtistData(artistId) {
     const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
     albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
     albumsStatus.value = albumDbDataMap.value;
-    // Use the batch data for ratingData
+    // Use the batch data for ratingData and position data
     albumData.value.forEach(album => {
       const userData = albumDbDataMap.value[album.id];
       if (userData && userData.playlistHistory) {
         const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-        album.ratingData = currentEntry ? {
-          priority: currentEntry.priority,
-          pipelineRole: currentEntry.pipelineRole || 'transient',
-          type: currentEntry.type,
-          playlistId: currentEntry.playlistId
-        } : null;
+        if (currentEntry) {
+          album.ratingData = {
+            pipelineRole: currentEntry.pipelineRole || 'transient',
+            type: currentEntry.type,
+            playlistId: currentEntry.playlistId
+          };
+          
+          // Find the playlist in userPlaylists to get position data
+          if (currentEntry.playlistId && userPlaylists.value) {
+            for (const group in userPlaylists.value) {
+              const playlist = userPlaylists.value[group].find(
+                p => p.playlistId === currentEntry.playlistId
+              );
+              if (playlist) {
+                positionDataMap.value[album.id] = {
+                  pipelinePosition: playlist.pipelinePosition,
+                  totalPositions: playlist.totalPositions
+                };
+                break;
+              }
+            }
+          }
+        } else {
+          album.ratingData = null;
+        }
       } else {
         album.ratingData = null;
       }
@@ -165,21 +187,40 @@ async function fetchArtistData(artistId) {
   const rootDetailsArr = await Promise.all(albumData.value.map(a => getCachedAlbumDetails(a.id)));
   albumRootDataMap.value = Object.fromEntries(albumData.value.map((a, i) => [a.id, rootDetailsArr[i]]));
   albumsStatus.value = albumDbDataMap.value;
-  // Use the batch data for ratingData
-  albumData.value.forEach(album => {
-    const userData = albumDbDataMap.value[album.id];
-    if (userData && userData.playlistHistory) {
-      const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
-      album.ratingData = currentEntry ? {
-        priority: currentEntry.priority,
-        pipelineRole: currentEntry.pipelineRole || 'transient',
-        type: currentEntry.type,
-        playlistId: currentEntry.playlistId
-      } : null;
-    } else {
-      album.ratingData = null;
-    }
-  });
+    // Use the batch data for ratingData and position data
+    albumData.value.forEach(album => {
+      const userData = albumDbDataMap.value[album.id];
+      if (userData && userData.playlistHistory) {
+        const currentEntry = userData.playlistHistory.find(entry => !entry.removedAt);
+        if (currentEntry) {
+          album.ratingData = {
+            pipelineRole: currentEntry.pipelineRole || 'transient',
+            type: currentEntry.type,
+            playlistId: currentEntry.playlistId
+          };
+          
+          // Find the playlist in userPlaylists to get position data
+          if (currentEntry.playlistId && userPlaylists.value) {
+            for (const group in userPlaylists.value) {
+              const playlist = userPlaylists.value[group].find(
+                p => p.playlistId === currentEntry.playlistId
+              );
+              if (playlist) {
+                positionDataMap.value[album.id] = {
+                  pipelinePosition: playlist.pipelinePosition,
+                  totalPositions: playlist.totalPositions
+                };
+                break;
+              }
+            }
+          }
+        } else {
+          album.ratingData = null;
+        }
+      } else {
+        album.ratingData = null;
+      }
+    });
   await updatePlaylistStatuses(albumData.value);
 
   await setCache(cacheKey.value, {
@@ -229,6 +270,11 @@ const goBack = () => {
 };
 
 onMounted(async () => {
+  // Fetch user playlists to get position data
+  if (user.value) {
+    await fetchUserPlaylists(user.value.uid);
+  }
+  
   try {
     await loadArtistData();
   } catch (e) {
@@ -282,6 +328,8 @@ onMounted(async () => {
           :currentPlaylist="albumsStatus[album.id]?.playlistHistory?.find(h => !h.removedAt)"
           :isMappedAlbum="mappedAlbums[album.id]"
           :ratingData="album.ratingData"
+          :pipeline-position="positionDataMap[album.id]?.pipelinePosition ?? null"
+          :total-positions="positionDataMap[album.id]?.totalPositions ?? null"
           :class="{ 'not-in-playlist': !playlistStatus[album.id] }"
         />
       </ul>
