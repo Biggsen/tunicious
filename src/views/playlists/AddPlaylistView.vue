@@ -219,27 +219,6 @@
               </div>
             </div>
 
-           <!-- Legacy Fields (Backward Compatibility) -->
-           <div class="bg-gray-100 shadow rounded-lg p-6 mb-6">
-             <h3 class="text-md font-semibold mb-4 text-gray-600">Legacy Fields</h3>
-             <p class="text-sm text-gray-500 mb-4">
-               These fields are maintained for backward compatibility with existing playlists.
-             </p>
-             
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div class="form-group">
-                 <label for="type">Type (Legacy)</label>
-                 <select 
-                   id="type" 
-                   v-model="form.type"
-                 >
-                   <option value="known">Known</option>
-                   <option value="new">New</option>
-                 </select>
-               </div>
-             </div>
-           </div>
-
            <div class="form-actions">
              <BaseButton 
                type="submit" 
@@ -285,7 +264,6 @@ const { getUserPlaylists, isAudioFoodiePlaylist, getPlaylist } = useUserSpotifyA
 const initialFormData = {
   playlistId: '',
   name: '',
-  type: '',
   priority: 0,
   group: '',
   pipelineRole: 'source',
@@ -438,7 +416,7 @@ const onSubmit = async (formData) => {
       };
       
       // Add to cache state
-      const group = playlistData.group || playlistData.type || 'unknown';
+      const group = playlistData.group || 'unknown';
       if (!currentCacheState[group]) {
         currentCacheState[group] = [];
       }
@@ -462,7 +440,6 @@ const onSubmit = async (formData) => {
   // Reset form after successful submission
   form.playlistId = '';
   form.name = '';
-  form.type = '';
   form.priority = 0;
   form.group = '';
   form.pipelineRole = 'source';

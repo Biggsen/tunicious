@@ -107,8 +107,8 @@ export function usePlaylistData() {
         
         processedCount++;
         
-        // Use group field if available, fallback to type for backward compatibility
-        const group = playlist.group || playlist.type || 'unknown';
+        // Use group field (required for all playlists)
+        const group = playlist.group || 'unknown';
         
         if (!grouped[group]) {
           grouped[group] = [];
@@ -120,7 +120,6 @@ export function usePlaylistData() {
           priority: playlist.priority,
           pipelineRole: playlist.pipelineRole || 'transient', // Include pipeline role
           name: playlist.name,
-          type: playlist.type,
           group: playlist.group,
           createdAt: playlist.createdAt // Include createdAt for sorting groups
         });

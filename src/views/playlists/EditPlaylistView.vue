@@ -28,7 +28,6 @@ const availablePlaylists = ref([]);
 // Form data
 const form = ref({
   name: '',
-  type: 'known',
   priority: 0,
   group: 'known',
   pipelineRole: 'source',
@@ -110,9 +109,8 @@ async function loadPlaylist() {
     // Populate form with existing data
     form.value = {
       name: playlistData.name || '',
-      type: playlistData.type || 'known',
       priority: playlistData.priority || 0,
-      group: playlistData.group || playlistData.type || 'known',
+      group: playlistData.group || 'unknown',
       pipelineRole: playlistData.pipelineRole || 'source',
       nextStagePlaylistId: playlistData.nextStagePlaylistId || '',
       terminationPlaylistId: playlistData.terminationPlaylistId || ''
@@ -153,10 +151,9 @@ async function loadAvailablePlaylists() {
       allPlaylists.push({
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID
-        name: playlistData.name || `${playlistData.type} ${playlistData.pipelineRole}`, // Use Firebase name, fallback to generated
-        type: playlistData.type,
+        name: playlistData.name || `${playlistData.group || 'unknown'} ${playlistData.pipelineRole}`, // Use Firebase name, fallback to generated
         priority: playlistData.priority,
-        group: playlistData.group || playlistData.type,
+        group: playlistData.group || 'unknown',
         pipelineRole: playlistData.pipelineRole || 'transient'
       });
     });
@@ -207,7 +204,6 @@ async function savePlaylist() {
     
     const updateData = {
       name: form.value.name.trim(),
-      type: form.value.type,
       priority: form.value.priority,
       group: form.value.group,
       pipelineRole: form.value.pipelineRole,
@@ -413,30 +409,6 @@ onMounted(async () => {
             <p v-if="formErrors.terminationPlaylistId" class="text-red-500 text-sm mt-1">
               {{ formErrors.terminationPlaylistId }}
             </p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Legacy Fields (Backward Compatibility) -->
-      <div class="bg-gray-50 shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4 text-gray-600">Legacy Fields</h2>
-        <p class="text-sm text-gray-500 mb-4">
-          These fields are maintained for backward compatibility with existing playlists.
-        </p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-group">
-            <label for="type" class="block text-sm font-medium text-gray-700 mb-1">
-              Type (Legacy)
-            </label>
-            <select 
-              id="type" 
-              v-model="form.type"
-              class="form-input w-full border-gray-300"
-            >
-              <option value="known">Known</option>
-              <option value="new">New</option>
-            </select>
           </div>
         </div>
       </div>

@@ -369,8 +369,8 @@ export function useAlbumsData() {
       // Get existing album data
       const existingData = await fetchUserAlbumData(album.id);
              // Prepare the new playlist history entry using playlist data
-       // Always use group field to populate type, fallback to type if group doesn't exist
-       const entryType = _playlistData.group || _playlistData.type || 'unknown';
+       // Use group field to populate type in history entry
+       const entryType = _playlistData.group || 'unknown';
       
       const newEntry = {
         playlistId: _playlistData.playlistId,
