@@ -1,5 +1,9 @@
 # Priority Refactoring Specification
 
+## **Status**: ✅ Implementation Complete
+
+The priority refactor has been completed. All priority references have been removed and replaced with connection-based ordering and position-derived ratings.
+
 ## Overview
 
 This document specifies the refactoring to remove the `priority` field from the AudioFoodie system and replace it with connection-based ordering and position-derived ratings.
@@ -62,7 +66,7 @@ This document specifies the refactoring to remove the `priority` field from the 
    - Build ordered array
    - Calculate position during traversal
    - Handle terminals as last item in chain (max position)
-   - Exclude orphaned playlists (not reachable from any source)
+   - Include orphaned playlists at end (not reachable from any source)
 3. Replace priority sorting with connection-based ordering
 4. Store position as computed property on playlist objects
 5. Calculate `totalPositions` for each group (count of sinks + terminals) for RatingBar width calculation
@@ -93,8 +97,9 @@ This document specifies the refactoring to remove the `priority` field from the 
    - Add position calculation using `derivePipelineOrder()`
    - Calculate `totalPositions` (sinks + terminal count) for each group
 2. Update `useAlbumsData.js`:
-   - Remove priority from playlist history entries (if used for display)
-   - Priority field can remain in database
+   - Remove priority from new playlist history entries
+   - Remove priority from ratingData objects in views
+   - Priority field removed from being saved (old entries may still have it)
 
 ### Phase 5: Update Firestore
 1. Remove `priority` index from `firestore.indexes.json`
@@ -139,6 +144,16 @@ function derivePipelineOrder(playlists) {
     playlist.pipelinePosition = position++;
     ordered.push(playlist);
     
+    // If this is a transient with a termination, insert the sink immediately after
+    if (playlist.pipelineRole === 'transient' && playlist.terminationPlaylistId) {
+      const sink = playlistMap.get(playlist.terminationPlaylistId);
+      if (sink && sink.pipelineRole === 'sink' && !visited.has(sink.firebaseId)) {
+        visited.add(sink.firebaseId);
+        sink.pipelinePosition = position++;
+        ordered.push(sink);
+      }
+    }
+    
     // Follow nextStagePlaylistId
     if (playlist.nextStagePlaylistId) {
       const next = playlistMap.get(playlist.nextStagePlaylistId);
@@ -148,25 +163,40 @@ function derivePipelineOrder(playlists) {
   
   sources.forEach(traverse);
   
-  // 4. Handle sinks (position = terminating transient position)
-  playlists.forEach(p => {
-    if (p.pipelineRole === 'sink' && !visited.has(p.firebaseId)) {
-      // Find transient that terminates to this sink
-      const terminatingTransient = playlists.find(
-        t => t.terminationPlaylistId === p.firebaseId
-      );
-      if (terminatingTransient && terminatingTransient.pipelinePosition !== undefined) {
-        p.pipelinePosition = terminatingTransient.pipelinePosition;
-        visited.add(p.firebaseId);
-        ordered.push(p);
+  // 4. Add orphaned playlists (not reachable from any source) at the end
+  const orphaned = playlists.filter(p => !visited.has(p.firebaseId));
+  orphaned.forEach(p => {
+    p.pipelinePosition = 1000 + ordered.length;
+    ordered.push(p);
+  });
+  
+  // 5. Reassign sink and terminal positions based on their order among sinks/terminals only
+  const sinksAndTerminals = ordered.filter(p => 
+    (p.pipelineRole === 'sink' || p.pipelineRole === 'terminal') && p.pipelinePosition < 1000
+  );
+  const totalPositions = sinksAndTerminals.length;
+  
+  // Assign positions 0, 1, 2, 3... to sinks and terminals based on their order
+  let sinkTerminalPosition = 1;
+  sinksAndTerminals.forEach(p => {
+    p.pipelinePosition = sinkTerminalPosition - 1;
+    sinkTerminalPosition++;
+  });
+  
+  // 6. Assign the same position to parent transients (transients that terminate to sinks)
+  ordered.forEach(p => {
+    if (p.pipelineRole === 'transient' && p.terminationPlaylistId && p.pipelinePosition < 1000) {
+      const sink = sinksAndTerminals.find(s => s.firebaseId === p.terminationPlaylistId);
+      if (sink) {
+        p.pipelinePosition = sink.pipelinePosition;
       }
     }
   });
   
-  // 5. Terminals are already handled during traversal (they're the end of chains)
-  // Their position is set during traversal, and rating will be calculated as 1 above last sink
-  
-  // 6. Orphaned playlists (not reachable from any source) are excluded
+  // Assign totalPositions to all playlists
+  ordered.forEach(p => {
+    p.totalPositions = totalPositions;
+  });
   
   return ordered;
 }
@@ -195,8 +225,9 @@ function derivePipelineOrder(playlists) {
 - No data migration needed (position calculated on-the-fly)
 
 ### Backward Compatibility
-- Orphaned playlists (not reachable from any source) are excluded from ordered list
+- Orphaned playlists (not reachable from any source) are included at end of ordered list for visibility/editing
 - Client-side ordering fully replaces Firestore `orderBy('priority')`
+- Priority field removed from new album history entries
 
 ## Testing Requirements
 
@@ -217,7 +248,7 @@ function derivePipelineOrder(playlists) {
 1. Multiple sources in one group (sorted by createdAt, each chain traversed separately)
 2. Sinks connected to different transients (position = terminating transient position)
 3. Broken connections (missing nextStagePlaylistId) - traversal stops
-4. Orphaned playlists (not in any chain) - excluded from ordered list
+4. Orphaned playlists (not in any chain) - included at end of ordered list
 5. Empty groups
 6. Terminals (positioned as last in chain, max position, rating 1 above last sink)
 
@@ -231,14 +262,32 @@ If issues arise:
 
 ## Success Criteria
 
-- [ ] Playlists ordered by connection traversal, not priority
-- [ ] RatingBar uses position, not priority
-- [ ] Priority removed from all forms
-- [ ] Priority removed from Firestore queries
-- [ ] Priority index removed
-- [ ] Position calculated correctly for all roles
-- [ ] No performance degradation
-- [ ] All tests passing
+- [x] Playlists ordered by connection traversal, not priority
+- [x] RatingBar uses position, not priority
+- [x] Priority removed from all forms
+- [x] Priority removed from Firestore queries
+- [x] Priority index removed
+- [x] Position calculated correctly for all roles
+- [x] No performance degradation
+- [x] All tests passing
+
+## Implementation Summary
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Update Ordering Logic | ✅ Complete | derivePipelineOrder() implemented, orderBy('priority') removed |
+| Phase 2: Update RatingBar Component | ✅ Complete | Position-based widths and ratings implemented |
+| Phase 3: Remove Priority from Forms | ✅ Complete | Removed from AddPlaylistView and EditPlaylistView |
+| Phase 4: Update Data Fetching | ✅ Complete | Connection fields fetched, position data added to all views |
+| Phase 5: Update Firestore | ✅ Complete | Priority index removed |
+| Phase 6: Update Documentation | ✅ Complete | All priority references removed from codebase |
+
+**Additional Improvements:**
+- Sinks positioned directly below parent transient
+- Transients share width with their sink
+- Orphaned playlists included at end for visibility/editing
+- Position data added to SearchView and ArtistView
+- Priority completely removed from album history entries
 
 ## Timeline
 
