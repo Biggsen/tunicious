@@ -158,19 +158,37 @@ const fetchTrackPlaycounts = async () => {
 
 /**
  * Get playcount for a specific track
+ * Prioritizes playcount from unified cache (track.playcount), falls back to Last.fm fetched data
  */
-const getTrackPlaycount = (trackName) => {
-  return trackPlaycounts.value[trackName.toLowerCase()] || 0;
+const getTrackPlaycount = (track) => {
+  // First, check if track has playcount from unified cache
+  if (track && typeof track.playcount === 'number') {
+    return track.playcount;
+  }
+  
+  // Fall back to Last.fm fetched playcounts (for backward compatibility)
+  if (typeof track === 'string') {
+    // Legacy: trackName was passed as string
+    return trackPlaycounts.value[track.toLowerCase()] || 0;
+  }
+  
+  // If track object but no playcount property, try Last.fm lookup
+  if (track && track.name) {
+    return trackPlaycounts.value[track.name.toLowerCase()] || 0;
+  }
+  
+  return 0;
 };
 
 /**
  * Calculate percentage of loved tracks
  */
 const lovedTracksPercentage = computed(() => {
-  if (!props.tracks.length || !props.lovedTracks.length) {
+  if (!props.tracks.length) {
     return 0;
   }
   
+  // Count tracks that are loved (either from track.loved property or lovedTracks lookup)
   const lovedCount = props.tracks.filter(track => isTrackLoved(track)).length;
   return Math.round((lovedCount / props.tracks.length) * 100);
 });
@@ -194,13 +212,11 @@ const sortedTracks = computed(() => {
     return props.tracks;
   }
   
-  if (!props.lastFmUserName || Object.keys(trackPlaycounts.value).length === 0) {
-    return props.tracks;
-  }
-  
+  // Sort by playcount from unified cache (track.playcount) or Last.fm fetched data
+  // Even if we don't have Last.fm data yet, we can still sort by cache playcount
   return [...props.tracks].sort((a, b) => {
-    const playcountA = getTrackPlaycount(a.name);
-    const playcountB = getTrackPlaycount(b.name);
+    const playcountA = getTrackPlaycount(a);
+    const playcountB = getTrackPlaycount(b);
     return playcountB - playcountA; // Descending order (highest playcount first)
   });
 });
@@ -232,8 +248,15 @@ const lovedTracksLookup = computed(() => {
 
 /**
  * Check if a track is in the user's loved tracks
+ * First checks track.loved property (from unified cache), then falls back to lovedTracks lookup
  */
 const isTrackLoved = (track) => {
+  // First, check if track has loved property from unified cache
+  if (track.loved !== undefined) {
+    return track.loved === true;
+  }
+
+  // Fall back to old lovedTracks lookup for backward compatibility
   if (!lovedTracksLookup.value.size || !props.albumArtist) {
     return false;
   }
@@ -522,7 +545,7 @@ const handleTrackClick = async (track) => {
           </span>
           <span class="flex-1">{{ track.name }}</span>
           <span v-if="lastFmUserName && !playcountLoading" class="ml-2 text-xs text-gray-500 flex-shrink-0">
-            {{ formatPlaycount(getTrackPlaycount(track.name)) }}
+            {{ formatPlaycount(getTrackPlaycount(track)) }}
           </span>
           <span v-else-if="playcountLoading" class="ml-2 text-xs text-gray-400 flex-shrink-0">
             ...

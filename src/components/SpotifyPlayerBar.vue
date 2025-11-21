@@ -5,6 +5,7 @@ import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { getCachedLovedTracks } from '@utils/lastFmUtils';
 import { clearCache, setCache, getCache } from '@utils/cache';
+import { logPlayer, logCache } from '@utils/logger';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 
@@ -48,6 +49,7 @@ const stopPositionTracking = () => {
 };
 
 watch(isPlaying, (newValue) => {
+  logPlayer('Playback state changed:', { isPlaying: newValue, track: currentTrack.value?.name });
   if (newValue) {
     startPositionTracking();
   } else {
@@ -121,6 +123,11 @@ const canLoveTracks = computed(() => {
 // Handle love/unlove action
 const handleHeartClick = async () => {
   if (!canLoveTracks.value || !currentTrack.value || isLoving.value) {
+    logPlayer('Cannot toggle love - missing requirements:', {
+      canLoveTracks: canLoveTracks.value,
+      hasTrack: !!currentTrack.value,
+      isLoving: isLoving.value
+    });
     return;
   }
 
@@ -129,10 +136,13 @@ const handleHeartClick = async () => {
   const trackName = currentTrack.value.name;
   const artistName = currentTrack.value.artists?.[0] || '';
 
+  logPlayer(`${isLoved ? 'Unloving' : 'Loving'} track:`, { trackName, artistName });
+
   try {
     if (isLoved) {
       // Unlove track
       await unloveTrack(trackName, artistName, userData.value.lastFmSessionKey);
+      logPlayer('Track unloved successfully');
       
       // Optimistically remove from loved tracks
       lovedTracks.value = lovedTracks.value.filter(lovedTrack => {
@@ -143,6 +153,7 @@ const handleHeartClick = async () => {
       
       // Update cache
       const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+      logCache('Updating loved tracks cache after unlove:', cacheKey);
       await setCache(cacheKey, lovedTracks.value);
       
       // Emit window event to notify other components
@@ -157,6 +168,7 @@ const handleHeartClick = async () => {
     } else {
       // Love track
       await loveTrack(trackName, artistName, userData.value.lastFmSessionKey);
+      logPlayer('Track loved successfully');
       
       // Optimistically add to loved tracks
       const lovedTrack = {
@@ -168,6 +180,7 @@ const handleHeartClick = async () => {
       
       // Update cache
       const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
+      logCache('Updating loved tracks cache after love:', cacheKey);
       await setCache(cacheKey, lovedTracks.value);
       
       // Emit window event to notify other components
@@ -181,10 +194,11 @@ const handleHeartClick = async () => {
       }));
     }
   } catch (error) {
-    console.error('Error toggling loved status:', error);
+    logPlayer('Error toggling loved status:', error);
     
     // On error, refetch from Last.fm to get accurate state
     if (userData.value?.lastFmUserName) {
+      logCache('Clearing cache and refetching loved tracks after error');
       await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
       lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
     }
@@ -195,16 +209,23 @@ const handleHeartClick = async () => {
 
 // Load loved tracks on mount
 onMounted(async () => {
+  logPlayer('SpotifyPlayerBar mounted');
   if (userData.value?.lastFmUserName) {
+    logCache('Loading loved tracks for user:', userData.value.lastFmUserName);
     lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
+    logCache('Loaded loved tracks:', lovedTracks.value.length);
   }
 });
 
 // Watch for user data changes to reload loved tracks
-watch(() => userData.value?.lastFmUserName, async (newUserName) => {
+watch(() => userData.value?.lastFmUserName, async (newUserName, oldUserName) => {
+  logPlayer('User data changed:', { newUserName, oldUserName });
   if (newUserName) {
+    logCache('Reloading loved tracks for user:', newUserName);
     lovedTracks.value = await getCachedLovedTracks(newUserName);
+    logCache('Reloaded loved tracks:', lovedTracks.value.length);
   } else {
+    logCache('Clearing loved tracks (no user)');
     lovedTracks.value = [];
   }
 });
@@ -267,16 +288,29 @@ const fetchAlbumInfo = () => {
   const albumName = currentTrack.value.album;
   const artistName = currentTrack.value.artists?.[0];
   
+  logPlayer('Fetching album info:', { albumName, artistName });
+  
   if (albumName && artistName) {
     const found = findAlbumInCache(albumName, artistName);
+    logCache(found ? 'Found album in cache' : 'Album not found in cache', { albumName, artistName });
     albumInfo.value = found || { name: albumName, year: null };
   } else {
     albumInfo.value = { name: albumName || null, year: null };
   }
+  
+  logPlayer('Album info set:', albumInfo.value);
 };
 
 // Watch for track changes
-watch(() => currentTrack.value?.id, fetchAlbumInfo, { immediate: true });
+watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
+  logPlayer('Track changed:', { 
+    trackId, 
+    oldTrackId,
+    trackName: currentTrack.value?.name,
+    artists: currentTrack.value?.artists
+  });
+  fetchAlbumInfo();
+}, { immediate: true });
 </script>
 
 <template>

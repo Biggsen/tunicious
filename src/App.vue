@@ -2,10 +2,11 @@
 import { RouterView } from "vue-router";
 import TheHeader from "./components/TheHeader.vue";
 import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
-import CacheDebugPanel from "./components/common/CacheDebugPanel.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
+import { usePlaycountTracking } from "@composables/usePlaycountTracking";
 
 useSpotifyPlayer();
+usePlaycountTracking();
 </script>
 
 <template>
@@ -14,7 +15,6 @@ useSpotifyPlayer();
     <RouterView />
   </div>
   <SpotifyPlayerBar />
-  <CacheDebugPanel />
 </template>
 
 <style scoped></style>
