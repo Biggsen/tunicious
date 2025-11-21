@@ -657,6 +657,85 @@ export async function addPlaylistTracks(playlistId, playlistTracks, playlistName
 }
 
 /**
+ * Move an album from one playlist to another in the unified cache
+ * @param {string} sourcePlaylistId - Source playlist ID
+ * @param {string} targetPlaylistId - Target playlist ID
+ * @param {string} albumId - Album ID to move
+ * @param {string} userId - User ID
+ * @param {string} addedAt - When album was added to target playlist (ISO string)
+ */
+export async function moveAlbumBetweenPlaylists(sourcePlaylistId, targetPlaylistId, albumId, userId, addedAt) {
+  const cache = getInMemoryCache(userId);
+  const now = Date.now();
+  
+  // Ensure cache is loaded
+  if (!cache) {
+    throw new Error(`Cache not loaded for user ${userId}`);
+  }
+  
+  // Get the album entry from source playlist
+  if (!cache.playlists[sourcePlaylistId] || !cache.playlists[sourcePlaylistId].albums[albumId]) {
+    logCache(`Album ${albumId} not found in source playlist ${sourcePlaylistId}, cannot move`);
+    return;
+  }
+  
+  const albumEntry = cache.playlists[sourcePlaylistId].albums[albumId];
+  const trackIds = albumEntry.trackIds || [];
+  
+  // Initialize target playlist if it doesn't exist
+  if (!cache.playlists[targetPlaylistId]) {
+    cache.playlists[targetPlaylistId] = {
+      albums: {},
+      lastUpdated: now,
+      playlistName: ''
+    };
+  }
+  
+  const targetPlaylist = cache.playlists[targetPlaylistId];
+  targetPlaylist.lastUpdated = now;
+  
+  // Move album entry to target playlist
+  targetPlaylist.albums[albumId] = {
+    trackIds: [...trackIds], // Copy trackIds array
+    addedAt: addedAt || new Date().toISOString()
+  };
+  
+  // Remove album from source playlist
+  delete cache.playlists[sourcePlaylistId].albums[albumId];
+  
+  // Update track playlist relationships
+  for (const trackId of trackIds) {
+    if (!cache.tracks[trackId]) {
+      // Track doesn't exist in cache - this shouldn't happen but handle gracefully
+      logCache(`Warning: Track ${trackId} not found in cache when moving album ${albumId}`);
+      continue;
+    }
+    
+    const track = cache.tracks[trackId];
+    
+    // Remove source playlist from track's playlistIds
+    if (track.playlistIds) {
+      track.playlistIds = track.playlistIds.filter(pid => pid !== sourcePlaylistId);
+    } else {
+      track.playlistIds = [];
+    }
+    
+    // Add target playlist to track's playlistIds (if not already present)
+    if (!track.playlistIds.includes(targetPlaylistId)) {
+      track.playlistIds.push(targetPlaylistId);
+    }
+    
+    // Update track access time
+    track.lastAccessed = now;
+  }
+  
+  // Save the cache
+  await saveUnifiedTrackCache(userId);
+  
+  logCache(`Moved album ${albumId} from playlist ${sourcePlaylistId} to ${targetPlaylistId}`);
+}
+
+/**
  * Match loved tracks to cached tracks
  */
 async function matchLovedTracks(cache, lovedTracks, progressCallback) {

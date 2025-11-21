@@ -29,7 +29,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { usePlaycountTracking } from '@composables/usePlaycountTracking';
-import { loadUnifiedTrackCache } from '@utils/unifiedTrackCache';
+import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
 const route = useRoute();
@@ -1040,6 +1040,20 @@ async function handleClearCache() {
     }
   }
   
+  // Clear the playlist from unified track cache to force full rebuild
+  if (user.value && id.value) {
+    try {
+      const cache = await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+      if (cache?.playlists[id.value]) {
+        delete cache.playlists[id.value];
+        await saveUnifiedTrackCache(user.value.uid, true);
+        logCache(`Removed playlist ${id.value} from unified cache to force rebuild`);
+      }
+    } catch (error) {
+      logCache('Error removing playlist from unified cache:', error);
+    }
+  }
+  
   cacheCleared.value = true;
   albumData.value = [];
   albumsWithDates.value = [];
@@ -1257,6 +1271,42 @@ async function loadPlaylistPage() {
         logPlaylist('Playlist details fetched:', { name: playlistName.value, totalTracks: totalTracks.value });
       } else {
         logPlaylist('Playlist name loaded from cache, skipping API call');
+      }
+    }
+    
+    // Always try to get track count from playlist_summaries_ cache
+    if (user.value && totalTracks.value === 0) {
+      try {
+        const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+        const playlistSummariesCache = await getCache(playlistViewCacheKey);
+        
+        if (playlistSummariesCache) {
+          // Search through all groups to find the playlist
+          for (const group of Object.keys(playlistSummariesCache)) {
+            const groupPlaylists = playlistSummariesCache[group] || [];
+            const cachedPlaylist = groupPlaylists.find(p => p.id === id.value);
+            
+            if (cachedPlaylist?.tracks?.total !== undefined) {
+              totalTracks.value = cachedPlaylist.tracks.total;
+              logPlaylist('Track count loaded from playlist_summaries cache:', totalTracks.value);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        logPlaylist('Error loading track count from playlist_summaries cache:', error);
+      }
+    }
+    
+    // If still no track count, fetch from Spotify API
+    if (totalTracks.value === 0) {
+      try {
+        logPlaylist('Track count not in cache, fetching from Spotify API');
+        const playlistResponse = await getPlaylist(id.value);
+        totalTracks.value = playlistResponse.tracks?.total || 0;
+        logPlaylist('Track count fetched from Spotify API:', totalTracks.value);
+      } catch (error) {
+        logPlaylist('Error fetching track count from Spotify API:', error);
       }
     }
     
@@ -1514,6 +1564,28 @@ const handleProcessAlbum = async ({ album, action }) => {
       playlistData: targetPlaylistData,
       spotifyAddedAt: new Date()
     });
+    
+    // 4. Update unified track cache - surgically move album from source to target playlist
+    if (user.value) {
+      try {
+        // Ensure cache is loaded
+        await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        
+        // Move album in unified cache
+        await moveAlbumBetweenPlaylists(
+          id.value, // source playlist
+          targetSpotifyPlaylistId, // target playlist
+          album.id, // album ID
+          user.value.uid,
+          new Date().toISOString() // addedAt
+        );
+        
+        logPlaylist(`Moved album ${album.id} in unified track cache from ${id.value} to ${targetSpotifyPlaylistId}`);
+      } catch (error) {
+        logPlaylist(`Error moving album in unified track cache:`, error);
+        // Don't fail the whole operation if cache update fails
+      }
+    }
     
     const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
     successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
