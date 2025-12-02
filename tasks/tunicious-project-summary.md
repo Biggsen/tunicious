@@ -61,18 +61,21 @@ Separate development and production environments into distinct Firebase projects
 - Better testing capabilities
 
 ### 2. Unified Track Data Cache
-**Status**: Not Started  
+**Status**: In Progress (~70% complete)  
 **Spec**: `tasks/unified-track-cache-spec.md`
 
 Consolidate fragmented track data into a single unified cache structure to eliminate duplication and improve performance.
 
-**Key Tasks:**
-- Create unified cache utility (`src/utils/unifiedTrackCache.js`)
-- Migrate components to use unified cache
-- Implement cache-first updates for loved/playcount data
-- Build initial cache from playlists
-- Remove old cache keys
-- Estimated timeline: 4 weeks
+**Current Status:**
+- ✅ Core cache utility and Vue composable implemented
+- ✅ PlaylistSingle.vue and TrackList.vue integrated
+- ⚠️ Some components still using old cache (SpotifyPlayerBar.vue, AlbumView.vue)
+- ❌ Old cache cleanup not started
+
+**Remaining Tasks:**
+- Migrate remaining 3-4 components
+- Remove old cache key references
+- Delete old cache utilities
 
 **Benefits:**
 - Single source of truth for track data
