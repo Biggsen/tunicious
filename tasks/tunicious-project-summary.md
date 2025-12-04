@@ -4,15 +4,15 @@
   "schemaVersion": 1,
   "projectId": "tunicious",
   "name": "Tunicious",
-  "repo": "",
-  "visibility": "private",
+  "repo": "Biggsen/tunicious",
+  "visibility": "staging",
   "status": "active",
   "domain": "music",
   "type": "webapp",
-  "lastUpdated": "2025-01-15",
+  "lastUpdated": "2025-12-02",
   "links": {
     "prod": null,
-    "staging": null
+    "staging": "https://audiofoodie-d5b2c.web.app/"
   },
   "tags": ["webapp", "vue", "firebase", "spotify", "lastfm", "music"]
 }
@@ -241,7 +241,7 @@ Currently focused on **Unified Track Data Cache** implementation (~70% complete)
 
 **Overall Status**: Active Development  
 **Completion**: ~75%  
-**Last Major Update**: January 2025
+**Last Major Update**: November 2025
 
 ### Current State
 
