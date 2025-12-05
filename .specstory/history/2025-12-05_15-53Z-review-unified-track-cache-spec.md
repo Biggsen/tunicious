@@ -4963,3 +4963,544 @@ This should resolve the regression.
 
 ---
 
+_**User (2025-12-05 09:10Z)**_
+
+let's do this one as well:
+
+Medium priority:
+
+Extract loved status check helper (#4)
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Searching for duplicated loved status checks to extract into a helper:
+
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "loved.*===.*true|track\.loved|lovedTrackIds\.includes" in "src/utils/unifiedTrackCache.js" • 12 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `return track.loved === true \|\|` | L242 |
+| `src/utils/unifiedTrackCache.js` | `(track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));` | L243 |
+| `src/utils/unifiedTrackCache.js` | `if (track.loved && !cache.indexes.lovedTrackIds.includes(trackId)) \{` | L313 |
+| `src/utils/unifiedTrackCache.js` | `track.loved = loved;` | L414 |
+| `src/utils/unifiedTrackCache.js` | `if (loved && !cache.indexes.lovedTrackIds.includes(trackId)) \{` | L419 |
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L472 |
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L799 |
+| `src/utils/unifiedTrackCache.js` | `if (track.loved) continue; // Already matched` | L815 |
+| `src/utils/unifiedTrackCache.js` | `track.loved = true;` | L829 |
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L831 |
+| `src/utils/unifiedTrackCache.js` | `if (track.loved) continue;` | L1258 |
+| `src/utils/unifiedTrackCache.js` | `.filter((\{ track \}) => !track.loved && track.playlistIds.length > 0) // Non-loved tracks in playlists` | L1283 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "Where are loved status checks duplicated in unifiedTrackCache.js?" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/utils/unifiedTrackCache.js` | L217-261 |
+| `src/utils/unifiedTrackCache.js` | L392-443 |
+| `src/utils/unifiedTrackCache.js` | L704-853 |
+| `src/utils/unifiedTrackCache.js` | L362-395 |
+| `src/utils/unifiedTrackCache.js` | L443-545 |
+| `src/utils/unifiedTrackCache.js` | L402-545 |
+| `src/utils/unifiedTrackCache.js` | L860-984 |
+| `src/utils/unifiedTrackCache.js` | L773-859 |
+| `src/utils/unifiedTrackCache.js` | L248-329 |
+| `src/utils/unifiedTrackCache.js` | L240-315 |
+| `src/utils/unifiedTrackCache.js` | L985-1138 |
+| `src/utils/unifiedTrackCache.js` | L208-243 |
+| `src/utils/unifiedTrackCache.js` | L1131-1182 |
+| `src/utils/unifiedTrackCache.js` | L38 |
+| `src/utils/unifiedTrackCache.js` | L70-192 |
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Reviewing the file to identify all loved status check patterns:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Creating helper functions for loved status index operations and replacing duplicated code:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 26, lines removed: undefined
+
+```diff
+@@ -243,4 +243,30 @@
+      (track.loved === undefined &amp;&amp; cache.indexes.lovedTrackIds.includes(track.id));
+  }
++ 
++ /**
++  * Check if a track ID is in the loved tracks index
++  */
++ function isTrackLovedInIndex(cache, trackId) {
++   return cache.indexes.lovedTrackIds.includes(trackId);
++ }
++ 
++ /**
++  * Add a track to the loved tracks index (if not already present)
++  */
++ function addTrackToLovedIndex(cache, trackId) {
++   if (!cache.indexes.lovedTrackIds.includes(trackId)) {
++     cache.indexes.lovedTrackIds.push(trackId);
++   }
++ }
++ 
++ /**
++  * Remove a track from the loved tracks index
++  */
++ function removeTrackFromLovedIndex(cache, trackId) {
++   const index = cache.indexes.lovedTrackIds.indexOf(trackId);
++   if (index !== -1) {
++     cache.indexes.lovedTrackIds.splice(index, 1);
++   }
++ }
+  
+  /**
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Replacing duplicated loved status index operations with the new helpers:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -337,6 +337,6 @@
+    
+    // Add to lovedTrackIds if loved
+-   if (track.loved &amp;&amp; !cache.indexes.lovedTrackIds.includes(trackId)) {
+-     cache.indexes.lovedTrackIds.push(trackId);
++   if (track.loved) {
++     addTrackToLovedIndex(cache, trackId);
+    }
+  }
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 7
+
+```diff
+@@ -443,11 +443,8 @@
+    
+    // Update lovedTrackIds index
+-   if (loved &amp;&amp; !cache.indexes.lovedTrackIds.includes(trackId)) {
+-     cache.indexes.lovedTrackIds.push(trackId);
+-   } else if (!loved) {
+-     const index = cache.indexes.lovedTrackIds.indexOf(trackId);
+-     if (index !== -1) {
+-       cache.indexes.lovedTrackIds.splice(index, 1);
+-     }
++   if (loved) {
++     addTrackToLovedIndex(cache, trackId);
++   } else {
++     removeTrackFromLovedIndex(cache, trackId);
+    }
+    
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 7
+
+```diff
+@@ -493,13 +493,8 @@
+        if (!loved) {
+          // Was trying to unlove, but failed - add back to loved list
+-         if (!cache.indexes.lovedTrackIds.includes(trackId)) {
+-           cache.indexes.lovedTrackIds.push(trackId);
+-         }
++         addTrackToLovedIndex(cache, trackId);
+        } else {
+          // Was trying to love, but failed - remove from loved list
+-         const index = cache.indexes.lovedTrackIds.indexOf(trackId);
+-         if (index !== -1) {
+-           cache.indexes.lovedTrackIds.splice(index, 1);
+-         }
++         removeTrackFromLovedIndex(cache, trackId);
+        }
+        
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 3
+
+```diff
+@@ -815,7 +815,5 @@
+                cache.tracks[trackId].loved = true;
+                cache.tracks[trackId].lastLovedUpdate = Date.now();
+-               if (!cache.indexes.lovedTrackIds.includes(trackId)) {
+-                 cache.indexes.lovedTrackIds.push(trackId);
+-               }
++               addTrackToLovedIndex(cache, trackId);
+                matched = true;
+                matchedCount++;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+Model supplied an ambiguous edit
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 4
+
+```diff
+@@ -347,8 +347,5 @@
+  function removeTrackFromIndexes(cache, trackId, track) {
+    // Remove from lovedTrackIds
+-   const lovedIndex = cache.indexes.lovedTrackIds.indexOf(trackId);
+-   if (lovedIndex !== -1) {
+-     cache.indexes.lovedTrackIds.splice(lovedIndex, 1);
+-   }
++   removeTrackFromLovedIndex(cache, trackId);
+    
+    // Note: We don't remove from other indexes on eviction to avoid complexity
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/utils/unifiedTrackCache.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Finding and fixing the fuzzy match section:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "if \(!cache\.indexes\.lovedTrackIds\.includes\(trackId\)\)" in "src/utils/unifiedTrackCache.js" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L257 |
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L844 |
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 3
+
+```diff
+@@ -842,7 +842,5 @@
+              track.loved = true;
+              track.lastLovedUpdate = Date.now();
+-             if (!cache.indexes.lovedTrackIds.includes(trackId)) {
+-               cache.indexes.lovedTrackIds.push(trackId);
+-             }
++             addTrackToLovedIndex(cache, trackId);
+              matched = true;
+              matchedCount++;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "lovedTrackIds\.indexOf|lovedTrackIds\.includes|lovedTrackIds\.push|lovedTrackIds\.splice" in "src/utils/unifiedTrackCache.js" • 6 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `(track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));` | L243 |
+| `src/utils/unifiedTrackCache.js` | `return cache.indexes.lovedTrackIds.includes(trackId);` | L250 |
+| `src/utils/unifiedTrackCache.js` | `if (!cache.indexes.lovedTrackIds.includes(trackId)) \{` | L257 |
+| `src/utils/unifiedTrackCache.js` | `cache.indexes.lovedTrackIds.push(trackId);` | L258 |
+| `src/utils/unifiedTrackCache.js` | `const index = cache.indexes.lovedTrackIds.indexOf(trackId);` | L266 |
+| `src/utils/unifiedTrackCache.js` | `cache.indexes.lovedTrackIds.splice(index, 1);` | L268 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/utils/unifiedTrackCache.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Extracted the loved status check helpers. Summary:
+
+## Created Helper Functions
+
+1. **`isTrackLovedInIndex(cache, trackId)`** - Checks if a track ID is in the loved tracks index
+2. **`addTrackToLovedIndex(cache, trackId)`** - Adds a track to the loved tracks index (if not already present)
+3. **`removeTrackFromLovedIndex(cache, trackId)`** - Removes a track from the loved tracks index
+
+## Replaced Duplicated Code
+
+Replaced 6 instances of duplicated loved index operations:
+
+1. **`addTrackToIndexes`** (line ~336) - Now uses `addTrackToLovedIndex`
+2. **`updateTrackLoved`** (line ~435) - Now uses `addTrackToLovedIndex` and `removeTrackFromLovedIndex`
+3. **`syncLovedStatusToLastFm`** error handling (line ~495) - Now uses the helpers
+4. **`matchLovedTracks`** exact match (line ~810) - Now uses `addTrackToLovedIndex`
+5. **`matchLovedTracks`** fuzzy match (line ~844) - Now uses `addTrackToLovedIndex`
+6. **`removeTrackFromIndexes`** (line ~339) - Now uses `removeTrackFromLovedIndex`
+
+All direct manipulations of `cache.indexes.lovedTrackIds` are now centralized in the helper functions, making the code more maintainable and consistent. No linter errors.
+
+---
+

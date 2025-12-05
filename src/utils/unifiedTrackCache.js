@@ -244,6 +244,32 @@ function isTrackLovedInCache(cache, track) {
 }
 
 /**
+ * Check if a track ID is in the loved tracks index
+ */
+function isTrackLovedInIndex(cache, trackId) {
+  return cache.indexes.lovedTrackIds.includes(trackId);
+}
+
+/**
+ * Add a track to the loved tracks index (if not already present)
+ */
+function addTrackToLovedIndex(cache, trackId) {
+  if (!cache.indexes.lovedTrackIds.includes(trackId)) {
+    cache.indexes.lovedTrackIds.push(trackId);
+  }
+}
+
+/**
+ * Remove a track from the loved tracks index
+ */
+function removeTrackFromLovedIndex(cache, trackId) {
+  const index = cache.indexes.lovedTrackIds.indexOf(trackId);
+  if (index !== -1) {
+    cache.indexes.lovedTrackIds.splice(index, 1);
+  }
+}
+
+/**
  * Transform track IDs to track objects with user-specific data
  */
 function transformTracksForReturn(cache, trackIds) {
@@ -310,8 +336,8 @@ function addTrackToIndexes(cache, track) {
   }
   
   // Add to lovedTrackIds if loved
-  if (track.loved && !cache.indexes.lovedTrackIds.includes(trackId)) {
-    cache.indexes.lovedTrackIds.push(trackId);
+  if (track.loved) {
+    addTrackToLovedIndex(cache, trackId);
   }
 }
 
@@ -320,10 +346,7 @@ function addTrackToIndexes(cache, track) {
  */
 function removeTrackFromIndexes(cache, trackId, track) {
   // Remove from lovedTrackIds
-  const lovedIndex = cache.indexes.lovedTrackIds.indexOf(trackId);
-  if (lovedIndex !== -1) {
-    cache.indexes.lovedTrackIds.splice(lovedIndex, 1);
-  }
+  removeTrackFromLovedIndex(cache, trackId);
   
   // Note: We don't remove from other indexes on eviction to avoid complexity
   // Indexes will be rebuilt if needed or cleaned up during cache rebuild
@@ -416,13 +439,10 @@ export async function updateTrackLoved(trackId, loved, userId, lastFmUserName, s
   updateTrackAccess(cache, trackId);
   
   // Update lovedTrackIds index
-  if (loved && !cache.indexes.lovedTrackIds.includes(trackId)) {
-    cache.indexes.lovedTrackIds.push(trackId);
-  } else if (!loved) {
-    const index = cache.indexes.lovedTrackIds.indexOf(trackId);
-    if (index !== -1) {
-      cache.indexes.lovedTrackIds.splice(index, 1);
-    }
+  if (loved) {
+    addTrackToLovedIndex(cache, trackId);
+  } else {
+    removeTrackFromLovedIndex(cache, trackId);
   }
   
   // Save cache immediately (critical operation)
@@ -469,15 +489,10 @@ async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey,
       // Update lovedTrackIds index
       if (!loved) {
         // Was trying to unlove, but failed - add back to loved list
-        if (!cache.indexes.lovedTrackIds.includes(trackId)) {
-          cache.indexes.lovedTrackIds.push(trackId);
-        }
+        addTrackToLovedIndex(cache, trackId);
       } else {
         // Was trying to love, but failed - remove from loved list
-        const index = cache.indexes.lovedTrackIds.indexOf(trackId);
-        if (index !== -1) {
-          cache.indexes.lovedTrackIds.splice(index, 1);
-        }
+        removeTrackFromLovedIndex(cache, trackId);
       }
       
       await saveUnifiedTrackCache(userId, true);
@@ -796,9 +811,7 @@ async function matchLovedTracks(cache, lovedTracks, progressCallback) {
             if (cache.tracks[trackId] && !cache.tracks[trackId].loved) {
               cache.tracks[trackId].loved = true;
               cache.tracks[trackId].lastLovedUpdate = Date.now();
-              if (!cache.indexes.lovedTrackIds.includes(trackId)) {
-                cache.indexes.lovedTrackIds.push(trackId);
-              }
+              addTrackToLovedIndex(cache, trackId);
               matched = true;
               matchedCount++;
             }
@@ -828,9 +841,7 @@ async function matchLovedTracks(cache, lovedTracks, progressCallback) {
           if (artistMatch) {
             track.loved = true;
             track.lastLovedUpdate = Date.now();
-            if (!cache.indexes.lovedTrackIds.includes(trackId)) {
-              cache.indexes.lovedTrackIds.push(trackId);
-            }
+            addTrackToLovedIndex(cache, trackId);
             matched = true;
             matchedCount++;
             break;
