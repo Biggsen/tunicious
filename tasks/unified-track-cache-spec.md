@@ -1,5 +1,14 @@
 # Unified Track Data Cache Specification
 
+**Status:** ✅ **IMPLEMENTATION COMPLETE**
+
+All phases of the unified track cache implementation have been completed, including:
+- Core cache system implementation
+- Component migration
+- Phase 4 cleanup
+- Cache Manager enhancements
+- Code refactoring and optimization
+
 ## Overview
 
 This document specifies the design and implementation of a unified, user-specific cache system that consolidates all track-related data (tracks, loved status, playcounts) into a single, highly efficient cache structure. This eliminates data duplication across multiple cache keys and provides a cache-first approach where updates happen in the cache without requiring API calls after the initial fetch.
@@ -325,9 +334,66 @@ export function getCacheStats()
  * @returns {Promise<void>}
  */
 export async function clearUnifiedTrackCache(userId)
+
+/**
+ * Check if a playlist's tracks are already cached
+ * @param {string} playlistId - Spotify playlist ID
+ * @param {string} userId - Firebase user ID
+ * @returns {boolean}
+ */
+export function isPlaylistCached(playlistId, userId)
+
+/**
+ * Get all track IDs in the cache
+ * @param {string} userId - Firebase user ID
+ * @returns {string[]}
+ */
+export function getAllTrackIds(userId)
 ```
 
 ## Implementation Details
+
+### Code Refactoring ✅ COMPLETED
+
+The following helper functions have been extracted to reduce code duplication and improve maintainability:
+
+1. **`createTrackObject(track, trackId, now, albumId, albumData)`**
+   - Centralizes track object creation logic
+   - Used in `addAlbumTracks` and `addPlaylistTracks`
+   - Ensures consistent track object structure
+
+2. **`transformTracksForReturn(cache, trackIds)`**
+   - Transforms track IDs to full track objects with user-specific data
+   - Updates access timestamps
+   - Checks loved status using `isTrackLovedInCache`
+   - Used in `getAlbumTracks`, `getPlaylistAlbumTracks`, and `getPlaylistTracks`
+
+3. **`isTrackLovedInCache(cache, track)`**
+   - Checks if a track is loved (checks both `track.loved` and `lovedTrackIds` index)
+   - Used in `transformTracksForReturn`
+
+4. **`isTrackLovedInIndex(cache, trackId)`**
+   - Checks if a track ID is in the loved tracks index
+   - Helper for index operations
+
+5. **`addTrackToLovedIndex(cache, trackId)`**
+   - Adds a track to the loved tracks index (if not already present)
+   - Replaces duplicated `lovedTrackIds.includes()` and `push()` logic
+
+6. **`removeTrackFromLovedIndex(cache, trackId)`**
+   - Removes a track from the loved tracks index
+   - Replaces duplicated `indexOf()` and `splice()` logic
+
+7. **`isPlaylistCached(playlistId, userId)`**
+   - Utility function to check if a playlist's tracks are already cached
+   - Used in `buildPlaylistCache` and `PlaylistSingle.vue`
+   - Centralizes cache check logic
+
+**Benefits:**
+- Reduced code duplication (~50+ lines eliminated)
+- Improved maintainability (changes in one place)
+- Consistent behavior across all functions
+- Better testability (helpers can be tested independently)
 
 ### Cache Initialization
 
@@ -614,38 +680,24 @@ Indexes are updated automatically when tracks are added/updated:
 2. Components can use either system
 3. Build new cache in background
 
-### Phase 3: Component Migration
-1. Update `PlaylistSingle.vue` to use unified cache
-2. Update `AlbumItem.vue` to use unified cache
-3. Update `TrackList.vue` to use unified cache
-4. Update `AlbumView.vue` to use unified cache
-5. Update `ArtistView.vue` to use unified cache
+### Phase 3: Component Migration ✅ COMPLETED
+1. ✅ Update `PlaylistSingle.vue` to use unified cache
+2. ✅ Update `AlbumItem.vue` to use unified cache (loved percentage display removed)
+3. ✅ Update `TrackList.vue` to use unified cache
+4. ✅ Update `AlbumView.vue` to use unified cache
+5. ✅ Update `ArtistView.vue` to use unified cache (loved percentage removed)
 
-### Phase 4: Cleanup
-1. Remove old cache keys:
+**Note:** Loved track percentage display consolidated to only show in `TrackList` component when tracklist is actively loaded.
+
+### Phase 4: Cleanup ✅ COMPLETED
+1. ✅ Remove old cache keys:
    - `albumTracks_${albumId}`
    - `playlist_tracks_${playlistId}`
    - `lovedTracks_${lastFmUserName}`
-2. Remove old cache utility functions
-3. Update documentation
+2. ✅ Remove old cache utility functions (`src/utils/lastFmUtils.js` deleted)
+3. ✅ Update documentation
 
-### Migration Helper
-
-```javascript
-/**
- * Migrate from old cache system to unified cache
- * @param {string} userId - Firebase user ID
- * @param {string} lastFmUserName - Last.fm username
- * @returns {Promise<void>}
- */
-export async function migrateFromOldCache(userId, lastFmUserName) {
-  // 1. Load old caches
-  // 2. Extract track data
-  // 3. Build unified cache structure
-  // 4. Save unified cache
-  // 5. Mark migration as complete
-}
-```
+**Note:** Migration helper (`migrateFromOldCache`) was deemed unnecessary due to lazy loading nature of new cache system. Old cache data is naturally replaced as users interact with playlists.
 
 ## Performance Considerations
 
@@ -727,25 +779,36 @@ export async function migrateFromOldCache(userId, lastFmUserName) {
 - Background playcount fetching (non-blocking)
 - Allow user to interact with playlist while cache builds
 
-### Cache Updates
-- Optimistic updates: loved/unloved changes show immediately
-- Silent background sync to Last.fm API
-- Subtle indicator if unsynced changes exist (badge in header)
-- Toast notification only if sync fails after retries
-- Incremental refresh: playcounts/loved status refreshed on access if stale
-- Playcount refresh happens in background (non-blocking, shows cached value first)
-- Update `lastAccessed` on track interactions (for LRU eviction)
-- Manual refresh buttons in account settings:
-  - Retry failed syncs
+### Cache Updates ✅ COMPLETED
+- ✅ Optimistic updates: loved/unloved changes show immediately
+- ✅ Silent background sync to Last.fm API
+- ✅ Subtle indicator if unsynced changes exist (badge in Cache Manager)
+- ✅ Toast notification only if sync fails after retries
+- ✅ Incremental refresh: playcounts/loved status refreshed on access if stale
+- ✅ Playcount refresh happens in background (non-blocking, shows cached value first)
+- ✅ Update `lastAccessed` on track interactions (for LRU eviction)
+- ✅ Manual refresh buttons in Cache Manager:
+  - Retry failed syncs (with unsynced count badge)
   - Force refresh all playcounts
   - Force refresh all loved status
-  - Full cache rebuild (troubleshooting)
+  - Clear track cache
 
-### Cache Management
-- Add to existing Cache Manager component
-- Show cache size
-- Allow manual refresh
-- Allow cache clearing
+**Bug Fixes:**
+- ✅ Fixed playcount loading indicator regression in `TrackList.vue` - now only shows when playcounts are actually being fetched, not when only `loved` property changes
+
+### Cache Management ✅ COMPLETED
+- ✅ Added to existing Cache Manager component (`src/components/common/CacheManager.vue`)
+- ✅ Show unified track cache statistics:
+  - Total tracks, albums, playlists
+  - Loved tracks count
+  - Unsynced changes count
+  - Last updated timestamp
+- ✅ Manual refresh buttons:
+  - Retry Failed Syncs (with unsynced count badge)
+  - Refresh All Playcounts
+  - Refresh Loved Status
+  - Clear Track Cache
+- ✅ Loading states and user feedback for all operations
 
 ## Future Enhancements
 
