@@ -5504,3 +5504,1262 @@ All direct manipulations of `cache.indexes.lovedTrackIds` are now centralized in
 
 ---
 
+_**User (2025-12-05 09:10Z)**_
+
+I think you can safely update the unified track cache spec now.
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Reviewing the spec to update it with completed work:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Updating the spec to reflect completed work:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 14, lines removed: 28
+
+```diff
+@@ -615,36 +615,22 @@
+  3. Build new cache in background
+  
+- ### Phase 3: Component Migration
+- 1. Update &#96;PlaylistSingle.vue&#96; to use unified cache
+- 2. Update &#96;AlbumItem.vue&#96; to use unified cache
+- 3. Update &#96;TrackList.vue&#96; to use unified cache
+- 4. Update &#96;AlbumView.vue&#96; to use unified cache
+- 5. Update &#96;ArtistView.vue&#96; to use unified cache
++ ### Phase 3: Component Migration ✅ COMPLETED
++ 1. ✅ Update &#96;PlaylistSingle.vue&#96; to use unified cache
++ 2. ✅ Update &#96;AlbumItem.vue&#96; to use unified cache (loved percentage display removed)
++ 3. ✅ Update &#96;TrackList.vue&#96; to use unified cache
++ 4. ✅ Update &#96;AlbumView.vue&#96; to use unified cache
++ 5. ✅ Update &#96;ArtistView.vue&#96; to use unified cache (loved percentage removed)
++ 
++ **Note:** Loved track percentage display consolidated to only show in &#96;TrackList&#96; component when tracklist is actively loaded.
+  
+- ### Phase 4: Cleanup
+- 1. Remove old cache keys:
++ ### Phase 4: Cleanup ✅ COMPLETED
++ 1. ✅ Remove old cache keys:
+     - &#96;albumTracks_${albumId}&#96;
+     - &#96;playlist_tracks_${playlistId}&#96;
+     - &#96;lovedTracks_${lastFmUserName}&#96;
+- 2. Remove old cache utility functions
+- 3. Update documentation
+- 
+- ### Migration Helper
+- 
+- &#96;&#96;&#96;javascript
+- /**
+-  * Migrate from old cache system to unified cache
+-  * @param {string} userId - Firebase user ID
+-  * @param {string} lastFmUserName - Last.fm username
+-  * @returns {Promise&lt;void&gt;}
+-  */
+- export async function migrateFromOldCache(userId, lastFmUserName) {
+-   // 1. Load old caches
+-   // 2. Extract track data
+-   // 3. Build unified cache structure
+-   // 4. Save unified cache
+-   // 5. Mark migration as complete
+- }
+- &#96;&#96;&#96;
++ 2. ✅ Remove old cache utility functions (&#96;src/utils/lastFmUtils.js&#96; deleted)
++ 3. ✅ Update documentation
++ 
++ **Note:** Migration helper (&#96;migrateFromOldCache&#96;) was deemed unnecessary due to lazy loading nature of new cache system. Old cache data is naturally replaced as users interact with playlists.
+  
+  ## Performance Considerations
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 13, lines removed: 5
+
+```diff
+@@ -728,9 +728,17 @@
+    - Full cache rebuild (troubleshooting)
+  
+- ### Cache Management
+- - Add to existing Cache Manager component
+- - Show cache size
+- - Allow manual refresh
+- - Allow cache clearing
++ ### Cache Management ✅ COMPLETED
++ - ✅ Added to existing Cache Manager component (&#96;src/components/common/CacheManager.vue&#96;)
++ - ✅ Show unified track cache statistics:
++   - Total tracks, albums, playlists
++   - Loved tracks count
++   - Unsynced changes count
++   - Last updated timestamp
++ - ✅ Manual refresh buttons:
++   - Retry Failed Syncs (with unsynced count badge)
++   - Refresh All Playcounts
++   - Refresh Loved Status
++   - Clear Track Cache
++ - ✅ Loading states and user feedback for all operations
+  
+  ## Future Enhancements
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 15, lines removed: undefined
+
+```diff
+@@ -326,4 +326,19 @@
+   */
+  export async function clearUnifiedTrackCache(userId)
++ 
++ /**
++  * Check if a playlist's tracks are already cached
++  * @param {string} playlistId - Spotify playlist ID
++  * @param {string} userId - Firebase user ID
++  * @returns {boolean}
++  */
++ export function isPlaylistCached(playlistId, userId)
++ 
++ /**
++  * Get all track IDs in the cache
++  * @param {string} userId - Firebase user ID
++  * @returns {string[]}
++  */
++ export function getAllTrackIds(userId)
+  &#96;&#96;&#96;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 9, lines removed: undefined
+
+```diff
+@@ -1,3 +1,12 @@
+  # Unified Track Data Cache Specification
++ 
++ **Status:** ✅ **IMPLEMENTATION COMPLETE**
++ 
++ All phases of the unified track cache implementation have been completed, including:
++ - Core cache system implementation
++ - Component migration
++ - Phase 4 cleanup
++ - Cache Manager enhancements
++ - Code refactoring and optimization
+  
+  ## Overview
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 42, lines removed: undefined
+
+```diff
+@@ -353,4 +353,46 @@
+  
+  ## Implementation Details
++ 
++ ### Code Refactoring ✅ COMPLETED
++ 
++ The following helper functions have been extracted to reduce code duplication and improve maintainability:
++ 
++ 1. **&#96;createTrackObject(track, trackId, now, albumId, albumData)&#96;**
++    - Centralizes track object creation logic
++    - Used in &#96;addAlbumTracks&#96; and &#96;addPlaylistTracks&#96;
++    - Ensures consistent track object structure
++ 
++ 2. **&#96;transformTracksForReturn(cache, trackIds)&#96;**
++    - Transforms track IDs to full track objects with user-specific data
++    - Updates access timestamps
++    - Checks loved status using &#96;isTrackLovedInCache&#96;
++    - Used in &#96;getAlbumTracks&#96;, &#96;getPlaylistAlbumTracks&#96;, and &#96;getPlaylistTracks&#96;
++ 
++ 3. **&#96;isTrackLovedInCache(cache, track)&#96;**
++    - Checks if a track is loved (checks both &#96;track.loved&#96; and &#96;lovedTrackIds&#96; index)
++    - Used in &#96;transformTracksForReturn&#96;
++ 
++ 4. **&#96;isTrackLovedInIndex(cache, trackId)&#96;**
++    - Checks if a track ID is in the loved tracks index
++    - Helper for index operations
++ 
++ 5. **&#96;addTrackToLovedIndex(cache, trackId)&#96;**
++    - Adds a track to the loved tracks index (if not already present)
++    - Replaces duplicated &#96;lovedTrackIds.includes()&#96; and &#96;push()&#96; logic
++ 
++ 6. **&#96;removeTrackFromLovedIndex(cache, trackId)&#96;**
++    - Removes a track from the loved tracks index
++    - Replaces duplicated &#96;indexOf()&#96; and &#96;splice()&#96; logic
++ 
++ 7. **&#96;isPlaylistCached(playlistId, userId)&#96;**
++    - Utility function to check if a playlist's tracks are already cached
++    - Used in &#96;buildPlaylistCache&#96; and &#96;PlaylistSingle.vue&#96;
++    - Centralizes cache check logic
++ 
++ **Benefits:**
++ - Reduced code duplication (~50+ lines eliminated)
++ - Improved maintainability (changes in one place)
++ - Consistent behavior across all functions
++ - Better testability (helpers can be tested independently)
+  
+  ### Cache Initialization
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: tasks/unified-track-cache-spec.md</summary>
+
+**Chunk 1**
+Lines added: 14, lines removed: 11
+
+```diff
+@@ -780,17 +780,20 @@
+  - Allow user to interact with playlist while cache builds
+  
+- ### Cache Updates
+- - Optimistic updates: loved/unloved changes show immediately
+- - Silent background sync to Last.fm API
+- - Subtle indicator if unsynced changes exist (badge in header)
+- - Toast notification only if sync fails after retries
+- - Incremental refresh: playcounts/loved status refreshed on access if stale
+- - Playcount refresh happens in background (non-blocking, shows cached value first)
+- - Update &#96;lastAccessed&#96; on track interactions (for LRU eviction)
+- - Manual refresh buttons in account settings:
+-   - Retry failed syncs
++ ### Cache Updates ✅ COMPLETED
++ - ✅ Optimistic updates: loved/unloved changes show immediately
++ - ✅ Silent background sync to Last.fm API
++ - ✅ Subtle indicator if unsynced changes exist (badge in Cache Manager)
++ - ✅ Toast notification only if sync fails after retries
++ - ✅ Incremental refresh: playcounts/loved status refreshed on access if stale
++ - ✅ Playcount refresh happens in background (non-blocking, shows cached value first)
++ - ✅ Update &#96;lastAccessed&#96; on track interactions (for LRU eviction)
++ - ✅ Manual refresh buttons in Cache Manager:
++   - Retry failed syncs (with unsynced count badge)
+    - Force refresh all playcounts
+    - Force refresh all loved status
+-   - Full cache rebuild (troubleshooting)
++   - Clear track cache
++ 
++ **Bug Fixes:**
++ - ✅ Fixed playcount loading indicator regression in &#96;TrackList.vue&#96; - now only shows when playcounts are actually being fetched, not when only &#96;loved&#96; property changes
+  
+  ### Cache Management ✅ COMPLETED
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `tasks/unified-track-cache-spec.md`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Updated the unified track cache spec to reflect completed work. Summary of changes:
+
+## Updates Made
+
+1. **Status Header** - Added "IMPLEMENTATION COMPLETE" at the top of the document
+
+2. **Phase 3 & 4 Completion** - Marked both phases as completed with checkmarks and notes:
+   - All component migrations completed
+   - Loved percentage display consolidated to TrackList only
+   - Old cache keys and utility functions removed
+   - Migration helper deemed unnecessary
+
+3. **Cache Manager Section** - Updated to show completed enhancements:
+   - Unified track cache statistics display
+   - Manual refresh buttons with loading states
+   - All features implemented
+
+4. **New API Functions** - Added documentation for:
+   - `isPlaylistCached()` - Utility to check if playlist is cached
+   - `getAllTrackIds()` - Get all track IDs from cache
+
+5. **Code Refactoring Section** - New section documenting all helper functions:
+   - `createTrackObject()` - Track object creation
+   - `transformTracksForReturn()` - Track transformation
+   - `isTrackLovedInCache()` - Loved status checking
+   - `isTrackLovedInIndex()` - Index checking
+   - `addTrackToLovedIndex()` - Index management
+   - `removeTrackFromLovedIndex()` - Index management
+   - `isPlaylistCached()` - Playlist cache checking
+
+6. **Bug Fixes** - Added note about the playcount loading indicator regression fix
+
+The spec now reflects the current state of the unified track cache implementation.
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+anything not done? or enhancements?
+
+---
+
+_**Agent (model default, mode Ask)**_
+
+
+
+---
+
+
+Reviewing the spec and implementation for any remaining items or enhancements:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "TODO|FIXME|XXX|HACK|NOTE|TODO|INCOMPLETE" in "src/utils/unifiedTrackCache.js" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `// Note: We don't remove from other indexes on eviction to avoid complexity` | L351 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "What features or functionality from the unified track cache spec are not yet implemented?" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `tasks/unified-track-cache-spec.md` | L54 |
+| `tasks/tunicious-project-summary.md` | L92-156 |
+| `tasks/unified-track-cache-spec.md` | L772-819 |
+| `tasks/tunicious-project-summary.md` | L152-189 |
+| `tasks/unified-track-cache-spec.md` | L645-700 |
+| `tasks/tunicious-project-summary.md` | L50-100 |
+| `tasks/unified-track-cache-spec.md` | L817-881 |
+| `tasks/tunicious-project-summary.md` | L222-286 |
+| `tasks/unified-track-cache-spec.md` | L283-358 |
+| `tasks/unified-track-cache-spec.md` | L594-648 |
+| `tasks/unified-track-cache-spec.md` | L401-455 |
+| `tasks/unified-track-cache-spec.md` | L697-775 |
+| `tasks/unified-track-cache-spec.md` | L51-100 |
+| `tasks/unified-track-cache-spec.md` | L451-505 |
+| `src/composables/useUnifiedTrackCache.js` | L420 |
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "calculateAlbumLovedPercentage|getAlbumLovedPercentage" in "src/utils/unifiedTrackCache.js" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `export async function calculateAlbumLovedPercentage(albumId, userId) \{` | L1155 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getCacheStats" in "src/utils/unifiedTrackCache.js" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `export function getCacheStats(userId) \{` | L1180 |
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking for any missing implementations or gaps:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "test|spec|describe|it\(" in "src/utils/unifiedTrackCache.js" • 0 matches</summary>
+
+Output mode: count
+
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="file_search">
+<details>
+            <summary>Tool use: **file_search** • Searched codebase "unifiedTrackCache.test" • **0** results</summary>
+        
+No results found
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "Are there any components still using old cache keys like albumTracks_ or playlist_tracks_?" • **14** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `tasks/unified-track-cache-spec.md` | L54 |
+| `tasks/unified-track-cache-spec.md` | L645-700 |
+| `src/views/playlists/PlaylistSingle.vue` | L170-220 |
+| `src/composables/useUnifiedTrackCache.js` | L31-420 |
+| `src/views/playlists/PlaylistSingle.vue` | L74-127 |
+| `src/views/playlists/PlaylistSingle.vue` | L218-269 |
+| `src/views/playlists/PlaylistSingle.vue` | L999-1063 |
+| `src/composables/useUnifiedTrackCache.js` | L420 |
+| `src/components/SpotifyPlayerBar.vue` | L145-196 |
+| `src/views/playlists/PlaylistSingle.vue` | L29-77 |
+| `src/views/music/AlbumView.vue` | L268-329 |
+| `src/views/playlists/PlaylistSingle.vue` | L749-786 |
+| `src/utils/unifiedTrackCache.js` | L38 |
+| `src/components/TrackList.vue` | L257-325 |
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "albumTracks_|playlist_tracks_|lovedTracks_" in "src" • 0 matches</summary>
+
+Output mode: files_with_matches
+
+
+_No matches found_
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+## ✅ Completed items
+
+1. Core implementation — all functions implemented
+2. Component migration — all components migrated
+3. Phase 4 cleanup — old cache keys removed
+4. Cache Manager — UI enhancements complete
+5. Code refactoring — helper functions extracted
+6. Bug fixes — playcount loading indicator fixed
+
+## ⚠️ Not done (from spec)
+
+### Testing strategy (not implemented)
+The spec mentions testing but no tests exist:
+- Unit tests for cache structure validation, index building, lookup/update functions
+- Integration tests for cache build process, incremental updates, error scenarios
+- Performance tests for load time, lookup performance, memory usage
+
+Recommendation: Add tests if you want coverage. Not critical for functionality.
+
+## 🚀 Future enhancements (from spec)
+
+1. Incremental sync — only fetch new/updated tracks (currently fetches all)
+2. Background sync — periodic updates in background (currently on-demand)
+3. Compression — compress cache data for storage (currently raw JSON)
+4. Cloud backup — sync cache to Firebase (optional)
+5. Multi-device — share cache across devices
+6. Analytics — track cache hit rates, performance metrics
+
+## 💡 Potential enhancements (not in spec)
+
+1. Cache size display — show actual cache size in MB/KB in Cache Manager
+2. Cache export/import — allow users to export/import cache data
+3. Cache validation — periodic validation to detect corruption
+4. Batch operations — batch update loved status/playcounts for multiple tracks
+5. Cache warming — preload tracks for frequently accessed playlists
+6. Index optimization — optimize index structure for faster lookups if needed
+
+## 📊 Summary
+
+Core functionality is complete. Remaining items:
+- Testing (optional)
+- Future enhancements (nice-to-have)
+- Additional enhancements (optional)
+
+The unified track cache is production-ready. The remaining items are optimizations and quality-of-life improvements, not blockers.
+
+Should I prioritize any of these, or is the current implementation sufficient?
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+extract an enhancement spec from this
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Creating an enhancement spec document for the unified track cache:
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: tasks/unified-track-cache-enhancements.md</summary>
+
+**Chunk 1**
+Lines added: 397, lines removed: 1
+
+```diff
+@@ -1,1 +1,397 @@
+- 
++ # Unified Track Cache - Enhancement Specifications
++ 
++ **Status:** 📋 **PLANNING**
++ 
++ This document outlines potential enhancements and improvements to the unified track cache system. These are optional improvements that can be implemented incrementally based on priority and user needs.
++ 
++ ## Overview
++ 
++ The unified track cache system is complete and production-ready. This document captures future enhancements that could improve performance, user experience, and maintainability.
++ 
++ ## Enhancement Categories
++ 
++ ### High Priority Enhancements
++ 
++ #### 1. Cache Size Display
++ **Priority:** High  
++ **Effort:** Low  
++ **Impact:** Medium
++ 
++ **Description:**
++ Display actual cache size (in MB/KB) in the Cache Manager component to give users visibility into storage usage.
++ 
++ **Implementation:**
++ - Add &#96;getCacheSize(userId)&#96; function to calculate cache size
++ - Display in Cache Manager UI alongside other statistics
++ - Show breakdown: tracks, indexes, metadata sizes
++ - Format: "Cache Size: 2.5 MB (5,000 tracks)"
++ 
++ **Benefits:**
++ - Users can monitor storage usage
++ - Helps identify when cache is getting large
++ - Useful for troubleshooting storage issues
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add size calculation function
++ - &#96;src/components/common/CacheManager.vue&#96; - Display cache size
++ 
++ ---
++ 
++ #### 2. Cache Validation &amp; Corruption Detection
++ **Priority:** High  
++ **Effort:** Medium  
++ **Impact:** High
++ 
++ **Description:**
++ Implement periodic cache validation to detect and handle corruption, invalid data structures, or inconsistencies.
++ 
++ **Implementation:**
++ - Add &#96;validateCache(cache)&#96; function that checks:
++   - Cache structure integrity
++   - Index consistency (all track IDs in indexes exist in tracks)
++   - Relationship integrity (albumIds, playlistIds reference valid albums/playlists)
++   - Data type validation
++ - Run validation on cache load (optional, can be disabled for performance)
++ - Run validation before critical operations
++ - Auto-repair minor issues (e.g., remove invalid index entries)
++ - Log warnings for issues that can't be auto-repaired
++ - Option to rebuild cache if corruption detected
++ 
++ **Benefits:**
++ - Prevents silent data corruption
++ - Improves reliability
++ - Helps debug cache issues
++ - Auto-recovery from minor issues
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add validation functions
++ - &#96;src/composables/useUnifiedTrackCache.js&#96; - Add validation on load (optional)
++ 
++ ---
++ 
++ ### Medium Priority Enhancements
++ 
++ #### 3. Incremental Sync
++ **Priority:** Medium  
++ **Effort:** High  
++ **Impact:** Medium
++ 
++ **Description:**
++ Only fetch new/updated tracks instead of fetching all tracks when building cache or refreshing data.
++ 
++ **Implementation:**
++ - Track &#96;lastUpdated&#96; timestamp for each track
++ - When refreshing playcounts: only fetch tracks where &#96;lastPlaycountUpdate &gt; 24 hours&#96; or missing
++ - When refreshing loved status: only fetch tracks where &#96;lastLovedUpdate &gt; 7 days&#96; or missing
++ - When building playlist cache: check which tracks are already cached, only fetch new ones
++ - Batch API calls for efficiency
++ 
++ **Benefits:**
++ - Reduces API calls significantly
++ - Faster cache updates
++ - Lower API quota usage
++ - Better performance for large playlists
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Update refresh functions to check timestamps
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Update &#96;buildPlaylistCache&#96; to skip cached tracks
++ 
++ ---
++ 
++ #### 4. Background Sync
++ **Priority:** Medium  
++ **Effort:** Medium  
++ **Impact:** Medium
++ 
++ **Description:**
++ Implement periodic background updates for playcounts and loved status without user interaction.
++ 
++ **Implementation:**
++ - Add background sync service that runs periodically (e.g., every 6 hours)
++ - Only sync tracks that are stale (based on &#96;lastPlaycountUpdate&#96; and &#96;lastLovedUpdate&#96;)
++ - Use &#96;requestIdleCallback&#96; or similar to run during idle time
++ - Respect rate limits (batch API calls)
++ - Show subtle indicator when background sync is running
++ - Allow users to disable background sync in settings
++ 
++ **Benefits:**
++ - Keeps cache data fresh automatically
++ - No user intervention required
++ - Better user experience (data always up-to-date)
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add background sync functions
++ - &#96;src/composables/useUnifiedTrackCache.js&#96; - Add background sync service
++ - &#96;src/components/common/CacheManager.vue&#96; - Add background sync toggle
++ 
++ ---
++ 
++ #### 5. Batch Operations
++ **Priority:** Medium  
++ **Effort:** Medium  
++ **Impact:** Low
++ 
++ **Description:**
++ Allow batch updates for loved status and playcounts for multiple tracks at once.
++ 
++ **Implementation:**
++ - Add &#96;batchUpdateLovedStatus(trackIds, loved, userId)&#96; function
++ - Add &#96;batchUpdatePlaycounts(trackIdPlaycountMap, userId)&#96; function
++ - Optimize cache updates (single save operation for multiple updates)
++ - Update indexes in batch
++ - Use in UI for bulk operations (e.g., "Love all tracks in album")
++ 
++ **Benefits:**
++ - Faster bulk operations
++ - Reduced cache writes
++ - Better performance for large batches
++ - Enables new UI features (bulk actions)
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add batch update functions
++ - &#96;src/composables/useUnifiedTrackCache.js&#96; - Expose batch operations
++ - UI components - Add bulk action buttons (future)
++ 
++ ---
++ 
++ ### Low Priority Enhancements
++ 
++ #### 6. Cache Compression
++ **Priority:** Low  
++ **Effort:** High  
++ **Impact:** Medium
++ 
++ **Description:**
++ Compress cache data before storing in localStorage to reduce storage usage.
++ 
++ **Implementation:**
++ - Use compression library (e.g., &#96;pako&#96; for gzip, or &#96;lz-string&#96;)
++ - Compress on save, decompress on load
++ - Measure compression ratio (target: 50-70% reduction)
++ - Add compression level option (fast vs. high compression)
++ - Handle compression errors gracefully (fallback to uncompressed)
++ 
++ **Benefits:**
++ - Reduces storage usage significantly
++ - Allows more tracks in cache
++ - Delays LRU eviction
++ - Better for users with large libraries
++ 
++ **Trade-offs:**
++ - Adds compression/decompression overhead
++ - Slightly slower save/load times
++ - Additional dependency
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add compression/decompression
++ - &#96;package.json&#96; - Add compression library dependency
++ 
++ ---
++ 
++ #### 7. Cache Export/Import
++ **Priority:** Low  
++ **Effort:** Medium  
++ **Impact:** Low
++ 
++ **Description:**
++ Allow users to export their cache data to a file and import it on another device or after clearing browser data.
++ 
++ **Implementation:**
++ - Add &#96;exportCache(userId)&#96; function - generates JSON file
++ - Add &#96;importCache(userId, cacheData)&#96; function - validates and imports
++ - Add UI in Cache Manager:
++   - "Export Cache" button - downloads JSON file
++   - "Import Cache" button - uploads JSON file
++ - Validate imported cache structure
++ - Merge strategy: replace existing or merge (user choice)
++ - Show import progress and validation results
++ 
++ **Benefits:**
++ - Backup cache data
++ - Transfer cache between devices
++ - Recovery after data loss
++ - Useful for power users
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add export/import functions
++ - &#96;src/components/common/CacheManager.vue&#96; - Add export/import UI
++ 
++ ---
++ 
++ #### 8. Cache Warming
++ **Priority:** Low  
++ **Effort:** Medium  
++ **Impact:** Low
++ 
++ **Description:**
++ Preload tracks for frequently accessed playlists in the background.
++ 
++ **Implementation:**
++ - Track playlist access frequency
++ - Identify "hot" playlists (accessed frequently)
++ - Preload tracks for hot playlists during idle time
++ - Limit to top 3-5 playlists to avoid excessive API calls
++ - Respect user preferences (only if enabled)
++ 
++ **Benefits:**
++ - Faster load times for frequently used playlists
++ - Better user experience
++ - Proactive cache building
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add cache warming logic
++ - &#96;src/composables/useUnifiedTrackCache.js&#96; - Track access frequency
++ - &#96;src/components/common/CacheManager.vue&#96; - Add warming toggle
++ 
++ ---
++ 
++ #### 9. Analytics &amp; Performance Metrics
++ **Priority:** Low  
++ **Effort:** Medium  
++ **Impact:** Low
++ 
++ **Description:**
++ Track cache performance metrics and provide analytics to users and developers.
++ 
++ **Implementation:**
++ - Track metrics:
++   - Cache hit rate (tracks found in cache vs. API calls)
++   - Average lookup time
++   - Cache size over time
++   - API call reduction percentage
++   - Eviction frequency
++ - Store metrics in cache metadata
++ - Display in Cache Manager (optional, can be hidden)
++ - Log metrics for debugging (development mode)
++ 
++ **Benefits:**
++ - Visibility into cache performance
++ - Helps identify optimization opportunities
++ - Useful for debugging
++ - Demonstrates value of cache system
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add metrics tracking
++ - &#96;src/components/common/CacheManager.vue&#96; - Display metrics (optional)
++ 
++ ---
++ 
++ #### 10. Cloud Backup (Firebase)
++ **Priority:** Low  
++ **Effort:** High  
++ **Impact:** Medium
++ 
++ **Description:**
++ Optionally sync cache to Firebase for backup and multi-device access.
++ 
++ **Implementation:**
++ - Add Firebase Firestore collection for cache data
++ - Sync cache to Firebase on save (optional, user preference)
++ - Load from Firebase on cache miss (fallback)
++ - Handle conflicts (local vs. cloud)
++ - Incremental sync (only changed tracks)
++ - Encryption for sensitive data (if needed)
++ 
++ **Benefits:**
++ - Backup cache data
++ - Multi-device access
++ - Recovery after data loss
++ - Sync across devices
++ 
++ **Trade-offs:**
++ - Additional Firebase storage costs
++ - Network dependency
++ - Sync complexity
++ - Privacy considerations
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Add Firebase sync functions
++ - &#96;src/composables/useUnifiedTrackCache.js&#96; - Add sync service
++ - &#96;src/components/common/CacheManager.vue&#96; - Add sync toggle
++ 
++ ---
++ 
++ #### 11. Index Optimization
++ **Priority:** Low  
++ **Effort:** Medium  
++ **Impact:** Low
++ 
++ **Description:**
++ Optimize index structures for faster lookups if performance issues are identified.
++ 
++ **Implementation:**
++ - Profile index lookup performance
++ - Identify bottlenecks
++ - Optimize index structures:
++   - Use Maps instead of objects for faster lookups
++   - Pre-compute frequently accessed queries
++   - Add composite indexes for common queries
++ - Benchmark before/after performance
++ 
++ **Benefits:**
++ - Faster lookups
++ - Better performance for large caches
++ - Scalability improvements
++ 
++ **Note:** Only implement if performance issues are identified. Current implementation is already optimized.
++ 
++ **Files to Modify:**
++ - &#96;src/utils/unifiedTrackCache.js&#96; - Optimize index structures
++ 
++ ---
++ 
++ ## Implementation Priority
++ 
++ ### Phase 1 (Quick Wins)
++ 1. Cache Size Display (High priority, Low effort)
++ 2. Cache Validation (High priority, Medium effort)
++ 
++ ### Phase 2 (Performance Improvements)
++ 3. Incremental Sync (Medium priority, High effort)
++ 4. Background Sync (Medium priority, Medium effort)
++ 
++ ### Phase 3 (User Features)
++ 5. Batch Operations (Medium priority, Medium effort)
++ 6. Cache Export/Import (Low priority, Medium effort)
++ 
++ ### Phase 4 (Advanced Features)
++ 7. Cache Compression (Low priority, High effort)
++ 8. Cache Warming (Low priority, Medium effort)
++ 9. Analytics &amp; Metrics (Low priority, Medium effort)
++ 10. Cloud Backup (Low priority, High effort)
++ 11. Index Optimization (Low priority, Medium effort - only if needed)
++ 
++ ## Success Metrics
++ 
++ For each enhancement, track:
++ - **Performance Impact**: Measure before/after metrics
++ - **User Adoption**: Track usage of new features
++ - **Storage Impact**: Monitor cache size changes
++ - **API Call Reduction**: Track API usage reduction
++ - **User Feedback**: Collect feedback on new features
++ 
++ ## Testing Requirements
++ 
++ Each enhancement should include:
++ - Unit tests for new functions
++ - Integration tests for new features
++ - Performance benchmarks (before/after)
++ - User acceptance testing
++ 
++ ## Notes
++ 
++ - All enhancements are optional and can be implemented incrementally
++ - Prioritize based on user needs and feedback
++ - Monitor performance impact of each enhancement
++ - Some enhancements may conflict (e.g., compression vs. cloud backup) - choose based on use case
++ - Consider browser compatibility for new features
++ - Maintain backward compatibility with existing cache structure
++ 
++ ## Open Questions
++ 
++ 1. Should cache compression be enabled by default or opt-in?
++ 2. How often should background sync run?
++ 3. Should cloud backup be free or premium feature?
++ 4. What's the maximum cache size we should support?
++ 5. Should analytics be opt-in or always-on?
++ 
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `tasks/unified-track-cache-enhancements.md`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Created an enhancement specification document at `tasks/unified-track-cache-enhancements.md`. Summary:
+
+## Document structure
+
+### 11 enhancements organized by priority
+
+**High priority:**
+1. Cache size display — show actual cache size in MB/KB
+2. Cache validation & corruption detection — periodic validation and auto-repair
+
+**Medium priority:**
+3. Incremental sync — only fetch new/updated tracks
+4. Background sync — periodic automatic updates
+5. Batch operations — bulk updates for loved status/playcounts
+
+**Low priority:**
+6. Cache compression — reduce storage usage
+7. Cache export/import — backup and transfer between devices
+8. Cache warming — preload frequently accessed playlists
+9. Analytics & performance metrics — track cache performance
+10. Cloud backup (Firebase) — sync to cloud for multi-device
+11. Index optimization — optimize if performance issues arise
+
+## Implementation phases
+
+The document includes a 4-phase implementation plan:
+- Phase 1: Quick wins (cache size, validation)
+- Phase 2: Performance improvements (incremental/background sync)
+- Phase 3: User features (batch ops, export/import)
+- Phase 4: Advanced features (compression, cloud, analytics)
+
+Each enhancement includes:
+- Priority, effort, and impact ratings
+- Detailed description
+- Implementation approach
+- Benefits and trade-offs
+- Files to modify
+- Success metrics
+
+The document is ready for planning and prioritization.
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+move it to enhancements folder
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Moving the enhancement spec to the enhancements folder:
+
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="list_dir">
+<details>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
+        
+No results found
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-enhancements.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="list_dir">
+<details>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
+        
+No results found
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Moving the file to the enhancements folder:
+
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="write">
+<details>
+<summary>Tool use: **write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "relativeWorkspacePath": "tasks/enhancements/unified-track-cache-enhancements.md"
+}
+```
+Additional data:
+
+```json
+{
+  "codeblockId": "6fd1dee1-861f-4e90-857d-1d8a53275caa"
+}
+```
+User decision: **accepted**
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
