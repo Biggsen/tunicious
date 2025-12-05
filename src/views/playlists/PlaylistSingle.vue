@@ -1617,6 +1617,29 @@ const handleProcessAlbum = async ({ album, action }) => {
         logPlaylist(`Saving updated state to cache with ${Object.keys(updatedState).length} groups`);
         await setCache(playlistViewCacheKey, updatedState);
         logPlaylist(`Cache saved successfully`);
+        
+        // Update totalTracks in the UI from the updated cache
+        try {
+          for (const group of Object.keys(updatedState)) {
+            const groupPlaylists = updatedState[group] || [];
+            const cachedPlaylist = groupPlaylists.find(p => p.id === id.value);
+            if (cachedPlaylist?.tracks?.total !== undefined) {
+              totalTracks.value = cachedPlaylist.tracks.total;
+              logPlaylist('Track count updated from cache after processing:', totalTracks.value);
+              break;
+            }
+          }
+        } catch (error) {
+          logPlaylist('Error updating track count from cache:', error);
+          // Fallback: fetch directly from Spotify
+          try {
+            const playlistResponse = await getPlaylist(id.value);
+            totalTracks.value = playlistResponse.tracks?.total || 0;
+            logPlaylist('Track count fetched from Spotify API as fallback:', totalTracks.value);
+          } catch (spotifyError) {
+            logPlaylist('Error fetching track count from Spotify API:', spotifyError);
+          }
+        }
       } else {
         logPlaylist(`WARNING: Updated state is empty, not saving to cache`);
       }
