@@ -791,8 +791,9 @@ async function getCachedAlbumDetails(albumId) {
 }
 
 // Progressive loading of loved track percentages (using unified cache)
+// Only calculate when tracklist is enabled
 async function loadLovedTrackPercentages() {
-  if (!userData.value?.lastFmUserName || lovedTracksLoadingStarted.value) {
+  if (!userData.value?.lastFmUserName || lovedTracksLoadingStarted.value || !showTracklists.value) {
     return;
   }
   
@@ -846,8 +847,9 @@ async function loadLovedTrackPercentages() {
 }
 
 // Function to load loved track data for newly added albums (when pagination changes)
+// Only calculate when tracklist is enabled
 async function loadLovedTrackPercentagesForNewAlbums() {
-  if (!userData.value?.lastFmUserName) {
+  if (!userData.value?.lastFmUserName || !showTracklists.value) {
     return;
   }
   
@@ -997,8 +999,8 @@ async function loadCurrentPage() {
   });
   await updateNeedsUpdateMap();
   
-  // Load loved track percentages progressively
-  if (userData.value?.lastFmUserName) {
+  // Load loved track percentages progressively (only when tracklist is enabled)
+  if (userData.value?.lastFmUserName && showTracklists.value) {
     if (!lovedTracksLoadingStarted.value) {
       // First time loading - start progressive loading
       loadLovedTrackPercentages();
@@ -2700,7 +2702,6 @@ const handleUpdateYear = async (mismatch) => {
           :isMappedAlbum="false"
           :inCollection="!!inCollectionMap[album.id]"
           :needsUpdate="needsUpdateMap[album.id]"
-          :lovedTrackData="albumLovedData[album.id]"
           :showRemoveButton="userData?.spotifyConnected"
           :showProcessingButtons="userData?.spotifyConnected && !!playlistDoc?.data()?.nextStagePlaylistId"
           :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
