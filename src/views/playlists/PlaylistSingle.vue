@@ -2695,9 +2695,6 @@ const handleUpdateYear = async (mismatch) => {
         Albums not in database may need to be added. Albums without artist IDs may have data issues.
       </p>
     </div>
-    <div v-if="tracksLoading" class="mb-4 text-center">
-      <p class="text-delft-blue">Loading tracklists...</p>
-    </div>
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
@@ -2722,6 +2719,7 @@ const handleUpdateYear = async (mismatch) => {
           :isProcessing="processingAlbum === album.id"
           :tracks="albumTracksData[album.id] || []"
           :showTracklist="showTracklists"
+          :tracksLoading="tracksLoading"
           :lastFmSessionKey="userData?.lastFmSessionKey || ''"
           :allowTrackLoving="userData?.lastFmAuthenticated || false"
           :playlistId="id"

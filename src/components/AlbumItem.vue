@@ -86,6 +86,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  tracksLoading: {
+    type: Boolean,
+    default: false
+  },
   lastFmSessionKey: {
     type: String,
     default: ''
@@ -282,8 +286,15 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
       </div>
       
       <!-- Tracklist -->
-      <div v-if="showTracklist && tracks.length > 0" class="pb-3">
+      <div v-if="showTracklist" class="pb-3">
+        <div v-if="tracksLoading" class="flex items-center justify-center py-4">
+          <svg class="animate-spin h-6 w-6 text-delft-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
         <TrackList 
+          v-else-if="tracks.length > 0"
           :tracks="tracks" 
           :lovedTracks="lovedTracks"
           :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
