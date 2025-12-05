@@ -496,10 +496,33 @@ async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey,
     
     // Emit window event for toast notification
     const errorMessage = error.message || error.toString();
-    const isSessionError = errorMessage.includes('403') || 
+    
+    // Check for session errors: Last.fm error code 9, HTTP 403, or error messages
+    const isSessionError = error.lastFmErrorCode === 9 ||
+                          errorMessage.includes('403') || 
                           errorMessage.includes('Session key is no longer valid') ||
                           errorMessage.includes('Invalid session key') ||
-                          errorMessage.includes('session');
+                          errorMessage.includes('session expired') ||
+                          errorMessage.includes('Last.fm session expired') ||
+                          (errorMessage.includes('session') && errorMessage.includes('Last.fm'));
+    
+    // Build user-friendly error message
+    let userMessage;
+    if (isSessionError) {
+      // Use Last.fm message if available, otherwise use default
+      if (error.lastFmMessage) {
+        userMessage = `Last.fm session expired: ${error.lastFmMessage}`;
+      } else {
+        userMessage = 'Last.fm session expired. Please reconnect your account.';
+      }
+    } else {
+      // For non-session errors, include the Last.fm message if available
+      if (error.lastFmMessage) {
+        userMessage = `Failed to ${loved ? 'love' : 'unlove'} track: ${error.lastFmMessage}`;
+      } else {
+        userMessage = `Failed to ${loved ? 'love' : 'unlove'} track: ${errorMessage}`;
+      }
+    }
     
     window.dispatchEvent(new CustomEvent('lastfm-sync-error', {
       detail: {
@@ -509,9 +532,7 @@ async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey,
         attemptedLoved: loved, // What we tried to set it to (before revert)
         error: errorMessage,
         isSessionError,
-        message: isSessionError 
-          ? 'Last.fm session expired. Please reconnect your account.'
-          : `Failed to ${loved ? 'love' : 'unlove'} track: ${errorMessage}`
+        message: userMessage
       }
     }));
     

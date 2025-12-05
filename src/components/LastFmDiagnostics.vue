@@ -7,6 +7,21 @@
       Last.fm Connection Diagnostics
     </h3>
 
+    <!-- Session Error Warning Banner -->
+    <div v-if="hasSessionErrors" class="mb-4 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+      <div class="flex items-start">
+        <svg class="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        </svg>
+        <div class="flex-1">
+          <h4 class="font-semibold text-yellow-800 mb-1">Session Expired</h4>
+          <p class="text-sm text-yellow-700">
+            One or more tests detected that your Last.fm session has expired. Track loving features will not work until you reconnect your account.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Connection Status -->
     <div class="mb-6">
       <h4 class="text-lg font-semibold text-delft-blue mb-3">Connection Status</h4>
@@ -179,7 +194,10 @@
           <p class="text-sm mt-1" :class="test.result?.success ? 'text-green-600' : 'text-red-600'">
             {{ test.result?.message }}
           </p>
-          <div v-if="test.result?.details" class="text-xs mt-2 p-2 bg-gray-100 rounded font-mono">
+          <div v-if="test.result?.isSessionError" class="text-xs mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+            <strong>⚠️ Session Error Detected:</strong> Your Last.fm session has expired. Please reconnect your account to continue using track loving features.
+          </div>
+          <div v-if="test.result?.details" class="text-xs mt-2 p-2 bg-gray-100 rounded font-mono whitespace-pre-wrap">
             {{ test.result.details }}
           </div>
         </div>
@@ -214,8 +232,18 @@
         Refresh Data
       </BaseButton>
 
+      <!-- Reconnect button - shown when session errors are detected -->
       <BaseButton 
-        v-if="userData?.lastFmAuthenticated"
+        v-if="hasSessionErrors"
+        @click="reconnectLastFm"
+        class="bg-green-600 text-white border-green-600 hover:bg-green-700"
+      >
+        Reconnect Last.fm
+      </BaseButton>
+
+      <!-- Disconnect button - shown when authenticated but no session errors -->
+      <BaseButton 
+        v-if="userData?.lastFmAuthenticated && !hasSessionErrors"
         @click="disconnectLastFm"
         variant="secondary"
         :disabled="isDisconnecting"
@@ -236,7 +264,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import { logLastFm } from '@utils/logger'
 
 const { userData, refreshUserData: refreshUserDataComposable, clearLastFmAuth } = useUserData()
-const { getUserInfo, getUserLovedTracks, loveTrack, validateSession } = useLastFmApi()
+const { getUserInfo, getUserLovedTracks, loveTrack, validateSession, getAuthUrl } = useLastFmApi()
 
 // Test state
 const tests = ref({
@@ -257,6 +285,46 @@ const isRunningTests = computed(() => {
   return Object.values(tests.value).some(test => test.loading)
 })
 
+const hasSessionErrors = computed(() => {
+  return Object.values(tests.value).some(test => test.result?.isSessionError === true)
+})
+
+// Helper function to format error details
+const formatErrorDetails = (error) => {
+  const parts = []
+  
+  // Add Last.fm error code if available
+  if (error.lastFmErrorCode !== undefined) {
+    parts.push(`Error Code: ${error.lastFmErrorCode}`)
+  }
+  
+  // Add Last.fm message if available (preferred over generic message)
+  if (error.lastFmMessage) {
+    parts.push(`Message: ${error.lastFmMessage}`)
+  } else if (error.message) {
+    parts.push(`Message: ${error.message}`)
+  }
+  
+  // Add full error string for debugging
+  if (error.toString() !== error.message) {
+    parts.push(`Full Error: ${error.toString()}`)
+  }
+  
+  return parts.length > 0 ? parts.join('\n') : error.toString()
+}
+
+// Helper function to check if error is a session error
+const isSessionError = (error) => {
+  return error.lastFmErrorCode === 9 ||
+         (error.message && (
+           error.message.includes('403') ||
+           error.message.includes('Session key is no longer valid') ||
+           error.message.includes('Invalid session key') ||
+           error.message.includes('session expired') ||
+           error.message.includes('Last.fm session expired')
+         ))
+}
+
 // Test functions
 const testUserProfile = async () => {
   if (!userData.value?.lastFmUserName) return
@@ -272,10 +340,14 @@ const testUserProfile = async () => {
       details: `Real name: ${result.user?.realname || 'N/A'}, Playcount: ${result.user?.playcount || 'N/A'}`
     }
   } catch (error) {
+    const sessionErr = isSessionError(error)
     tests.value.userProfile.result = {
       success: false,
-      message: `Failed to fetch user profile: ${error.message}`,
-      details: error.toString()
+      message: sessionErr 
+        ? 'Session expired - Please reconnect your Last.fm account'
+        : `Failed to fetch user profile: ${error.lastFmMessage || error.message}`,
+      details: formatErrorDetails(error),
+      isSessionError: sessionErr
     }
   } finally {
     tests.value.userProfile.loading = false
@@ -297,10 +369,14 @@ const testTrackLoving = async () => {
       details: 'Successfully called track.love API with Queen - Bohemian Rhapsody'
     }
   } catch (error) {
+    const sessionErr = isSessionError(error)
     tests.value.trackLoving.result = {
       success: false,
-      message: `Track loving failed: ${error.message}`,
-      details: error.toString()
+      message: sessionErr
+        ? 'Session expired - Please reconnect your Last.fm account'
+        : `Track loving failed: ${error.lastFmMessage || error.message}`,
+      details: formatErrorDetails(error),
+      isSessionError: sessionErr
     }
   } finally {
     tests.value.trackLoving.loading = false
@@ -321,10 +397,14 @@ const testLovedTracks = async () => {
       details: `Total loved tracks: ${result.lovedtracks?.['@attr']?.total || 0}`
     }
   } catch (error) {
+    const sessionErr = isSessionError(error)
     tests.value.lovedTracks.result = {
       success: false,
-      message: `Failed to fetch loved tracks: ${error.message}`,
-      details: error.toString()
+      message: sessionErr
+        ? 'Session expired - Please reconnect your Last.fm account'
+        : `Failed to fetch loved tracks: ${error.lastFmMessage || error.message}`,
+      details: formatErrorDetails(error),
+      isSessionError: sessionErr
     }
   } finally {
     tests.value.lovedTracks.loading = false
@@ -342,13 +422,18 @@ const testSessionValidation = async () => {
     tests.value.sessionValidation.result = {
       success: result.valid,
       message: result.message,
-      details: result.valid ? `Username: ${result.username}` : 'Session key is no longer valid'
+      details: result.valid ? `Username: ${result.username}` : 'Session key is no longer valid',
+      isSessionError: !result.valid
     }
   } catch (error) {
+    const sessionErr = isSessionError(error)
     tests.value.sessionValidation.result = {
       success: false,
-      message: `Session validation failed: ${error.message}`,
-      details: error.toString()
+      message: sessionErr
+        ? 'Session expired - Please reconnect your Last.fm account'
+        : `Session validation failed: ${error.lastFmMessage || error.message}`,
+      details: formatErrorDetails(error),
+      isSessionError: sessionErr
     }
   } finally {
     tests.value.sessionValidation.loading = false
@@ -391,6 +476,17 @@ const refreshUserData = async () => {
     isRefreshing.value = false
   }
 }
+
+const reconnectLastFm = () => {
+  try {
+    const callbackUrl = `${window.location.origin}/lastfm-callback`;
+    const authUrl = getAuthUrl(callbackUrl);
+    window.location.href = authUrl;
+  } catch (err) {
+    logLastFm("Error initiating Last.fm reconnect:", err);
+    alert('Failed to initiate Last.fm reconnection. Please try again.');
+  }
+};
 
 const disconnectLastFm = async () => {
   if (!confirm('Are you sure you want to disconnect from Last.fm? This will clear your session and you\'ll need to reconnect.')) {

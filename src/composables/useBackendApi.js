@@ -28,30 +28,55 @@ export function useBackendApi() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        // Provide more specific error messages based on the response
-        let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        // Check if this is a Last.fm API error (has both error code and message)
+        const isLastFmError = typeof errorData.error === 'number' && errorData.message;
         
-        // Ensure errorMessage is a string before calling string methods
-        if (typeof errorMessage !== 'string') {
-          errorMessage = JSON.stringify(errorMessage);
-        }
-        
-        // Handle specific HTTP status codes
-        if (response.status === 400) {
-          if (errorMessage.includes('refresh token')) {
-            errorMessage = 'Spotify refresh token expired - please reconnect your account';
+        let errorMessage;
+        if (isLastFmError) {
+          // Last.fm errors: include both code and message for better debugging
+          // Error code 9 = Invalid session key
+          const errorCode = errorData.error;
+          const errorMsg = errorData.message || 'Unknown Last.fm error';
+          
+          if (errorCode === 9) {
+            errorMessage = `Last.fm session expired (error ${errorCode}): ${errorMsg}`;
+          } else {
+            errorMessage = `Last.fm API error ${errorCode}: ${errorMsg}`;
           }
-        } else if (response.status === 401) {
-          errorMessage = 'Spotify authentication failed - please reconnect your account';
-        } else if (response.status === 403) {
-          errorMessage = 'Spotify access denied - please reconnect your account';
-        } else if (response.status === 429) {
-          errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
-        } else if (response.status >= 500) {
-          errorMessage = 'Spotify service temporarily unavailable - please try again later';
+        } else {
+          // Other errors (Spotify, etc.)
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+          
+          // Ensure errorMessage is a string before calling string methods
+          if (typeof errorMessage !== 'string') {
+            errorMessage = JSON.stringify(errorMessage);
+          }
         }
         
-        throw new Error(errorMessage);
+        // Handle specific HTTP status codes for non-Last.fm errors
+        if (!isLastFmError) {
+          if (response.status === 400) {
+            if (errorMessage.includes('refresh token')) {
+              errorMessage = 'Spotify refresh token expired - please reconnect your account';
+            }
+          } else if (response.status === 401) {
+            errorMessage = 'Spotify authentication failed - please reconnect your account';
+          } else if (response.status === 403) {
+            errorMessage = 'Spotify access denied - please reconnect your account';
+          } else if (response.status === 429) {
+            errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
+          } else if (response.status >= 500) {
+            errorMessage = 'Spotify service temporarily unavailable - please try again later';
+          }
+        }
+        
+        // Attach error code and Last.fm flag to error for better detection
+        const error = new Error(errorMessage);
+        if (isLastFmError) {
+          error.lastFmErrorCode = errorData.error;
+          error.lastFmMessage = errorData.message;
+        }
+        throw error;
       }
 
       return await response.json();

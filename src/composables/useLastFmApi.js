@@ -56,7 +56,13 @@ export function useLastFmApi() {
         // Check for Last.fm API errors
         if (data.error) {
           logLastFm('useLastFmApi: API error:', data.error, data.message);
-          throw new Error(`Last.fm API error: ${data.message}`);
+          // Include error code in message for better debugging
+          const errorCode = data.error;
+          const errorMsg = data.message || 'Unknown Last.fm error';
+          const error = new Error(`Last.fm API error ${errorCode}: ${errorMsg}`);
+          error.lastFmErrorCode = errorCode;
+          error.lastFmMessage = errorMsg;
+          throw error;
         }
 
         return data;
