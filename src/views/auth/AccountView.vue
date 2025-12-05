@@ -77,7 +77,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="max-w-2xl mx-auto p-6">
+  <main class="max-w-2xl p-6">
     <h1 class="h2 pb-10">Account Details</h1>
     
     <LoadingMessage v-if="userLoading || authLoading" message="Loading user profile..." />
@@ -163,9 +163,9 @@ onUnmounted(() => {
       <CacheManager />
     </div>
     
-    <div v-else class="text-center">
+    <div v-else>
       <p class="text-gray-600 mb-6">No user profile data available.</p>
-      <form @submit.prevent="handleSubmit(createUserProfile)" class="max-w-md mx-auto bg-white shadow rounded-lg p-6">
+      <form @submit.prevent="handleSubmit(createUserProfile)" class="max-w-md bg-white shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Create Your Profile</h2>
         
         <div class="space-y-4">
