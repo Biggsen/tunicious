@@ -438,6 +438,8 @@ export async function updateTrackLoved(trackId, loved, userId, lastFmUserName, s
  * @param {Function} unloveTrackFn - Function to unlove a track
  */
 async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey, userId, trackId, loveTrackFn, unloveTrackFn) {
+  const cache = getInMemoryCache(userId);
+  
   try {
     if (loved) {
       await loveTrackFn(trackName, artistName, sessionKey);
@@ -445,34 +447,76 @@ async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey,
       await unloveTrackFn(trackName, artistName, sessionKey);
     }
     
-      // Remove from unsynced list if present
-      const cache = getInMemoryCache(userId);
-      cache.metadata.unsyncedLovedTracks = cache.metadata.unsyncedLovedTracks.filter(
-        item => item.trackId !== trackId
-      );
+    // Remove from unsynced list if present
+    cache.metadata.unsyncedLovedTracks = cache.metadata.unsyncedLovedTracks.filter(
+      item => item.trackId !== trackId
+    );
+    
+    logCache(`Successfully synced loved status for track ${trackId} to Last.fm`);
+  } catch (error) {
+    logCache(`Failed to sync loved status for track ${trackId}:`, error);
+    
+    // Revert the optimistic update
+    if (cache.tracks[trackId]) {
+      cache.tracks[trackId].loved = !loved; // Revert to original state
+      cache.tracks[trackId].lastLovedUpdate = Date.now();
       
-      logCache(`Successfully synced loved status for track ${trackId} to Last.fm`);
-    } catch (error) {
-      logCache(`Failed to sync loved status for track ${trackId}:`, error);
-      
-      // Add to unsynced list
-      const cache = getInMemoryCache(userId);
-      const existingIndex = cache.metadata.unsyncedLovedTracks.findIndex(item => item.trackId === trackId);
-      
-      if (existingIndex !== -1) {
-        cache.metadata.unsyncedLovedTracks[existingIndex].retryCount++;
+      // Update lovedTrackIds index
+      if (!loved) {
+        // Was trying to unlove, but failed - add back to loved list
+        if (!cache.indexes.lovedTrackIds.includes(trackId)) {
+          cache.indexes.lovedTrackIds.push(trackId);
+        }
       } else {
-        cache.metadata.unsyncedLovedTracks.push({
-          trackId,
-          loved,
-          timestamp: Date.now(),
-          retryCount: 0
-        });
+        // Was trying to love, but failed - remove from loved list
+        const index = cache.indexes.lovedTrackIds.indexOf(trackId);
+        if (index !== -1) {
+          cache.indexes.lovedTrackIds.splice(index, 1);
+        }
       }
       
-      await saveUnifiedTrackCache(userId);
-      throw error; // Re-throw to allow caller to handle
+      await saveUnifiedTrackCache(userId, true);
     }
+    
+    // Add to unsynced list
+    const existingIndex = cache.metadata.unsyncedLovedTracks.findIndex(item => item.trackId === trackId);
+    
+    if (existingIndex !== -1) {
+      cache.metadata.unsyncedLovedTracks[existingIndex].retryCount++;
+    } else {
+      cache.metadata.unsyncedLovedTracks.push({
+        trackId,
+        loved,
+        timestamp: Date.now(),
+        retryCount: 0
+      });
+    }
+    
+    await saveUnifiedTrackCache(userId);
+    
+    // Emit window event for toast notification
+    const errorMessage = error.message || error.toString();
+    const isSessionError = errorMessage.includes('403') || 
+                          errorMessage.includes('Session key is no longer valid') ||
+                          errorMessage.includes('Invalid session key') ||
+                          errorMessage.includes('session');
+    
+    window.dispatchEvent(new CustomEvent('lastfm-sync-error', {
+      detail: {
+        trackId,
+        trackName,
+        artistName,
+        attemptedLoved: loved, // What we tried to set it to (before revert)
+        error: errorMessage,
+        isSessionError,
+        message: isSessionError 
+          ? 'Last.fm session expired. Please reconnect your account.'
+          : `Failed to ${loved ? 'love' : 'unlove'} track: ${errorMessage}`
+      }
+    }));
+    
+    throw error; // Re-throw to allow caller to handle
+  }
 }
 
 /**

@@ -1382,6 +1382,96 @@ const handleTrackUnlovedFromPlayer = async (event) => {
   }
 };
 
+// Listen for Last.fm sync errors
+const handleLastFmSyncError = (event) => {
+  const { trackName, artistName, message, isSessionError, trackId, attemptedLoved } = event.detail;
+  
+  logPlaylist('Last.fm sync error received:', { trackId, trackName, artistName, attemptedLoved, message });
+  
+  // Show alert notification
+  alert(message);
+  
+  // Revert the UI update for all errors (cache already reverted, just need to update UI)
+  // The attemptedLoved tells us what we tried to set it to, so we revert to the opposite
+  const targetLovedState = !attemptedLoved;
+  let trackFound = false;
+  
+  if (trackId) {
+    // Find and revert the track in albumTracksData by trackId
+    Object.keys(albumTracksData.value).forEach(albumId => {
+      const tracks = albumTracksData.value[albumId];
+      const trackIndex = tracks.findIndex(t => t.id === trackId);
+      if (trackIndex !== -1) {
+        const track = tracks[trackIndex];
+        // Only update if current state doesn't match the reverted state
+        if (track.loved !== targetLovedState) {
+          albumTracksData.value[albumId] = [
+            ...tracks.slice(0, trackIndex),
+            { ...track, loved: targetLovedState },
+            ...tracks.slice(trackIndex + 1)
+          ];
+          trackFound = true;
+          
+          logPlaylist(`Reverted track ${trackId} in album ${albumId} from ${track.loved} to ${targetLovedState}`);
+          
+          // Also recalculate loved track percentage for this album
+          if (albumLovedData.value[albumId]) {
+            getAlbumLovedPercentage(albumId).then(result => {
+              albumLovedData.value[albumId] = {
+                ...result,
+                isLoading: false
+              };
+            }).catch(err => {
+              logPlaylist('Error recalculating loved percentage after revert:', err);
+            });
+          }
+        }
+      }
+    });
+  }
+  
+  // Fallback: try to find by track name and artist if trackId didn't work
+  if (!trackFound && trackName && artistName) {
+    Object.keys(albumTracksData.value).forEach(albumId => {
+      const tracks = albumTracksData.value[albumId];
+      const trackIndex = tracks.findIndex(t => 
+        t.name?.toLowerCase() === trackName.toLowerCase() &&
+        t.artists?.some(a => a.name?.toLowerCase() === artistName.toLowerCase())
+      );
+      if (trackIndex !== -1) {
+        const track = tracks[trackIndex];
+        // Only update if current state doesn't match the reverted state
+        if (track.loved !== targetLovedState) {
+          albumTracksData.value[albumId] = [
+            ...tracks.slice(0, trackIndex),
+            { ...track, loved: targetLovedState },
+            ...tracks.slice(trackIndex + 1)
+          ];
+          trackFound = true;
+          
+          logPlaylist(`Reverted track "${trackName}" by "${artistName}" in album ${albumId} from ${track.loved} to ${targetLovedState}`);
+          
+          // Also recalculate loved track percentage for this album
+          if (albumLovedData.value[albumId]) {
+            getAlbumLovedPercentage(albumId).then(result => {
+              albumLovedData.value[albumId] = {
+                ...result,
+                isLoading: false
+              };
+            }).catch(err => {
+              logPlaylist('Error recalculating loved percentage after revert:', err);
+            });
+          }
+        }
+      }
+    });
+  }
+  
+  if (!trackFound) {
+    logPlaylist('Could not find track to revert:', { trackId, trackName, artistName });
+  }
+};
+
 onMounted(async () => {
   // Enable logging for debugging
   enableDebug('app:playlist,app:cache');
@@ -1391,6 +1481,7 @@ onMounted(async () => {
   window.addEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
   window.addEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
+  window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
   
   try {
     // Fetch user playlists to get position data
@@ -1422,6 +1513,7 @@ onUnmounted(() => {
   window.removeEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
   window.removeEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.removeEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
+  window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
   // Stop polling for current playing track when component is unmounted
   stopCurrentTrackPolling();
 });
