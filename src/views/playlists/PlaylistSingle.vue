@@ -28,7 +28,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { usePlaycountTracking } from '@composables/usePlaycountTracking';
-import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache } from '@utils/unifiedTrackCache';
+import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
 const route = useRoute();
@@ -195,20 +195,11 @@ const fetchAlbumTracks = async () => {
     let needsBuild = true;
     if (user.value) {
       try {
-        const cache = await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
-        const existingPlaylist = cache?.playlists[id.value];
-        if (existingPlaylist && existingPlaylist.albums) {
-          const albumKeys = Object.keys(existingPlaylist.albums);
-          // Check if we have albums and at least one has tracks
-          const hasTracks = albumKeys.some(albumId => {
-            const album = existingPlaylist.albums[albumId];
-            return album && album.trackIds && album.trackIds.length > 0;
-          });
-          
-          if (hasTracks) {
-            logCache(`Playlist ${id.value} already cached, skipping cache build`);
-            needsBuild = false;
-          }
+        // Ensure cache is loaded
+        await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        if (isPlaylistCached(id.value, user.value.uid)) {
+          logCache(`Playlist ${id.value} already cached, skipping cache build`);
+          needsBuild = false;
         }
       } catch (error) {
         logCache('Error checking cache for playlist:', error);

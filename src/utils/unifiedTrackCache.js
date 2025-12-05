@@ -213,6 +213,55 @@ function updateTrackAccess(cache, trackId) {
 }
 
 /**
+ * Create a track object for the cache
+ */
+function createTrackObject(track, trackId, now, albumId = null, albumData = null) {
+  return {
+    id: trackId,
+    name: track.name,
+    artists: track.artists || [],
+    album: track.album || (albumId ? { id: albumId, name: albumData?.name || '' } : {}),
+    duration_ms: track.duration_ms || 0,
+    track_number: track.track_number || 0,
+    uri: track.uri || `spotify:track:${trackId}`,
+    external_urls: track.external_urls || {},
+    loved: false,
+    playcount: 0,
+    lastPlaycountUpdate: null,
+    lastLovedUpdate: null,
+    lastAccessed: now,
+    albumIds: [],
+    playlistIds: []
+  };
+}
+
+/**
+ * Check if a track is loved in the cache
+ */
+function isTrackLovedInCache(cache, track) {
+  return track.loved === true || 
+    (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
+}
+
+/**
+ * Transform track IDs to track objects with user-specific data
+ */
+function transformTracksForReturn(cache, trackIds) {
+  return trackIds
+    .map(trackId => cache.tracks[trackId])
+    .filter(track => track !== undefined)
+    .map(track => {
+      updateTrackAccess(cache, track.id);
+      const isLoved = isTrackLovedInCache(cache, track);
+      return {
+        ...track,
+        loved: isLoved,
+        playcount: track.playcount || 0
+      };
+    });
+}
+
+/**
  * Add track to indexes
  */
 function addTrackToIndexes(cache, track) {
@@ -291,23 +340,7 @@ export async function getAlbumTracks(albumId, userId) {
   }
   
   const trackIds = cache.albums[albumId].trackIds || [];
-  const tracks = trackIds
-    .map(trackId => cache.tracks[trackId])
-    .filter(track => track !== undefined)
-    .map(track => {
-      // Update lastAccessed
-      updateTrackAccess(cache, track.id);
-      // Check lovedTrackIds index if loved property is not explicitly set
-      const isLoved = track.loved === true || (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
-      // Return track with user-specific data merged
-      return {
-        ...track,
-        loved: isLoved,
-        playcount: track.playcount || 0
-      };
-    });
-  
-  return tracks;
+  return transformTracksForReturn(cache, trackIds);
 }
 
 /**
@@ -321,21 +354,7 @@ export async function getPlaylistAlbumTracks(playlistId, albumId, userId) {
   }
   
   const trackIds = cache.playlists[playlistId].albums[albumId].trackIds || [];
-  const tracks = trackIds
-    .map(trackId => cache.tracks[trackId])
-    .filter(track => track !== undefined)
-    .map(track => {
-      updateTrackAccess(cache, track.id);
-      // Check lovedTrackIds index if loved property is not explicitly set
-      const isLoved = track.loved === true || (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
-      return {
-        ...track,
-        loved: isLoved,
-        playcount: track.playcount || 0
-      };
-    });
-  
-  return tracks;
+  return transformTracksForReturn(cache, trackIds);
 }
 
 /**
@@ -357,21 +376,7 @@ export async function getPlaylistTracks(playlistId, userId) {
     }
   });
   
-  const tracks = Array.from(allTrackIds)
-    .map(trackId => cache.tracks[trackId])
-    .filter(track => track !== undefined)
-    .map(track => {
-      updateTrackAccess(cache, track.id);
-      // Check lovedTrackIds index if loved property is not explicitly set
-      const isLoved = track.loved === true || (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
-      return {
-        ...track,
-        loved: isLoved,
-        playcount: track.playcount || 0
-      };
-    });
-  
-  return tracks;
+  return transformTracksForReturn(cache, Array.from(allTrackIds));
 }
 
 /**
@@ -585,23 +590,7 @@ export async function addAlbumTracks(albumId, tracks, albumData, userId) {
     
     // Add or update track in cache
     if (!cache.tracks[trackId]) {
-      cache.tracks[trackId] = {
-        id: trackId,
-        name: track.name,
-        artists: track.artists || [],
-        album: track.album || { id: albumId, name: albumData?.name || '' },
-        duration_ms: track.duration_ms || 0,
-        track_number: track.track_number || 0,
-        uri: track.uri || `spotify:track:${trackId}`,
-        external_urls: track.external_urls || {},
-        loved: false,
-        playcount: 0,
-        lastPlaycountUpdate: null,
-        lastLovedUpdate: null,
-        lastAccessed: now,
-        albumIds: [],
-        playlistIds: []
-      };
+      cache.tracks[trackId] = createTrackObject(track, trackId, now, albumId, albumData);
     }
     
     // Update relationships
@@ -666,23 +655,7 @@ export async function addPlaylistTracks(playlistId, playlistTracks, playlistName
     
     // Add track to cache if not exists
     if (!cache.tracks[trackId]) {
-      cache.tracks[trackId] = {
-        id: trackId,
-        name: track.name,
-        artists: track.artists || [],
-        album: track.album || {},
-        duration_ms: track.duration_ms || 0,
-        track_number: track.track_number || 0,
-        uri: track.uri || `spotify:track:${trackId}`,
-        external_urls: track.external_urls || {},
-        loved: false,
-        playcount: 0,
-        lastPlaycountUpdate: null,
-        lastLovedUpdate: null,
-        lastAccessed: now,
-        albumIds: [],
-        playlistIds: []
-      };
+      cache.tracks[trackId] = createTrackObject(track, trackId, now, albumId);
     }
     
     // Update relationships
@@ -1027,32 +1000,17 @@ export async function buildPlaylistCache(
   }
   
   // Check if playlist is already cached
-  // A playlist is considered cached if:
-  // 1. The playlist structure exists
-  // 2. It has albums
-  // 3. At least one album has tracks (not empty)
-  const existingPlaylist = cache.playlists[playlistId];
-  if (existingPlaylist && existingPlaylist.albums) {
+  if (isPlaylistCached(playlistId, userId)) {
+    const existingPlaylist = cache.playlists[playlistId];
     const albumKeys = Object.keys(existingPlaylist.albums);
-    // Check if we have albums and at least one has tracks
-    const hasTracks = albumKeys.some(albumId => {
-      const album = existingPlaylist.albums[albumId];
-      return album && album.trackIds && album.trackIds.length > 0;
-    });
-    
-    if (hasTracks) {
-      logCache(`Playlist ${playlistId} already cached with ${albumKeys.length} album(s), skipping rebuild`);
-      if (progressCallback) {
-        progressCallback({
-          phase: 'complete',
-          message: `Cache already exists`
-        });
-      }
-      return; // Skip rebuild if cache exists
+    logCache(`Playlist ${playlistId} already cached with ${albumKeys.length} album(s), skipping rebuild`);
+    if (progressCallback) {
+      progressCallback({
+        phase: 'complete',
+        message: `Cache already exists`
+      });
     }
-    
-    // If playlist exists but has no tracks, log and rebuild
-    logCache(`Playlist ${playlistId} exists but has no tracks, rebuilding cache`);
+    return; // Skip rebuild if cache exists
   }
   
   try {
@@ -1233,6 +1191,26 @@ export function getAllTrackIds(userId) {
     return Object.keys(cache.tracks);
   } catch (error) {
     return [];
+  }
+}
+
+/**
+ * Check if a playlist is already cached (has tracks)
+ */
+export function isPlaylistCached(playlistId, userId) {
+  try {
+    const cache = getInMemoryCache(userId);
+    const existingPlaylist = cache?.playlists[playlistId];
+    if (!existingPlaylist || !existingPlaylist.albums) {
+      return false;
+    }
+    const albumKeys = Object.keys(existingPlaylist.albums);
+    return albumKeys.some(albumId => {
+      const album = existingPlaylist.albums[albumId];
+      return album && album.trackIds && album.trackIds.length > 0;
+    });
+  } catch (error) {
+    return false;
   }
 }
 

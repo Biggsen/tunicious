@@ -3224,3 +3224,1254 @@ The loved percentage is now only shown in the TrackList component at the bottom 
 
 ---
 
+_**User (2025-12-05 09:10Z)**_
+
+so, is nified track cache done?
+
+---
+
+_**Agent (model default, mode Ask)**_
+
+
+
+---
+
+
+Checking the spec against what we've completed:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "TODO|FIXME|XXX|HACK" in "src/utils/unifiedTrackCache.js" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "TODO|FIXME|XXX|HACK" in "src/composables/useUnifiedTrackCache.js" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "Are there any remaining references to old cache keys or deprecated cache functions that need to be migrated?" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `tasks/unified-track-cache-spec.md` | L582-641 |
+| `tasks/unified-track-cache-spec.md` | L638-721 |
+| `src/utils/cache.js` | L67-121 |
+| `src/utils/unifiedTrackCache.js` | L38 |
+| `tasks/unified-track-cache-spec.md` | L773-818 |
+| `src/views/playlists/PlaylistSingle.vue` | L1008-1072 |
+| `src/utils/cache.js` | L65 |
+| `src/utils/cache.js` | L82-185 |
+| `tasks/unified-track-cache-spec.md` | L54 |
+| `src/components/common/CacheManager.vue` | L202-266 |
+| `src/composables/useCache.js` | L59 |
+| `src/composables/useUnifiedTrackCache.js` | L420 |
+| `tasks/tunicious-project-summary.md` | L152-189 |
+| `src/utils/cache.js` | L5-77 |
+| `src/composables/useUnifiedTrackCache.js` | L31-420 |
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Yes, the unified track cache is complete. Summary:
+
+## Completed
+
+**Phase 1: Core implementation**
+- Created `unifiedTrackCache.js` with all core functions
+- Implemented lazy cache building (triggered by tracklist toggle)
+- Added per-playlist tracklist preference storage
+
+**Phase 2: Parallel operation**
+- System works independently (old caches removed)
+
+**Phase 3: Component migration**
+- `PlaylistSingle.vue` — uses unified cache
+- `AlbumItem.vue` — receives tracks from unified cache
+- `TrackList.vue` — reads `track.loved` and `track.playcount` from unified cache
+- `AlbumView.vue` — uses unified cache
+- `ArtistView.vue` — migrated (loved percentage removed per your request)
+
+**Phase 4: Cleanup**
+- Removed old cache keys and functions (`lastFmUtils.js` deleted)
+- No remaining references to old cache patterns
+
+**Additional enhancements**
+- Cache Manager shows unified cache stats and controls
+- Loved percentage only shown in TrackList (when tracklist is loaded)
+- Calculation only happens when tracklist is enabled
+
+## Not implemented (intentionally skipped)
+- `migrateFromOldCache()` helper — skipped because the system builds cache lazily on demand
+
+The unified track cache is fully implemented and integrated. All components use it, old cache code is removed, and it only processes loved percentages when tracklists are loaded.
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+I think this was a big big change. can you do a review to see if there's some obvious refactoring with the cache stuff?
+
+---
+
+_**Agent (model default, mode Ask)**_
+
+
+
+---
+
+
+Reviewing the unified track cache implementation for refactoring opportunities:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "Where is unified track cache being used and are there any patterns of duplicate code or repeated logic?" • **11** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/utils/unifiedTrackCache.js` | L70-192 |
+| `tasks/unified-track-cache-spec.md` | L54 |
+| `src/composables/useUnifiedTrackCache.js` | L420 |
+| `src/views/playlists/PlaylistSingle.vue` | L170-229 |
+| `src/composables/useUnifiedTrackCache.js` | L31-420 |
+| `src/utils/unifiedTrackCache.js` | L80-203 |
+| `tasks/unified-track-cache-spec.md` | L582-641 |
+| `tasks/unified-track-cache-spec.md` | L339-395 |
+| `src/utils/unifiedTrackCache.js` | L949-1118 |
+| `src/utils/unifiedTrackCache.js` | L208-280 |
+| `src/utils/unifiedTrackCache.js` | L38 |
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "loadUnifiedTrackCache|getInMemoryCache|getCacheStats" • 4 matches</summary>
+
+Output mode: files_with_matches
+
+
+| File |
+|------|
+| `.\src\views\playlists\PlaylistSingle.vue` |
+| `.\src\utils\unifiedTrackCache.js` |
+| `.\src\composables\useUnifiedTrackCache.js` |
+| `.\tasks\unified-track-cache-spec.md` |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "albumLovedData|loadLovedTrackPercentages" • 1 match</summary>
+
+Output mode: files_with_matches
+
+
+| File |
+|------|
+| `.\src\views\playlists\PlaylistSingle.vue` |
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking for specific patterns and duplication:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "if \(!user\.value\)|if \(!user\.value \|\| !userData\.value\)" in "src/composables/useUnifiedTrackCache.js" • 0 matches</summary>
+
+Output mode: count
+
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "updateTrackAccess|lastAccessed" in "src/utils/unifiedTrackCache.js" • 19 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `* Update track's lastAccessed timestamp` | L207 |
+| `src/utils/unifiedTrackCache.js` | `function updateTrackAccess(cache, trackId) \{` | L209 |
+| `src/utils/unifiedTrackCache.js` | `cache.tracks[trackId].lastAccessed = Date.now();` | L211 |
+| `src/utils/unifiedTrackCache.js` | `// Update lastAccessed` | L298 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, track.id);` | L299 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, track.id);` | L328 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, track.id);` | L364 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, trackId);` | L411 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, trackId);` | L556 |
+| `src/utils/unifiedTrackCache.js` | `lastAccessed: now,` | L601 |
+| `src/utils/unifiedTrackCache.js` | `lastAccessed: now,` | L682 |
+| `src/utils/unifiedTrackCache.js` | `track.lastAccessed = now;` | L794 |
+| `src/utils/unifiedTrackCache.js` | `updateTrackAccess(cache, trackId);` | L917 |
+| `src/utils/unifiedTrackCache.js` | `// Sort by lastAccessed (oldest first)` | L1265 |
+| `src/utils/unifiedTrackCache.js` | `const accessA = trackA.lastAccessed \|\| 0;` | L1269 |
+| `src/utils/unifiedTrackCache.js` | `const accessB = trackB.lastAccessed \|\| 0;` | L1270 |
+| `src/utils/unifiedTrackCache.js` | `// If still not enough space, evict non-loved tracks by lastAccessed` | L1301 |
+| `src/utils/unifiedTrackCache.js` | `const accessA = a.track.lastAccessed \|\| 0;` | L1307 |
+| `src/utils/unifiedTrackCache.js` | `const accessB = b.track.lastAccessed \|\| 0;` | L1308 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/views/playlists/PlaylistSingle.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "Where is the logic for checking if a playlist is already cached duplicated or repeated?" • **14** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/utils/unifiedTrackCache.js` | L949-1118 |
+| `src/utils/unifiedTrackCache.js` | L563-721 |
+| `src/views/playlists/PlaylistSingle.vue` | L170-229 |
+| `src/composables/usePlaylistUpdates.js` | L9-135 |
+| `src/utils/unifiedTrackCache.js` | L1011-1124 |
+| `src/views/music/ArtistView.vue` | L44-100 |
+| `src/views/playlists/AddPlaylistView.vue` | L376-425 |
+| `src/utils/cache.js` | L122-232 |
+| `tasks/unified-track-cache-spec.md` | L339-395 |
+| `src/views/playlists/PlaylistSingle.vue` | L1679-1699 |
+| `src/views/playlists/PlaylistView.vue` | L98-159 |
+| `src/utils/unifiedTrackCache.js` | L315-382 |
+| `src/views/playlists/PlaylistSingle.vue` | L1697-1739 |
+| `src/views/playlists/PlaylistSingle.vue` | L1226-1269 |
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking for more duplication patterns:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "cache\.tracks\[trackId\] = \{" in "src/utils/unifiedTrackCache.js" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `cache.tracks[trackId] = \{` | L588 |
+| `src/utils/unifiedTrackCache.js` | `cache.tracks[trackId] = \{` | L669 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Found several refactoring opportunities:
+
+## Refactoring opportunities
+
+### 1. Duplicated track object creation
+The track object structure is duplicated in `addAlbumTracks` (lines 588-604) and `addPlaylistTracks` (lines 669-685). Extract a helper:
+
+```javascript
+function createTrackObject(track, trackId, now, albumId = null, albumData = null) {
+  return {
+    id: trackId,
+    name: track.name,
+    artists: track.artists || [],
+    album: track.album || (albumId ? { id: albumId, name: albumData?.name || '' } : {}),
+    duration_ms: track.duration_ms || 0,
+    track_number: track.track_number || 0,
+    uri: track.uri || `spotify:track:${trackId}`,
+    external_urls: track.external_urls || {},
+    loved: false,
+    playcount: 0,
+    lastPlaycountUpdate: null,
+    lastLovedUpdate: null,
+    lastAccessed: now,
+    albumIds: [],
+    playlistIds: []
+  };
+}
+```
+
+### 2. Duplicated track transformation logic
+The map/filter/map pattern with `updateTrackAccess` and loved status check is repeated in:
+- `getAlbumTracks` (lines 294-308)
+- `getPlaylistAlbumTracks` (lines 324-336)
+- `getPlaylistTracks` (lines 360-372)
+
+Extract a helper:
+
+```javascript
+function transformTracksForReturn(cache, trackIds) {
+  return trackIds
+    .map(trackId => cache.tracks[trackId])
+    .filter(track => track !== undefined)
+    .map(track => {
+      updateTrackAccess(cache, track.id);
+      const isLoved = track.loved === true || 
+        (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
+      return {
+        ...track,
+        loved: isLoved,
+        playcount: track.playcount || 0
+      };
+    });
+}
+```
+
+### 3. Duplicated playlist cache check logic
+The logic to check if a playlist is cached is duplicated:
+- `PlaylistSingle.vue` (lines 198-211)
+- `buildPlaylistCache` in `unifiedTrackCache.js` (lines 1034-1056)
+
+Extract a utility:
+
+```javascript
+export function isPlaylistCached(playlistId, userId) {
+  try {
+    const cache = getInMemoryCache(userId);
+    const existingPlaylist = cache?.playlists[playlistId];
+    if (!existingPlaylist || !existingPlaylist.albums) {
+      return false;
+    }
+    const albumKeys = Object.keys(existingPlaylist.albums);
+    return albumKeys.some(albumId => {
+      const album = existingPlaylist.albums[albumId];
+      return album && album.trackIds && album.trackIds.length > 0;
+    });
+  } catch (error) {
+    return false;
+  }
+}
+```
+
+### 4. Duplicated loved status check logic
+The loved status check is repeated in multiple places:
+
+```javascript
+function isTrackLovedInCache(cache, track) {
+  return track.loved === true || 
+    (track.loved === undefined && cache.indexes.lovedTrackIds.includes(track.id));
+}
+```
+
+### 5. Composable wrapper pattern
+Many functions in `useUnifiedTrackCache.js` follow the same pattern (check user, try/catch, return default). Consider a helper, but the current pattern is acceptable for Vue composables.
+
+### 6. Error handling pattern
+Repeated try/catch with `logCache` and default returns. Could be abstracted, but may reduce clarity.
+
+## Priority refactors
+
+High priority:
+1. Extract track object creation helper (#1)
+2. Extract track transformation helper (#2)
+3. Extract playlist cache check utility (#3)
+
+Medium priority:
+4. Extract loved status check helper (#4)
+
+Low priority:
+5. Simplify composable wrappers (may reduce clarity)
+6. Abstract error handling (may reduce clarity)
+
+Should I implement these refactors?
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+do the high priority ones
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Implementing the high-priority refactors. Starting with the track object creation helper:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [-] Extract track object creation helper function
+- [ ] Extract track transformation helper function
+- [ ] Extract playlist cache check utility function
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Implementing the high-priority refactors. Adding helper functions and refactoring the code:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 49, lines removed: undefined
+
+```diff
+@@ -212,4 +212,53 @@
+    }
+  }
++ 
++ /**
++  * Create a track object for the cache
++  */
++ function createTrackObject(track, trackId, now, albumId = null, albumData = null) {
++   return {
++     id: trackId,
++     name: track.name,
++     artists: track.artists || [],
++     album: track.album || (albumId ? { id: albumId, name: albumData?.name || '' } : {}),
++     duration_ms: track.duration_ms || 0,
++     track_number: track.track_number || 0,
++     uri: track.uri || &#96;spotify:track:${trackId}&#96;,
++     external_urls: track.external_urls || {},
++     loved: false,
++     playcount: 0,
++     lastPlaycountUpdate: null,
++     lastLovedUpdate: null,
++     lastAccessed: now,
++     albumIds: [],
++     playlistIds: []
++   };
++ }
++ 
++ /**
++  * Check if a track is loved in the cache
++  */
++ function isTrackLovedInCache(cache, track) {
++   return track.loved === true || 
++     (track.loved === undefined &amp;&amp; cache.indexes.lovedTrackIds.includes(track.id));
++ }
++ 
++ /**
++  * Transform track IDs to track objects with user-specific data
++  */
++ function transformTracksForReturn(cache, trackIds) {
++   return trackIds
++     .map(trackId =&gt; cache.tracks[trackId])
++     .filter(track =&gt; track !== undefined)
++     .map(track =&gt; {
++       updateTrackAccess(cache, track.id);
++       const isLoved = isTrackLovedInCache(cache, track);
++       return {
++         ...track,
++         loved: isLoved,
++         playcount: track.playcount || 0
++       };
++     });
++ }
+  
+  /**
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 17
+
+```diff
+@@ -341,21 +341,5 @@
+    
+    const trackIds = cache.albums[albumId].trackIds || [];
+-   const tracks = trackIds
+-     .map(trackId =&gt; cache.tracks[trackId])
+-     .filter(track =&gt; track !== undefined)
+-     .map(track =&gt; {
+-       // Update lastAccessed
+-       updateTrackAccess(cache, track.id);
+-       // Check lovedTrackIds index if loved property is not explicitly set
+-       const isLoved = track.loved === true || (track.loved === undefined &amp;&amp; cache.indexes.lovedTrackIds.includes(track.id));
+-       // Return track with user-specific data merged
+-       return {
+-         ...track,
+-         loved: isLoved,
+-         playcount: track.playcount || 0
+-       };
+-     });
+-   
+-   return tracks;
++   return transformTracksForReturn(cache, trackIds);
+  }
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 15
+
+```diff
+@@ -355,19 +355,5 @@
+    
+    const trackIds = cache.playlists[playlistId].albums[albumId].trackIds || [];
+-   const tracks = trackIds
+-     .map(trackId =&gt; cache.tracks[trackId])
+-     .filter(track =&gt; track !== undefined)
+-     .map(track =&gt; {
+-       updateTrackAccess(cache, track.id);
+-       // Check lovedTrackIds index if loved property is not explicitly set
+-       const isLoved = track.loved === true || (track.loved === undefined &amp;&amp; cache.indexes.lovedTrackIds.includes(track.id));
+-       return {
+-         ...track,
+-         loved: isLoved,
+-         playcount: track.playcount || 0
+-       };
+-     });
+-   
+-   return tracks;
++   return transformTracksForReturn(cache, trackIds);
+  }
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 15
+
+```diff
+@@ -377,19 +377,5 @@
+    });
+    
+-   const tracks = Array.from(allTrackIds)
+-     .map(trackId =&gt; cache.tracks[trackId])
+-     .filter(track =&gt; track !== undefined)
+-     .map(track =&gt; {
+-       updateTrackAccess(cache, track.id);
+-       // Check lovedTrackIds index if loved property is not explicitly set
+-       const isLoved = track.loved === true || (track.loved === undefined &amp;&amp; cache.indexes.lovedTrackIds.includes(track.id));
+-       return {
+-         ...track,
+-         loved: isLoved,
+-         playcount: track.playcount || 0
+-       };
+-     });
+-   
+-   return tracks;
++   return transformTracksForReturn(cache, Array.from(allTrackIds));
+  }
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 17
+
+```diff
+@@ -591,21 +591,5 @@
+      // Add or update track in cache
+      if (!cache.tracks[trackId]) {
+-       cache.tracks[trackId] = {
+-         id: trackId,
+-         name: track.name,
+-         artists: track.artists || [],
+-         album: track.album || { id: albumId, name: albumData?.name || '' },
+-         duration_ms: track.duration_ms || 0,
+-         track_number: track.track_number || 0,
+-         uri: track.uri || &#96;spotify:track:${trackId}&#96;,
+-         external_urls: track.external_urls || {},
+-         loved: false,
+-         playcount: 0,
+-         lastPlaycountUpdate: null,
+-         lastLovedUpdate: null,
+-         lastAccessed: now,
+-         albumIds: [],
+-         playlistIds: []
+-       };
++       cache.tracks[trackId] = createTrackObject(track, trackId, now, albumId, albumData);
+      }
+      
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 17
+
+```diff
+@@ -656,21 +656,5 @@
+      // Add track to cache if not exists
+      if (!cache.tracks[trackId]) {
+-       cache.tracks[trackId] = {
+-         id: trackId,
+-         name: track.name,
+-         artists: track.artists || [],
+-         album: track.album || {},
+-         duration_ms: track.duration_ms || 0,
+-         track_number: track.track_number || 0,
+-         uri: track.uri || &#96;spotify:track:${trackId}&#96;,
+-         external_urls: track.external_urls || {},
+-         loved: false,
+-         playcount: 0,
+-         lastPlaycountUpdate: null,
+-         lastLovedUpdate: null,
+-         lastAccessed: now,
+-         albumIds: [],
+-         playlistIds: []
+-       };
++       cache.tracks[trackId] = createTrackObject(track, trackId, now, albumId);
+      }
+      
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Adding the playlist cache check utility and updating both places that use it:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 20, lines removed: undefined
+
+```diff
+@@ -1209,4 +1209,24 @@
+    }
+  }
++ 
++ /**
++  * Check if a playlist is already cached (has tracks)
++  */
++ export function isPlaylistCached(playlistId, userId) {
++   try {
++     const cache = getInMemoryCache(userId);
++     const existingPlaylist = cache?.playlists[playlistId];
++     if (!existingPlaylist || !existingPlaylist.albums) {
++       return false;
++     }
++     const albumKeys = Object.keys(existingPlaylist.albums);
++     return albumKeys.some(albumId =&gt; {
++       const album = existingPlaylist.albums[albumId];
++       return album &amp;&amp; album.trackIds &amp;&amp; album.trackIds.length &gt; 0;
++     });
++   } catch (error) {
++     return false;
++   }
++ }
+  
+  /**
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 10, lines removed: 25
+
+```diff
+@@ -1001,30 +1001,15 @@
+    
+    // Check if playlist is already cached
+-   // A playlist is considered cached if:
+-   // 1. The playlist structure exists
+-   // 2. It has albums
+-   // 3. At least one album has tracks (not empty)
+-   const existingPlaylist = cache.playlists[playlistId];
+-   if (existingPlaylist &amp;&amp; existingPlaylist.albums) {
++   if (isPlaylistCached(playlistId, userId)) {
++     const existingPlaylist = cache.playlists[playlistId];
+      const albumKeys = Object.keys(existingPlaylist.albums);
+-     // Check if we have albums and at least one has tracks
+-     const hasTracks = albumKeys.some(albumId =&gt; {
+-       const album = existingPlaylist.albums[albumId];
+-       return album &amp;&amp; album.trackIds &amp;&amp; album.trackIds.length &gt; 0;
+-     });
+-     
+-     if (hasTracks) {
+-       logCache(&#96;Playlist ${playlistId} already cached with ${albumKeys.length} album(s), skipping rebuild&#96;);
+-       if (progressCallback) {
+-         progressCallback({
+-           phase: 'complete',
+-           message: &#96;Cache already exists&#96;
+-         });
+-       }
+-       return; // Skip rebuild if cache exists
+-     }
+-     
+-     // If playlist exists but has no tracks, log and rebuild
+-     logCache(&#96;Playlist ${playlistId} exists but has no tracks, rebuilding cache&#96;);
++     logCache(&#96;Playlist ${playlistId} already cached with ${albumKeys.length} album(s), skipping rebuild&#96;);
++     if (progressCallback) {
++       progressCallback({
++         phase: 'complete',
++         message: &#96;Cache already exists&#96;
++       });
++     }
++     return; // Skip rebuild if cache exists
+    }
+    
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/views/playlists/PlaylistSingle.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "import.*unifiedTrackCache|from.*unifiedTrackCache" in "src/views/playlists/PlaylistSingle.vue" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/views/playlists/PlaylistSingle.vue` | `import \{ loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache \} from '@utils/unifiedTrackCache';` | L31 |
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Updating PlaylistSingle to use the new utility function:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/views/playlists/PlaylistSingle.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/views/playlists/PlaylistSingle.vue</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -29,5 +29,5 @@
+  import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+  import { usePlaycountTracking } from '@composables/usePlaycountTracking';
+- import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache } from '@utils/unifiedTrackCache';
++ import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
+  import { logPlaylist, logCache, enableDebug } from '@utils/logger';
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/views/playlists/PlaylistSingle.vue</summary>
+
+**Chunk 1**
+Lines added: 5, lines removed: 14
+
+```diff
+@@ -196,18 +196,9 @@
+      if (user.value) {
+        try {
+-         const cache = await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+-         const existingPlaylist = cache?.playlists[id.value];
+-         if (existingPlaylist &amp;&amp; existingPlaylist.albums) {
+-           const albumKeys = Object.keys(existingPlaylist.albums);
+-           // Check if we have albums and at least one has tracks
+-           const hasTracks = albumKeys.some(albumId =&gt; {
+-             const album = existingPlaylist.albums[albumId];
+-             return album &amp;&amp; album.trackIds &amp;&amp; album.trackIds.length &gt; 0;
+-           });
+-           
+-           if (hasTracks) {
+-             logCache(&#96;Playlist ${id.value} already cached, skipping cache build&#96;);
+-             needsBuild = false;
+-           }
++         // Ensure cache is loaded
++         await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
++         if (isPlaylistCached(id.value, user.value.uid)) {
++           logCache(&#96;Playlist ${id.value} already cached, skipping cache build&#96;);
++           needsBuild = false;
+          }
+        } catch (error) {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `src/utils/unifiedTrackCache.js`
+- `src/views/playlists/PlaylistSingle.vue`
+
+Lint results
+
+Lint errors for `src/views/playlists/PlaylistSingle.vue`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Unknown at rule @apply | 2841:3-2841:9 | DIAGNOSTIC_SEVERITY_WARNING |
+| Unknown at rule @apply | 2837:3-2837:9 | DIAGNOSTIC_SEVERITY_WARNING |
+| Unknown at rule @apply | 2833:3-2833:9 | DIAGNOSTIC_SEVERITY_WARNING |
+| Unknown at rule @apply | 2827:3-2827:9 | DIAGNOSTIC_SEVERITY_WARNING |
+| Unknown at rule @apply | 2823:3-2823:9 | DIAGNOSTIC_SEVERITY_WARNING |
+| 'useRouter' is declared but its value is never read. | 3:20-3:29 | DIAGNOSTIC_SEVERITY_HINT |
+| 'BarsArrowUpIcon' is declared but its value is never read. | 17:37-17:52 | DIAGNOSTIC_SEVERITY_HINT |
+| 'BarsArrowDownIcon' is declared but its value is never read. | 17:54-17:71 | DIAGNOSTIC_SEVERITY_HINT |
+| 'MusicalNoteIcon' is declared but its value is never read. | 18:1-18:60 | DIAGNOSTIC_SEVERITY_HINT |
+| 'getAlbumTracks' is declared but its value is never read. | 39:179-39:193 | DIAGNOSTIC_SEVERITY_HINT |
+| 'getAllPlaylistTracks' is declared but its value is never read. | 39:215-39:235 | DIAGNOSTIC_SEVERITY_HINT |
+| 'getCurrentPlaylistInfo' is declared but its value is never read. | 41:9-41:31 | DIAGNOSTIC_SEVERITY_HINT |
+| 'getAlbumRatingData' is declared but its value is never read. | 41:110-41:128 | DIAGNOSTIC_SEVERITY_HINT |
+| 'searchAlbumsByTitleAndArtist' is declared but its value is never read. | 41:177-41:205 | DIAGNOSTIC_SEVERITY_HINT |
+| 'isAlternateId' is declared but its value is never read. | 42:23-42:36 | DIAGNOSTIC_SEVERITY_HINT |
+| All destructured elements are unused. | 43:7-43:33 | DIAGNOSTIC_SEVERITY_HINT |
+| 'cacheLoading' is declared but its value is never read. | 53:12-53:24 | DIAGNOSTIC_SEVERITY_HINT |
+| 'cacheBuildProgress' is declared but its value is never read. | 54:18-54:36 | DIAGNOSTIC_SEVERITY_HINT |
+| 'albumTracks' is declared but its value is never read. | 109:7-109:18 | DIAGNOSTIC_SEVERITY_HINT |
+| 'album' is declared but its value is never read. | 113:14-113:19 | DIAGNOSTIC_SEVERITY_HINT |
+| 'isSessionError' is declared but its value is never read. | 1369:43-1369:57 | DIAGNOSTIC_SEVERITY_HINT |
+| 'targetPlaylistId' is declared but its value is never read. | 1596:9-1596:25 | DIAGNOSTIC_SEVERITY_HINT |
+| 'cancelBatchProcessing' is declared but its value is never read. | 1875:7-1875:28 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Extract track object creation helper function
+- [x] Extract track transformation helper function
+- [x] Extract playlist cache check utility function
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Verifying the refactoring is complete:
+
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "createTrackObject|transformTracksForReturn|isPlaylistCached" in "src/utils/unifiedTrackCache.js" • 0 matches</summary>
+
+Output mode: count
+
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_file">
+<details>
+<summary>Tool use: **read_file**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_file">
+<details>
+<summary>Tool use: **read_file**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_file">
+<details>
+<summary>Tool use: **read_file**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
