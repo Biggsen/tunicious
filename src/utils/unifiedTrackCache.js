@@ -1225,6 +1225,18 @@ export function getCacheStats(userId) {
 }
 
 /**
+ * Get all track IDs from cache
+ */
+export function getAllTrackIds(userId) {
+  try {
+    const cache = getInMemoryCache(userId);
+    return Object.keys(cache.tracks);
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
  * Clear the unified track cache
  */
 export async function clearUnifiedTrackCache(userId) {

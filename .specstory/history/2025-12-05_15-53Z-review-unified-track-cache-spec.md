@@ -770,3 +770,976 @@ Phase 4 cleanup is complete.
 
 ---
 
+_**User (2025-12-05 09:10Z)**_
+
+what's this for? Implement migrateFromOldCache() to migrate existing users
+
+---
+
+_**Agent (model default, mode Ask)**_
+
+
+
+---
+
+
+Checking the spec for `migrateFromOldCache()` details:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "What is the purpose of migrateFromOldCache function in the unified track cache spec?" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `tasks/unified-track-cache-spec.md` | L638-721 |
+| `tasks/unified-track-cache-spec.md` | L582-641 |
+| `tasks/unified-track-cache-spec.md` | L54 |
+| `src/utils/unifiedTrackCache.js` | L70-192 |
+| `tasks/unified-track-cache-spec.md` | L773-818 |
+| `tasks/unified-track-cache-spec.md` | L48-91 |
+| `src/utils/unifiedTrackCache.js` | L38 |
+| `src/composables/useUnifiedTrackCache.js` | L406 |
+| `src/utils/unifiedTrackCache.js` | L626-800 |
+| `src/views/playlists/PlaylistSingle.vue` | L1006-1070 |
+| `src/utils/unifiedTrackCache.js` | L217-310 |
+| `src/utils/unifiedTrackCache.js` | L545-721 |
+| `src/utils/unifiedTrackCache.js` | L1229-1317 |
+| `tasks/unified-track-cache-spec.md` | L440-492 |
+| `tasks/unified-track-cache-spec.md` | L144-216 |
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+The `migrateFromOldCache()` function was intended to migrate existing users from the old fragmented cache to the unified cache.
+
+**Purpose:**
+- Convert existing cached data from the old format (`albumTracks_${albumId}`, `playlist_tracks_${playlistId}`, `lovedTracks_${lastFmUserName}`) into the new unified cache structure
+- Preserve users' existing cached data instead of losing it
+- Speed up the transition by reusing existing data
+
+**Current situation:**
+Since Phase 4 cleanup is done:
+- Old cache functions are removed
+- The new system builds cache lazily (when users enable tracklists)
+- Old cache keys in localStorage are orphaned but harmless
+- Users will rebuild cache naturally as they use the app
+
+**Do you need it?**
+Probably not, because:
+1. The system builds cache on-demand
+2. Old cache data is orphaned but doesn't break anything
+3. Users will rebuild cache as they interact with playlists
+
+**When it would be useful:**
+- If you want to proactively migrate users who have old cache data
+- If you want to preserve existing loved tracks/playcounts from old cache
+- If you want to speed up the transition for power users with lots of cached data
+
+Since the old cache functions are removed, implementing this would require reading localStorage directly to find old cache keys and convert them. Given the lazy rebuild approach, it may not be necessary unless you want to preserve existing cached data for users.
+
+---
+
+_**User (2025-12-05 09:10Z)**_
+
+ok, ignore it then. let's do the Cache Manager enhancements
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+
+
+---
+
+
+Reviewing the current CacheManager and the spec to identify enhancements:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/common/CacheManager.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking available methods for refreshing:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: tasks/unified-track-cache-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking how to get all track IDs for refreshing all playcounts:
+
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getAllTracks|getAllTrackIds|Object\.keys\(cache\.tracks\)" in "src/utils/unifiedTrackCache.js" • 5 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/utils/unifiedTrackCache.js` | `cache.metadata.totalTracks = Object.keys(cache.tracks).length;` | L149 |
+| `src/utils/unifiedTrackCache.js` | `const totalTracks = Object.keys(cache.tracks).length;` | L808 |
+| `src/utils/unifiedTrackCache.js` | `const trackIds = Object.keys(cache.tracks).filter(trackId => \{` | L1092 |
+| `src/utils/unifiedTrackCache.js` | `const orphanedTracks = Object.keys(cache.tracks).filter(trackId => \{` | L1248 |
+| `src/utils/unifiedTrackCache.js` | `const allTracks = Object.keys(cache.tracks)` | L1291 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [-] Add unified track cache stats section to CacheManager (tracks, albums, playlists, loved tracks, unsynced changes)
+- [ ] Add manual refresh buttons: retry failed syncs, refresh all playcounts, refresh all loved status
+- [ ] Add full cache rebuild option (clear unified cache)
+- [ ] Add helper function to get all track IDs from cache for refreshing all playcounts
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Adding a helper function to get all track IDs, then enhancing CacheManager:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/utils/unifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/utils/unifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 12, lines removed: undefined
+
+```diff
+@@ -1224,4 +1224,16 @@
+    }
+  }
++ 
++ /**
++  * Get all track IDs from cache
++  */
++ export function getAllTrackIds(userId) {
++   try {
++     const cache = getInMemoryCache(userId);
++     return Object.keys(cache.tracks);
++   } catch (error) {
++     return [];
++   }
++ }
+  
+  /**
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Updating the composable to export getAllTrackIds, then enhancing CacheManager:
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/composables/useUnifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -20,5 +20,6 @@
+    setTracklistPreference,
+    retryFailedSyncs,
+-   getUnsyncedChangesCount
++   getUnsyncedChangesCount,
++   getAllTrackIds
+  } from '../utils/unifiedTrackCache';
+  import { useUserData } from './useUserData';
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/composables/useUnifiedTrackCache.js</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Adding a method to get all track IDs and enhancing CacheManager:
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/composables/useUnifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 12, lines removed: undefined
+
+```diff
+@@ -351,4 +351,16 @@
+      setTracklistPreference(playlistId, enabled);
+    };
++ 
++   /**
++    * Get all track IDs from cache
++    */
++   const getAllTrackIdsFromCache = () =&gt; {
++     if (!user.value) return [];
++     try {
++       return getAllTrackIds(user.value.uid);
++     } catch (err) {
++       return [];
++     }
++   };
+  
+    // Initialize cache when user is available
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/composables/useUnifiedTrackCache.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -416,5 +416,6 @@
+      clearCache,
+      getPlaylistTracklistPreference,
+-     setPlaylistTracklistPreference
++     setPlaylistTracklistPreference,
++     getAllTrackIdsFromCache
+    };
+  }
+```
+
+</details>
+
+</tool-use>
+
+---
+
+
+
+---
+
+
+Enhancing CacheManager to show unified cache stats and add refresh buttons:
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -3,4 +3,5 @@
+      &lt;h3 class="text-lg font-semibold mb-3 text-delft-blue"&gt;Cache Management&lt;/h3&gt;
+      
++     &lt;!-- General Cache Info --&gt;
+      &lt;div v-if="cacheInfo" class="mb-4 space-y-2"&gt;
+        &lt;div class="text-sm"&gt;
+```
+
+**Chunk 2**
+Lines added: 28, lines removed: undefined
+
+```diff
+@@ -17,4 +18,32 @@
+        &lt;/div&gt;
+      &lt;/div&gt;
++ 
++     &lt;!-- Unified Track Cache Stats --&gt;
++     &lt;div v-if="unifiedCacheStats" class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200"&gt;
++       &lt;h4 class="text-md font-semibold mb-2 text-delft-blue"&gt;Track Cache&lt;/h4&gt;
++       &lt;div class="space-y-1 text-sm"&gt;
++         &lt;div&gt;
++           &lt;span class="font-medium"&gt;Tracks:&lt;/span&gt; {{ unifiedCacheStats.totalTracks.toLocaleString() }}
++         &lt;/div&gt;
++         &lt;div&gt;
++           &lt;span class="font-medium"&gt;Albums:&lt;/span&gt; {{ unifiedCacheStats.totalAlbums.toLocaleString() }}
++         &lt;/div&gt;
++         &lt;div&gt;
++           &lt;span class="font-medium"&gt;Playlists:&lt;/span&gt; {{ unifiedCacheStats.totalPlaylists.toLocaleString() }}
++         &lt;/div&gt;
++         &lt;div&gt;
++           &lt;span class="font-medium"&gt;Loved tracks:&lt;/span&gt; {{ unifiedCacheStats.lovedTracks.toLocaleString() }}
++         &lt;/div&gt;
++         &lt;div v-if="unifiedCacheStats.unsyncedChanges &gt; 0" class="text-amber-600"&gt;
++           &lt;span class="font-medium"&gt;Unsynced changes:&lt;/span&gt; {{ unifiedCacheStats.unsyncedChanges }}
++         &lt;/div&gt;
++         &lt;div v-else class="text-green-600"&gt;
++           &lt;span class="font-medium"&gt;Sync status:&lt;/span&gt; All synced
++         &lt;/div&gt;
++         &lt;div v-if="unifiedCacheStats.lastUpdated" class="text-xs text-gray-500 mt-2"&gt;
++           Last updated: {{ formatDate(unifiedCacheStats.lastUpdated) }}
++         &lt;/div&gt;
++       &lt;/div&gt;
++     &lt;/div&gt;
+  
+      &lt;div class="flex flex-wrap gap-2"&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 97, lines removed: 36
+
+```diff
+@@ -47,40 +47,101 @@
+      &lt;/div&gt;
+  
+-     &lt;div class="flex flex-wrap gap-2"&gt;
+-       &lt;BaseButton 
+-         @click="refreshInfo" 
+-         :disabled="loading"
+-         variant="secondary"
+-         size="sm"
+-       &gt;
+-         &lt;template #icon-left&gt;
+-           &lt;ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': loading }" /&gt;
+-         &lt;/template&gt;
+-         Refresh Info
+-       &lt;/BaseButton&gt;
+-       
+-       &lt;BaseButton 
+-         @click="cleanupExpired" 
+-         :disabled="loading || !cacheInfo || cacheInfo.expiredEntries === 0"
+-         variant="secondary"
+-         size="sm"
+-       &gt;
+-         &lt;template #icon-left&gt;
+-           &lt;TrashIcon class="h-4 w-4" /&gt;
+-         &lt;/template&gt;
+-         Clean Expired
+-       &lt;/BaseButton&gt;
+-       
+-       &lt;BaseButton 
+-         @click="clearAllCache" 
+-         :disabled="loading"
+-         variant="danger"
+-         size="sm"
+-       &gt;
+-         &lt;template #icon-left&gt;
+-           &lt;XMarkIcon class="h-4 w-4" /&gt;
+-         &lt;/template&gt;
+-         Clear All Cache
+-       &lt;/BaseButton&gt;
++     &lt;!-- General Cache Actions --&gt;
++     &lt;div class="mb-4"&gt;
++       &lt;h4 class="text-sm font-semibold mb-2 text-delft-blue"&gt;General Cache&lt;/h4&gt;
++       &lt;div class="flex flex-wrap gap-2"&gt;
++         &lt;BaseButton 
++           @click="refreshInfo" 
++           :disabled="loading"
++           variant="secondary"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': loading }" /&gt;
++           &lt;/template&gt;
++           Refresh Info
++         &lt;/BaseButton&gt;
++         
++         &lt;BaseButton 
++           @click="cleanupExpired" 
++           :disabled="loading || !cacheInfo || cacheInfo.expiredEntries === 0"
++           variant="secondary"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;TrashIcon class="h-4 w-4" /&gt;
++           &lt;/template&gt;
++           Clean Expired
++         &lt;/BaseButton&gt;
++         
++         &lt;BaseButton 
++           @click="clearAllCache" 
++           :disabled="loading"
++           variant="danger"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;XMarkIcon class="h-4 w-4" /&gt;
++           &lt;/template&gt;
++           Clear All Cache
++         &lt;/BaseButton&gt;
++       &lt;/div&gt;
++     &lt;/div&gt;
++ 
++     &lt;!-- Unified Track Cache Actions --&gt;
++     &lt;div v-if="user &amp;&amp; userData" class="mb-4"&gt;
++       &lt;h4 class="text-sm font-semibold mb-2 text-delft-blue"&gt;Track Cache&lt;/h4&gt;
++       &lt;div class="flex flex-wrap gap-2"&gt;
++         &lt;BaseButton 
++           @click="retryFailedSyncs" 
++           :disabled="unifiedLoading || !unifiedCacheStats || unifiedCacheStats.unsyncedChanges === 0"
++           variant="secondary"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': unifiedLoading }" /&gt;
++           &lt;/template&gt;
++           Retry Failed Syncs
++           &lt;span v-if="unifiedCacheStats &amp;&amp; unifiedCacheStats.unsyncedChanges &gt; 0" class="ml-1"&gt;
++             ({{ unifiedCacheStats.unsyncedChanges }})
++           &lt;/span&gt;
++         &lt;/BaseButton&gt;
++         
++         &lt;BaseButton 
++           @click="refreshAllPlaycounts" 
++           :disabled="unifiedLoading || !unifiedCacheStats || unifiedCacheStats.totalTracks === 0"
++           variant="secondary"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': refreshingPlaycounts }" /&gt;
++           &lt;/template&gt;
++           Refresh All Playcounts
++         &lt;/BaseButton&gt;
++         
++         &lt;BaseButton 
++           @click="refreshAllLovedTracks" 
++           :disabled="unifiedLoading || !userData.lastFmUserName"
++           variant="secondary"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': refreshingLoved }" /&gt;
++           &lt;/template&gt;
++           Refresh Loved Status
++         &lt;/BaseButton&gt;
++         
++         &lt;BaseButton 
++           @click="clearUnifiedCache" 
++           :disabled="unifiedLoading"
++           variant="danger"
++           size="sm"
++         &gt;
++           &lt;template #icon-left&gt;
++             &lt;XMarkIcon class="h-4 w-4" /&gt;
++           &lt;/template&gt;
++           Clear Track Cache
++         &lt;/BaseButton&gt;
++       &lt;/div&gt;
+      &lt;/div&gt;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 1
+
+```diff
+@@ -153,9 +153,11 @@
+  
+  &lt;script setup&gt;
+- import { ref, onMounted, computed } from 'vue';
++ import { ref, onMounted, computed, watch } from 'vue';
+  import { getCacheInfo, clearCache } from '@/utils/cache';
+  import BaseButton from '@/components/common/BaseButton.vue';
+  import { ArrowPathIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+  import { logCache } from '@utils/logger';
++ import { useUnifiedTrackCache } from '@/composables/useUnifiedTrackCache';
++ import { useUserData } from '@/composables/useUserData';
+  
+  const cacheInfo = ref(null);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 16, lines removed: undefined
+
+```diff
+@@ -165,4 +165,20 @@
+  const message = ref('');
+  const messageType = ref('');
++ 
++ // Unified track cache
++ const { user, userData } = useUserData();
++ const {
++   stats: unifiedCacheStats,
++   unsyncedCount,
++   retrySyncs: retryFailedSyncsAction,
++   refreshLovedTracksForUser,
++   refreshPlaycountsForTracks,
++   getAllTrackIdsFromCache,
++   clearCache: clearUnifiedCacheAction
++ } = useUnifiedTrackCache();
++ 
++ const unifiedLoading = ref(false);
++ const refreshingPlaycounts = ref(false);
++ const refreshingLoved = ref(false);
+  
+  const messageClass = computed(() =&gt; {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 103, lines removed: undefined
+
+```diff
+@@ -280,4 +280,107 @@
+    }
+  };
++ 
++ const formatDate = (timestamp) =&gt; {
++   if (!timestamp) return 'Never';
++   const date = new Date(timestamp);
++   return date.toLocaleString();
++ };
++ 
++ const retryFailedSyncs = async () =&gt; {
++   unifiedLoading.value = true;
++   try {
++     const result = await retryFailedSyncsAction();
++     if (result.retried &gt; 0) {
++       showMessage(&#96;Retried ${result.retried} syncs: ${result.succeeded} succeeded, ${result.failed} failed&#96;, result.failed &gt; 0 ? 'warning' : 'success');
++     } else {
++       showMessage('No failed syncs to retry', 'info');
++     }
++     refreshInfo();
++   } catch (error) {
++     logCache('Error retrying failed syncs:', error);
++     showMessage('Error retrying failed syncs', 'error');
++   } finally {
++     unifiedLoading.value = false;
++   }
++ };
++ 
++ const refreshAllPlaycounts = async () =&gt; {
++   if (!user.value || !userData.value?.lastFmUserName) {
++     showMessage('Last.fm username required to refresh playcounts', 'warning');
++     return;
++   }
++ 
++   refreshingPlaycounts.value = true;
++   unifiedLoading.value = true;
++   try {
++     const trackIds = getAllTrackIdsFromCache();
++     if (trackIds.length === 0) {
++       showMessage('No tracks in cache to refresh', 'info');
++       return;
++     }
++ 
++     let progressCount = 0;
++     await refreshPlaycountsForTracks(trackIds, (progress) =&gt; {
++       progressCount = progress.current;
++     }, true);
++ 
++     showMessage(&#96;Refreshed playcounts for ${trackIds.length} tracks&#96;, 'success');
++     refreshInfo();
++   } catch (error) {
++     logCache('Error refreshing all playcounts:', error);
++     showMessage('Error refreshing playcounts', 'error');
++   } finally {
++     refreshingPlaycounts.value = false;
++     unifiedLoading.value = false;
++   }
++ };
++ 
++ const refreshAllLovedTracks = async () =&gt; {
++   if (!user.value || !userData.value?.lastFmUserName) {
++     showMessage('Last.fm username required to refresh loved tracks', 'warning');
++     return;
++   }
++ 
++   refreshingLoved.value = true;
++   unifiedLoading.value = true;
++   try {
++     let progressCount = 0;
++     const result = await refreshLovedTracksForUser((progress) =&gt; {
++       progressCount = progress.current || 0;
++     });
++ 
++     showMessage(&#96;Refreshed loved tracks: ${result.matchedCount} matched from ${result.totalLovedTracks} total&#96;, 'success');
++     refreshInfo();
++   } catch (error) {
++     logCache('Error refreshing loved tracks:', error);
++     showMessage('Error refreshing loved tracks', 'error');
++   } finally {
++     refreshingLoved.value = false;
++     unifiedLoading.value = false;
++   }
++ };
++ 
++ const clearUnifiedCache = async () =&gt; {
++   if (!confirm('Are you sure you want to clear the track cache? This will remove all cached tracks, playcounts, and loved status. You will need to rebuild the cache by visiting playlists with tracklists enabled.')) {
++     return;
++   }
++ 
++   unifiedLoading.value = true;
++   try {
++     await clearUnifiedCacheAction();
++     showMessage('Track cache cleared successfully', 'success');
++     refreshInfo();
++   } catch (error) {
++     logCache('Error clearing unified cache:', error);
++     showMessage('Error clearing track cache', 'error');
++   } finally {
++     unifiedLoading.value = false;
++   }
++ };
++ 
++ // Watch for changes in unified cache stats to refresh display
++ watch([unifiedCacheStats, unsyncedCount], () =&gt; {
++   // Stats are computed, so they update automatically
++ }, { deep: true });
+  
+  onMounted(() =&gt; {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/components/common/CacheManager.vue`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Checking for issues and updating todos:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/common/CacheManager.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Add unified track cache stats section to CacheManager (tracks, albums, playlists, loved tracks, unsynced changes)
+- [x] Add manual refresh buttons: retry failed syncs, refresh all playcounts, refresh all loved status
+- [x] Add full cache rebuild option (clear unified cache)
+- [x] Add helper function to get all track IDs from cache for refreshing all playcounts
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Verifying the implementation and checking for issues:
+
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/common/CacheManager.vue</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `src/components/common/CacheManager.vue`
+- `src/composables/useUnifiedTrackCache.js`
+- `src/utils/unifiedTrackCache.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Adding a null check for unifiedCacheStats:
+
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: src/components/common/CacheManager.vue</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -24,14 +24,14 @@
+        &lt;div class="space-y-1 text-sm"&gt;
+          &lt;div&gt;
+-           &lt;span class="font-medium"&gt;Tracks:&lt;/span&gt; {{ unifiedCacheStats.totalTracks.toLocaleString() }}
++           &lt;span class="font-medium"&gt;Tracks:&lt;/span&gt; {{ (unifiedCacheStats.totalTracks || 0).toLocaleString() }}
+          &lt;/div&gt;
+          &lt;div&gt;
+-           &lt;span class="font-medium"&gt;Albums:&lt;/span&gt; {{ unifiedCacheStats.totalAlbums.toLocaleString() }}
++           &lt;span class="font-medium"&gt;Albums:&lt;/span&gt; {{ (unifiedCacheStats.totalAlbums || 0).toLocaleString() }}
+          &lt;/div&gt;
+          &lt;div&gt;
+-           &lt;span class="font-medium"&gt;Playlists:&lt;/span&gt; {{ unifiedCacheStats.totalPlaylists.toLocaleString() }}
++           &lt;span class="font-medium"&gt;Playlists:&lt;/span&gt; {{ (unifiedCacheStats.totalPlaylists || 0).toLocaleString() }}
+          &lt;/div&gt;
+          &lt;div&gt;
+-           &lt;span class="font-medium"&gt;Loved tracks:&lt;/span&gt; {{ unifiedCacheStats.lovedTracks.toLocaleString() }}
++           &lt;span class="font-medium"&gt;Loved tracks:&lt;/span&gt; {{ (unifiedCacheStats.lovedTracks || 0).toLocaleString() }}
+          &lt;/div&gt;
+          &lt;div v-if="unifiedCacheStats.unsyncedChanges &gt; 0" class="text-amber-600"&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/components/common/CacheManager.vue`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+Cache Manager enhancements are complete.
+
+## Completed enhancements
+
+1. **Unified Track Cache Stats Section**
+   - Shows total tracks, albums, playlists
+   - Shows loved tracks count
+   - Shows unsynced changes count (with warning color if > 0)
+   - Shows sync status (all synced if no unsynced changes)
+   - Shows last updated timestamp
+
+2. **Manual Refresh Buttons**
+   - **Retry Failed Syncs** — retries all unsynced loved/unloved operations (shows count badge)
+   - **Refresh All Playcounts** — force refreshes playcounts for all cached tracks
+   - **Refresh Loved Status** — refreshes loved track status from Last.fm
+   - **Clear Track Cache** — clears the unified cache (full rebuild option)
+
+3. **Helper Function**
+   - Added `getAllTrackIds()` to `unifiedTrackCache.js` to get all track IDs for bulk operations
+   - Exposed via composable as `getAllTrackIdsFromCache()`
+
+4. **User Experience**
+   - Loading states for all operations
+   - Success/error messages
+   - Disabled states when operations aren't applicable
+   - Confirmation dialog for destructive actions
+
+The Cache Manager now shows unified track cache statistics and provides controls to manage and refresh the cache. All buttons are properly disabled when the user isn't authenticated or when operations aren't applicable.
+
+---
+

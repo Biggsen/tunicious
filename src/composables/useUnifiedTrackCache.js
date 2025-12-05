@@ -19,7 +19,8 @@ import {
   getTracklistPreference,
   setTracklistPreference,
   retryFailedSyncs,
-  getUnsyncedChangesCount
+  getUnsyncedChangesCount,
+  getAllTrackIds
 } from '../utils/unifiedTrackCache';
 import { useUserData } from './useUserData';
 import { useUserSpotifyApi } from './useUserSpotifyApi';
@@ -350,6 +351,18 @@ export function useUnifiedTrackCache() {
     setTracklistPreference(playlistId, enabled);
   };
 
+  /**
+   * Get all track IDs from cache
+   */
+  const getAllTrackIdsFromCache = () => {
+    if (!user.value) return [];
+    try {
+      return getAllTrackIds(user.value.uid);
+    } catch (err) {
+      return [];
+    }
+  };
+
   // Initialize cache when user is available
   watch([user, userData], ([newUser, newUserData]) => {
     if (newUser && newUserData && !cacheLoaded.value) {
@@ -402,7 +415,8 @@ export function useUnifiedTrackCache() {
     retrySyncs,
     clearCache,
     getPlaylistTracklistPreference,
-    setPlaylistTracklistPreference
+    setPlaylistTracklistPreference,
+    getAllTrackIdsFromCache
   };
 }
 
