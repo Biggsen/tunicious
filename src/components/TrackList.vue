@@ -509,7 +509,7 @@ const handleTrackClick = async (track) => {
         v-for="track in sortedTracks" 
         :key="track.id"
         :class="[
-          'group flex justify-between items-start text-delft-blue hover:bg-white/30 pl-3 pr-2 py-1 transition-colors',
+          'group flex justify-between items-start text-delft-blue hover:bg-white/30 pl-2 pr-2 py-1 transition-colors',
           {
             'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
             'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
@@ -522,7 +522,7 @@ const handleTrackClick = async (track) => {
         <span class="flex items-start flex-1">
           <span 
             v-if="playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)" 
-            class="mr-1 text-delft-blue flex-shrink-0 cursor-pointer" 
+            class="mr-2 text-delft-blue flex-shrink-0 cursor-pointer self-center" 
             title="Now Playing - Click to pause"
             @click.stop="togglePlayback()"
           >
@@ -531,14 +531,14 @@ const handleTrackClick = async (track) => {
           </span>
           <span 
             v-else-if="isTrackCurrentlyPlaying(track.name, albumArtist)" 
-            class="mr-1 text-delft-blue flex-shrink-0" 
+            class="mr-2 text-delft-blue flex-shrink-0 self-center" 
             title="Now Playing (Last.fm)"
           >
             <PlayIcon class="w-3 h-3" />
           </span>
           <span 
             v-else-if="playerReady" 
-            class="mr-1 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" 
+            class="mr-2 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity self-center" 
             title="Click to play"
           >
             <PlayIcon class="w-3 h-3" />
