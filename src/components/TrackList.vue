@@ -197,7 +197,13 @@ const lovedTracksPercentage = computed(() => {
 watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks], 
   () => {
     if (props.lastFmUserName && props.albumArtist && props.tracks.length) {
-      fetchTrackPlaycounts();
+      // Only fetch if tracks don't already have playcount data
+      const needsPlaycountData = props.tracks.some(track => 
+        !track || typeof track.playcount !== 'number'
+      );
+      if (needsPlaycountData) {
+        fetchTrackPlaycounts();
+      }
     }
   },
   { immediate: true }
