@@ -5,6 +5,8 @@ import { logLastFm } from './logger';
 
 /**
  * Gets cached loved tracks or fetches them from Last.fm
+ * @deprecated Use unified track cache instead (useUnifiedTrackCache composable)
+ * This function is kept for backward compatibility but should not be used in new code.
  * @param {string} lastFmUserName - The Last.fm username
  * @returns {Promise<Array>} Array of loved tracks
  */
@@ -68,6 +70,8 @@ export async function getCachedLovedTracks(lastFmUserName) {
 
 /**
  * Gets cached album tracks or fetches them from Spotify
+ * @deprecated Use unified track cache instead (useUnifiedTrackCache composable)
+ * This function is kept for backward compatibility but should not be used in new code.
  * @param {string} albumId - The Spotify album ID
  * @returns {Promise<Array>} Array of album tracks
  */
@@ -122,6 +126,8 @@ export async function getCachedAlbumTracks(albumId) {
 
 /**
  * Calculates the loved track percentage for an album
+ * @deprecated Use unified track cache instead (getAlbumLovedPercentage from useUnifiedTrackCache)
+ * This function is kept for backward compatibility but should not be used in new code.
  * @param {Object} album - The album object (from Spotify)
  * @param {Array} lovedTracks - Array of loved tracks from Last.fm
  * @param {Array} albumTracks - Optional array of album tracks (will fetch if not provided)

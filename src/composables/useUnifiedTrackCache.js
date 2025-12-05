@@ -363,6 +363,19 @@ export function useUnifiedTrackCache() {
     }
   });
 
+  /**
+   * Add album tracks to cache
+   */
+  const addAlbumTracksToCache = async (albumId, tracks, albumData) => {
+    if (!user.value) return;
+    try {
+      await addAlbumTracks(albumId, tracks, albumData, user.value.uid);
+    } catch (err) {
+      logCache(`Error adding album tracks to cache for ${albumId}:`, err);
+      throw err;
+    }
+  };
+
   return {
     // State
     cacheLoaded,
@@ -385,6 +398,7 @@ export function useUnifiedTrackCache() {
     refreshLovedTracksForUser,
     refreshPlaycountsForTracks,
     getAlbumLovedPercentage,
+    addAlbumTracksToCache,
     retrySyncs,
     clearCache,
     getPlaylistTracklistPreference,

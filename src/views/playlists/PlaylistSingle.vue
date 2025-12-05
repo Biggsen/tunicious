@@ -21,7 +21,6 @@ import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ProgressModal from '@components/common/ProgressModal.vue';
-import { getCachedLovedTracks, calculateLovedTrackPercentage } from '@utils/lastFmUtils';
 import { albumTitleSimilarity } from '@utils/fuzzyMatch';
 import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
@@ -1026,11 +1025,6 @@ async function handleClearCache() {
     }
   }
   
-  // Clear playlist tracks cache
-  if (id.value) {
-    await clearCache(`playlist_tracks_${id.value}`);
-  }
-  
   // Also clear albumDbData cache for all albums on the current page
   if (user.value && albumData.value && albumData.value.length) {
     for (const album of albumData.value) {
@@ -1070,11 +1064,6 @@ async function handleClearCache() {
   // Clear loved tracks data
   lovedTracksLoadingStarted.value = false;
   albumLovedData.value = {};
-  
-  // Clear loved tracks cache if exists
-  if (userData.value?.lastFmUserName) {
-    await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
-  }
   
   await loadPlaylistPage();
   

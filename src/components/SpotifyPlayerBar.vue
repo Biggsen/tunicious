@@ -3,8 +3,8 @@ import { computed, watch, onUnmounted, onMounted, ref } from 'vue';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
-import { getCachedLovedTracks } from '@utils/lastFmUtils';
-import { clearCache, setCache, getCache } from '@utils/cache';
+import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
@@ -18,9 +18,9 @@ const {
   togglePlayback
 } = useSpotifyPlayer();
 
-const { userData } = useUserData();
+const { userData, user } = useUserData();
 const { loveTrack, unloveTrack } = useLastFmApi();
-const lovedTracks = ref([]);
+const { checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
 const isLoving = ref(false);
 const albumInfo = ref({ name: null, year: null });
 
@@ -78,41 +78,18 @@ const progressPercentage = computed(() => {
   return (currentPosition.value / duration.value) * 100;
 });
 
-// Create lookup map for loved tracks
-const lovedTracksLookup = computed(() => {
-  const lookup = new Map();
-  if (!lovedTracks.value || lovedTracks.value.length === 0) {
-    return lookup;
-  }
-  
-  lovedTracks.value.forEach(lovedTrack => {
-    if (lovedTrack.name && lovedTrack.artist?.name) {
-      const trackName = lovedTrack.name.toLowerCase();
-      const artistName = lovedTrack.artist.name.toLowerCase();
-      const key = `${trackName}|${artistName}`;
-      lookup.set(key, true);
-    }
-  });
-  
-  return lookup;
-});
-
-// Check if current track is loved
+// Check if current track is loved using unified cache
 const isCurrentTrackLoved = computed(() => {
-  if (!currentTrack.value || !lovedTracksLookup.value.size) {
+  if (!currentTrack.value?.id || !user.value) {
     return false;
   }
-
-  const trackName = currentTrack.value.name?.toLowerCase();
-  if (!trackName) return false;
-
-  const trackArtists = currentTrack.value.artists?.map(artist => artist.toLowerCase()) || [];
-
-  // Check against all track artists
-  return trackArtists.some(artistName => {
-    const key = `${trackName}|${artistName}`;
-    return lovedTracksLookup.value.has(key);
-  });
+  
+  try {
+    return checkTrackLoved(currentTrack.value.id);
+  } catch (err) {
+    logPlayer('Error checking if track is loved:', err);
+    return false;
+  }
 });
 
 // Check if user can love tracks
@@ -122,10 +99,12 @@ const canLoveTracks = computed(() => {
 
 // Handle love/unlove action
 const handleHeartClick = async () => {
-  if (!canLoveTracks.value || !currentTrack.value || isLoving.value) {
+  if (!canLoveTracks.value || !currentTrack.value?.id || !user.value || isLoving.value) {
     logPlayer('Cannot toggle love - missing requirements:', {
       canLoveTracks: canLoveTracks.value,
       hasTrack: !!currentTrack.value,
+      hasTrackId: !!currentTrack.value?.id,
+      hasUser: !!user.value,
       isLoving: isLoving.value
     });
     return;
@@ -133,101 +112,35 @@ const handleHeartClick = async () => {
 
   isLoving.value = true;
   const isLoved = isCurrentTrackLoved.value;
-  const trackName = currentTrack.value.name;
-  const artistName = currentTrack.value.artists?.[0] || '';
+  const trackId = currentTrack.value.id;
 
-  logPlayer(`${isLoved ? 'Unloving' : 'Loving'} track:`, { trackName, artistName });
+  logPlayer(`${isLoved ? 'Unloving' : 'Loving'} track:`, { trackId, trackName: currentTrack.value.name });
 
   try {
-    if (isLoved) {
-      // Unlove track
-      await unloveTrack(trackName, artistName, userData.value.lastFmSessionKey);
-      logPlayer('Track unloved successfully');
-      
-      // Optimistically remove from loved tracks
-      lovedTracks.value = lovedTracks.value.filter(lovedTrack => {
-        const trackNameMatch = lovedTrack.name?.toLowerCase() === trackName.toLowerCase();
-        const artistMatch = lovedTrack.artist?.name?.toLowerCase() === artistName.toLowerCase();
-        return !(trackNameMatch && artistMatch);
-      });
-      
-      // Update cache
-      const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
-      logCache('Updating loved tracks cache after unlove:', cacheKey);
-      await setCache(cacheKey, lovedTracks.value);
-      
-      // Emit window event to notify other components
-      window.dispatchEvent(new CustomEvent('track-unloved-from-player', {
-        detail: {
-          track: {
-            name: trackName,
-            artists: [{ name: artistName }]
-          }
+    // Use unified cache to update loved status (handles cache update and background sync)
+    await updateLovedStatus(trackId, !isLoved);
+    logPlayer(`Track ${isLoved ? 'unloved' : 'loved'} successfully`);
+    
+    // Emit window event to notify other components
+    window.dispatchEvent(new CustomEvent(isLoved ? 'track-unloved-from-player' : 'track-loved-from-player', {
+      detail: {
+        track: {
+          id: trackId,
+          name: currentTrack.value.name,
+          artists: currentTrack.value.artists || []
         }
-      }));
-    } else {
-      // Love track
-      await loveTrack(trackName, artistName, userData.value.lastFmSessionKey);
-      logPlayer('Track loved successfully');
-      
-      // Optimistically add to loved tracks
-      const lovedTrack = {
-        name: trackName,
-        artist: { name: artistName },
-        date: { uts: Math.floor(Date.now() / 1000).toString() }
-      };
-      lovedTracks.value = [...lovedTracks.value, lovedTrack];
-      
-      // Update cache
-      const cacheKey = `lovedTracks_${userData.value.lastFmUserName}`;
-      logCache('Updating loved tracks cache after love:', cacheKey);
-      await setCache(cacheKey, lovedTracks.value);
-      
-      // Emit window event to notify other components
-      window.dispatchEvent(new CustomEvent('track-loved-from-player', {
-        detail: {
-          track: {
-            name: trackName,
-            artists: [{ name: artistName }]
-          }
-        }
-      }));
-    }
+      }
+    }));
   } catch (error) {
     logPlayer('Error toggling loved status:', error);
-    
-    // On error, refetch from Last.fm to get accurate state
-    if (userData.value?.lastFmUserName) {
-      logCache('Clearing cache and refetching loved tracks after error');
-      await clearCache(`lovedTracks_${userData.value.lastFmUserName}`);
-      lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
-    }
   } finally {
     isLoving.value = false;
   }
 };
 
-// Load loved tracks on mount
-onMounted(async () => {
+// No need to load loved tracks - unified cache handles this automatically
+onMounted(() => {
   logPlayer('SpotifyPlayerBar mounted');
-  if (userData.value?.lastFmUserName) {
-    logCache('Loading loved tracks for user:', userData.value.lastFmUserName);
-    lovedTracks.value = await getCachedLovedTracks(userData.value.lastFmUserName);
-    logCache('Loaded loved tracks:', lovedTracks.value.length);
-  }
-});
-
-// Watch for user data changes to reload loved tracks
-watch(() => userData.value?.lastFmUserName, async (newUserName, oldUserName) => {
-  logPlayer('User data changed:', { newUserName, oldUserName });
-  if (newUserName) {
-    logCache('Reloading loved tracks for user:', newUserName);
-    lovedTracks.value = await getCachedLovedTracks(newUserName);
-    logCache('Reloaded loved tracks:', lovedTracks.value.length);
-  } else {
-    logCache('Clearing loved tracks (no user)');
-    lovedTracks.value = [];
-  }
 });
 
 // Helper function to find album in cache by name and artist
