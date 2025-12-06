@@ -1,6 +1,6 @@
 # Core Authentication Pages Specification
 
-## **Status**: 📋 Planning
+## **Status**: 🚧 In Progress (Phase 1 Complete ✅)
 
 ## Overview
 
@@ -15,9 +15,9 @@ This document specifies the core authentication pages required for AudioFoodie's
 - ✅ **Last.fm Callback** (`/lastfm-callback`) - OAuth callback handler
 
 ### Missing Pages
-- ❌ **Signup/Registration** (`/signup`) - User registration
+- ✅ **Signup/Registration** (`/signup`) - User registration
 - ❌ **Password Reset** (`/forgot-password`, `/reset-password`) - Password recovery
-- ❌ **Email Verification** (`/verify-email`) - Email verification flow
+- ✅ **Email Verification** (`/verify-email`) - Email verification flow
 
 ## Authentication Flow
 
@@ -411,20 +411,27 @@ Handle email verification status and allow users to resend verification emails.
 
 ## Implementation Phases
 
-### Phase 1: Signup Page
+### Phase 1: Signup Page ✅ COMPLETE
 **Priority**: High  
-**Estimated Time**: 2-3 hours
+**Estimated Time**: 2-3 hours  
+**Status**: ✅ Completed
 
 **Tasks**:
-1. Create `SignupView.vue` component
-2. Implement form with email, password, confirm password
-3. Add form validation
-4. Integrate Firebase `createUserWithEmailAndPassword`
-5. Create user document in Firestore
-6. Send email verification
-7. Add route to router
-8. Update LoginView with link to signup
-9. Test signup flow
+1. ✅ Create `SignupView.vue` component
+2. ✅ Implement form with email, password, confirm password
+3. ✅ Add form validation
+4. ✅ Integrate Firebase `createUserWithEmailAndPassword`
+5. ✅ Create user document in Firestore
+6. ✅ Send email verification
+7. ✅ Add route to router
+8. ✅ Update LoginView with link to signup
+9. ✅ Test signup flow
+
+**Additional Implementation Notes**:
+- Users are redirected to `/account` after signup to complete their profile
+- Profile creation form shows when `displayName` is null
+- Last.fm Username is now required (not optional)
+- Email verification page (`VerifyEmailView.vue`) created as part of Phase 1
 
 ### Phase 2: Password Reset Flow
 **Priority**: High  

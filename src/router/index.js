@@ -5,6 +5,8 @@ import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
 import AccountView from '@views/auth/AccountView.vue';
 import LoginView from '@views/auth/LoginView.vue';
+import SignupView from '@views/auth/SignupView.vue';
+import VerifyEmailView from '@views/auth/VerifyEmailView.vue';
 import AddPlaylistView from '@views/playlists/AddPlaylistView.vue';
 import EditPlaylistView from '@views/playlists/EditPlaylistView.vue';
 import PlaylistManagementView from '@views/playlists/PlaylistManagementView.vue';
@@ -77,6 +79,17 @@ const routes = [
     path: '/login',
     name: 'login',
     component: LoginView
+  },
+  {
+    path: '/signup',
+    name: 'signup',
+    component: SignupView
+  },
+  {
+    path: '/verify-email',
+    name: 'verifyEmail',
+    component: VerifyEmailView,
+    meta: { requiresAuth: true }
   },
   {
     path: '/spotify-callback',

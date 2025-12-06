@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { logAuth } from '@utils/logger';
 
 export function useAuth() {
@@ -18,6 +18,28 @@ export function useAuth() {
       return userCredential.user;
     } catch (err) {
       logAuth('Login error:', err);
+      error.value = getAuthErrorMessage(err.code);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const signup = async (email, password) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Send email verification
+      if (userCredential.user) {
+        await sendEmailVerification(userCredential.user);
+      }
+      
+      return userCredential.user;
+    } catch (err) {
+      logAuth('Signup error:', err);
       error.value = getAuthErrorMessage(err.code);
       throw err;
     } finally {
@@ -68,6 +90,7 @@ export function useAuth() {
     loading,
     error,
     login,
+    signup,
     logout
   };
 } 

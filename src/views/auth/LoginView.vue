@@ -75,6 +75,16 @@ watch(currentUser, (user) => {
       <div v-if="success" class="success-message">
         Login successful!
       </div>
+
+      <div class="auth-links">
+        <p class="text-sm text-gray-600 mb-2">
+          <router-link to="/forgot-password" class="text-delft-blue hover:underline">Forgot password?</router-link>
+        </p>
+        <p class="text-sm text-gray-600">
+          Don't have an account? 
+          <router-link to="/signup" class="text-delft-blue hover:underline">Sign up</router-link>
+        </p>
+      </div>
     </form>
   </div>
   <div v-else class="p-4 pt-8">
@@ -113,5 +123,9 @@ input {
 
 .success-message {
   @apply mt-4 p-4 bg-green-50 text-green-700 rounded-md;
+}
+
+.auth-links {
+  @apply mt-4 text-left;
 }
 </style>
