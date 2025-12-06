@@ -21,7 +21,29 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   const trackedTrack = ref(null);
   const trackedTrackStartTime = ref(null);
   const trackedTrackDuration = ref(0);
+  const trackedPosition = ref(0); // Track position when track changes
   const playcountIncremented = ref(false);
+
+  // Threshold constants (similar to Last.fm scrobbling)
+  const MIN_PLAY_TIME_MS = 4 * 60 * 1000; // 4 minutes
+  const MIN_PLAY_PERCENTAGE = 0.5; // 50%
+
+  /**
+   * Check if track was played long enough to count as a play
+   * @param {number} playDuration - How long track was played (ms)
+   * @param {number} trackDuration - Total track duration (ms)
+   * @returns {boolean}
+   */
+  const wasPlayedLongEnough = (playDuration, trackDuration) => {
+    if (!trackDuration || trackDuration === 0) {
+      // If we don't know duration, require minimum time
+      return playDuration >= MIN_PLAY_TIME_MS;
+    }
+    
+    // Check if played for at least 50% of duration
+    const minPlayTime = Math.min(MIN_PLAY_TIME_MS, trackDuration * MIN_PLAY_PERCENTAGE);
+    return playDuration >= minPlayTime;
+  };
   
   /**
    * Increment playcount for a finished track
@@ -94,26 +116,42 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   };
   
   /**
-   * Handle when a track finishes
+   * Handle when a track finishes or changes
    * @param {Object} trackInfo - Optional track info to use (captured before track changes)
    * @param {number} startTime - Optional track start time (captured before track changes)
+   * @param {number} currentPosition - Current playback position (ms)
+   * @param {boolean} isNaturalFinish - Whether track finished naturally (reached end)
    */
-  const handleTrackFinished = async (trackInfo = null, startTime = null) => {
+  const handleTrackFinished = async (trackInfo = null, startTime = null, currentPosition = 0, isNaturalFinish = false) => {
     // Use provided track info, or fall back to trackedTrack
     const trackToProcess = trackInfo || trackedTrack.value;
     const trackStartTime = startTime !== null ? startTime : trackedTrackStartTime.value;
+    const trackDuration = trackedTrackDuration.value || 0;
     
     if (!trackToProcess || !trackStartTime) {
       return;
     }
-    
+
     // Check if we've already incremented this session using the Set
     const trackKey = `${trackToProcess.id}_${trackStartTime}`;
     if (trackedPlaycountSessions.has(trackKey)) {
       logPlayer(`[PLAYCOUNT] Already incremented for track session: ${trackToProcess.name}`);
       return;
     }
+
+    // Calculate how long the track was played
+    const playDuration = Date.now() - trackStartTime;
     
+    // For natural finishes (reached end), always count
+    // For track changes (skips), only count if played long enough
+    if (!isNaturalFinish) {
+      const playedEnough = wasPlayedLongEnough(playDuration, trackDuration);
+      if (!playedEnough) {
+        logPlayer(`[PLAYCOUNT] Track "${trackToProcess.name}" skipped too early (${Math.round(playDuration / 1000)}s / ${Math.round(trackDuration / 1000)}s), not incrementing`);
+        return;
+      }
+    }
+
     // Only increment if we haven't already for this instance
     if (!playcountIncremented.value || trackInfo) {
       await incrementPlaycount(trackToProcess, trackStartTime);
@@ -132,6 +170,7 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
     trackedTrack.value = { ...currentTrack.value };
     trackedTrackStartTime.value = Date.now();
     trackedTrackDuration.value = duration.value || 0;
+    trackedPosition.value = 0;
     playcountIncremented.value = false;
     
     logPlayer(`[PLAYCOUNT] Started tracking: ${trackedTrack.value.name}`);
@@ -157,14 +196,17 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       trackedTrackDuration.value = duration.value;
     }
     
+    // Update tracked position
+    trackedPosition.value = position.value;
+    
     // Check if track has finished (position reached duration within 500ms tolerance)
     if (trackedTrackDuration.value > 0 && position.value > 0) {
       const remainingTime = trackedTrackDuration.value - position.value;
       if (remainingTime <= 500) {
-        // Track finished - capture current track info before any potential change
+        // Track finished naturally - capture current track info before any potential change
         const currentTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
         const currentStartTime = trackedTrackStartTime.value;
-        handleTrackFinished(currentTrackInfo, currentStartTime);
+        handleTrackFinished(currentTrackInfo, currentStartTime, position.value, true);
       }
     }
   };
@@ -175,9 +217,10 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       // Track changed - capture old track info BEFORE overwriting
       const oldTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
       const oldStartTime = trackedTrackStartTime.value;
+      const oldPosition = trackedPosition.value;
       
-      // Handle previous track first with captured info
-      handleTrackFinished(oldTrackInfo, oldStartTime);
+      // Handle previous track (not a natural finish, so will check threshold)
+      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, false);
       // Then initialize tracking for new track
       initializeTrackTracking();
     } else if (newTrackId && !oldTrackId) {
@@ -187,8 +230,12 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       // Track stopped/cleared - capture info before clearing
       const oldTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
       const oldStartTime = trackedTrackStartTime.value;
+      const oldPosition = trackedPosition.value;
       
-      handleTrackFinished(oldTrackInfo, oldStartTime);
+      // Treat as natural finish if position was near end, otherwise check threshold
+      const wasNearEnd = trackedTrackDuration.value > 0 && oldPosition > 0 && 
+                         (trackedTrackDuration.value - oldPosition) <= 500;
+      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, wasNearEnd);
       trackedTrack.value = null;
     }
   });
