@@ -31,7 +31,7 @@ const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
-const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist } = useUnifiedTrackCache();
+const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved } = useUnifiedTrackCache();
 
 
 const album = ref(null);
@@ -322,6 +322,12 @@ onMounted(async () => {
       }
     }
     
+    // Ensure tracks are sorted by track_number
+    if (tracksData.length > 0) {
+      tracksData.sort((a, b) => (a.track_number || 0) - (b.track_number || 0));
+    }
+    
+    // Set tracks immediately so page renders fast
     tracks.value = tracksData;
     
     // Check if album exists in the albums collection
@@ -335,7 +341,7 @@ onMounted(async () => {
       await checkIfNeedsUpdate();
     }
     
-    // Calculate loved percentage from cache (no need to refresh if already in cache)
+    // Calculate loved percentage from cache (fast, no API call)
     if (userData.value?.lastFmUserName && user.value) {
       try {
         const result = await getAlbumLovedPercentage(albumId);
@@ -346,10 +352,72 @@ onMounted(async () => {
         logAlbum('Error calculating loved percentage:', err);
       }
     }
+    
+    // Close loading state - page is now visible
+    loading.value = false;
+    
+    // Load Last.fm data in background (non-blocking) if needed
+    // Only refresh if tracks were just added or if data is missing
+    if (userData.value?.lastFmUserName && user.value && tracksData.length > 0) {
+      // Run in background - don't block UI
+      (async () => {
+        try {
+          const trackIds = tracksData.map(t => t.id).filter(Boolean);
+          
+          // Check if tracks have Last.fm data already
+          // Only refresh loved tracks if we just added tracks to cache (no loved/playcount data yet)
+          const hasLastFmData = tracksData.some(t => 
+            (t.loved !== undefined && t.loved !== null) || 
+            (typeof t.playcount === 'number' && t.playcount > 0)
+          );
+          
+          if (!hasLastFmData) {
+            // New tracks without Last.fm data - refresh loved tracks to match them
+            await refreshLovedTracksForUser();
+            logAlbum('Refreshed loved tracks for new tracks');
+          } else {
+            logAlbum('Skipped loved tracks refresh (tracks already have Last.fm data)');
+          }
+          
+          // Fetch playcounts for tracks that need it (has threshold check built-in)
+          await refreshPlaycountsForTracks(trackIds, null, false);
+          logAlbum('Fetched playcounts for tracks:', { trackCount: trackIds.length });
+          
+          // Reload tracks from cache to get updated playcount/loved data
+          let reloadedTracks = [];
+          try {
+            if (playlistId.value) {
+              reloadedTracks = await getAlbumTracksForPlaylist(playlistId.value, albumId);
+            } else {
+              reloadedTracks = await getAlbumTracksForAlbum(albumId);
+            }
+          } catch (reloadErr) {
+            logAlbum('Error reloading tracks from cache:', reloadErr);
+          }
+          
+          // Update tracks with fresh data if available
+          if (reloadedTracks.length > 0 && reloadedTracks.length === tracksData.length) {
+            reloadedTracks.sort((a, b) => (a.track_number || 0) - (b.track_number || 0));
+            tracks.value = reloadedTracks;
+            logAlbum('Updated tracks with fresh Last.fm data');
+          } else {
+            // Enhance existing tracks with cache lookup
+            tracks.value = tracks.value.map(track => ({
+              ...track,
+              playcount: getPlaycountForTrack(track.id) || track.playcount || 0,
+              loved: checkTrackLoved(track.id, track.name, track.artists?.[0]?.name) || track.loved || false
+            }));
+            logAlbum('Enhanced tracks with cache lookup');
+          }
+        } catch (err) {
+          logAlbum('Error loading Last.fm data in background:', err);
+          // Continue - tracks are already shown
+        }
+      })();
+    }
   } catch (err) {
     logAlbum('Error in AlbumView:', err);
     error.value = err.message || 'Failed to load album details. Please try refreshing the page.';
-  } finally {
     loading.value = false;
   }
 });
@@ -459,29 +527,7 @@ onMounted(async () => {
               RYM
             </a>
           </div>
-          
-          <!-- Last.fm Loved Tracks Info -->
-          <div v-if="userData?.lastFmUserName" class="mb-6">
-            <div class="bg-mint bg-opacity-20 border border-mint rounded-lg p-4">
-              <div class="flex items-center gap-2 mb-2">
-                <svg class="w-5 h-5 text-mint" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="font-semibold text-delft-blue">Last.fm Loved Tracks</span>
-              </div>
-              <p class="text-delft-blue">
-                <span class="font-bold text-lg">{{ lovedTracksCount }}</span> 
-                {{ lovedTracksCount === 1 ? 'track' : 'tracks' }} from this album 
-                {{ lovedTracksCount === 1 ? 'is' : 'are' }} in your loved tracks
-                <span v-if="tracks.length > 0 && lovedTracksCount > 0" class="text-sm text-gray-600">
-                  ({{ lovedTracksPercentage }}% of album)
-                </span>
-              </p>
-              <p v-if="lovedTracksCount === 0" class="text-sm text-gray-600 mt-1">
-                No loved tracks found for {{ userData.lastFmUserName }}
-              </p>
-            </div>
-          </div>
+
           
           <TrackList 
             :tracks="tracks" 
