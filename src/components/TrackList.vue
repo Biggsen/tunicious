@@ -1,12 +1,12 @@
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
-import { useLastFmApi } from '@composables/useLastFmApi';
+import { computed, ref } from 'vue';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
+import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
-import { logLastFm, logPlayer } from '@utils/logger';
+import { logPlayer } from '@utils/logger';
 
 const props = defineProps({
   tracks: {
@@ -72,10 +72,8 @@ const props = defineProps({
 
 const emit = defineEmits(['track-loved', 'track-unloved']);
 
-// Last.fm API for playcount data
-const { getTrackInfo } = useLastFmApi();
-const trackPlaycounts = ref({});
-const playcountLoading = ref(false);
+// Unified track cache for playcount data
+const { getPlaycountForTrack } = useUnifiedTrackCache();
 
 // Current playing track functionality
 const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack(props.lastFmUserName);
@@ -110,55 +108,8 @@ const formatPlaycount = (count) => {
 };
 
 /**
- * Fetch playcount data for tracks
- */
-const fetchTrackPlaycounts = async () => {
-  if (!props.lastFmUserName || !props.albumArtist || !props.tracks.length) {
-    return;
-  }
-
-  try {
-    playcountLoading.value = true;
-    const playcountMap = {};
-    
-    // Fetch playcount for each track individually
-    const trackPromises = props.tracks.map(async (track) => {
-      try {
-        const response = await getTrackInfo(track.name, props.albumArtist, props.lastFmUserName);
-        if (response.track && response.track.userplaycount !== undefined) {
-          return {
-            trackName: track.name.toLowerCase(),
-            playcount: parseInt(response.track.userplaycount) || 0
-          };
-        }
-      } catch (error) {
-        logLastFm(`Failed to fetch playcount for track "${track.name}":`, error);
-      }
-      return {
-        trackName: track.name.toLowerCase(),
-        playcount: 0
-      };
-    });
-    
-    const results = await Promise.allSettled(trackPromises);
-    
-    results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value) {
-        playcountMap[result.value.trackName] = result.value.playcount;
-      }
-    });
-    
-    trackPlaycounts.value = playcountMap;
-  } catch (error) {
-    logLastFm('Error fetching track playcounts:', error);
-  } finally {
-    playcountLoading.value = false;
-  }
-};
-
-/**
  * Get playcount for a specific track
- * Prioritizes playcount from unified cache (track.playcount), falls back to Last.fm fetched data
+ * Uses playcount from unified cache (track.playcount or cache lookup)
  */
 const getTrackPlaycount = (track) => {
   // First, check if track has playcount from unified cache
@@ -166,15 +117,9 @@ const getTrackPlaycount = (track) => {
     return track.playcount;
   }
   
-  // Fall back to Last.fm fetched playcounts (for backward compatibility)
-  if (typeof track === 'string') {
-    // Legacy: trackName was passed as string
-    return trackPlaycounts.value[track.toLowerCase()] || 0;
-  }
-  
-  // If track object but no playcount property, try Last.fm lookup
-  if (track && track.name) {
-    return trackPlaycounts.value[track.name.toLowerCase()] || 0;
+  // Fall back to cache lookup by track ID
+  if (track && track.id) {
+    return getPlaycountForTrack(track.id) || 0;
   }
   
   return 0;
@@ -193,21 +138,6 @@ const lovedTracksPercentage = computed(() => {
   return Math.round((lovedCount / props.tracks.length) * 100);
 });
 
-// Watch for changes in props that affect playcount fetching
-watch([() => props.lastFmUserName, () => props.albumArtist, () => props.tracks], 
-  () => {
-    if (props.lastFmUserName && props.albumArtist && props.tracks.length) {
-      // Only fetch if tracks don't already have playcount data
-      const needsPlaycountData = props.tracks.some(track => 
-        !track || typeof track.playcount !== 'number'
-      );
-      if (needsPlaycountData) {
-        fetchTrackPlaycounts();
-      }
-    }
-  },
-  { immediate: true }
-);
 
 /**
  * Computed property for tracks sorted by playcount (descending)
@@ -336,24 +266,6 @@ const findRemainingAlbums = () => {
   return props.albumsList.slice(currentIndex + 1);
 };
 
-/**
- * Get playcount for a track from Last.fm
- */
-const getTrackPlaycountFromLastFm = async (trackName, artistName) => {
-  if (!props.lastFmUserName || !artistName) {
-    return 0;
-  }
-
-  try {
-    const response = await getTrackInfo(trackName, artistName, props.lastFmUserName);
-    if (response.track && response.track.userplaycount !== undefined) {
-      return parseInt(response.track.userplaycount) || 0;
-    }
-  } catch (error) {
-    logLastFm(`Failed to fetch playcount for track "${trackName}":`, error);
-  }
-  return 0;
-};
 
 /**
  * Fetch all tracks from an album (handles pagination)
@@ -390,7 +302,7 @@ const fetchAllAlbumTracks = async (albumId) => {
  * Select the next track to queue from the next album
  */
 const selectNextTrackToQueue = async (nextAlbum) => {
-  if (!nextAlbum || !props.lastFmUserName) {
+  if (!nextAlbum) {
     return null;
   }
 
@@ -402,20 +314,19 @@ const selectNextTrackToQueue = async (nextAlbum) => {
       return null;
     }
 
-    // Get playcounts for all tracks
-    const tracksWithPlaycounts = await Promise.all(
-      nextAlbumTracks.map(async (track) => {
-        const playcount = await getTrackPlaycountFromLastFm(
-          track.name,
-          nextAlbum.artists?.[0]?.name || nextAlbum.artistName || ''
-        );
-        return {
-          ...track,
-          playcount,
-          uri: track.uri || `spotify:track:${track.id}`
-        };
-      })
-    );
+    // Get playcounts for all tracks from cache
+    const tracksWithPlaycounts = nextAlbumTracks.map(track => {
+      const playcount = getPlaycountForTrack(track.id);
+      if (playcount === undefined) {
+        // Track not in cache - this indicates a cache issue
+        throw new Error(`Track ${track.id} not found in cache`);
+      }
+      return {
+        ...track,
+        playcount: playcount || 0,
+        uri: track.uri || `spotify:track:${track.id}`
+      };
+    });
 
     // Filter to only include tracks that are in the playlist for this next album
     const playlistTracksForNextAlbum = props.playlistTrackIds[nextAlbum.id] || {};
@@ -550,11 +461,8 @@ const handleTrackClick = async (track) => {
             <PlayIcon class="w-3 h-3" />
           </span>
           <span class="flex-1">{{ track.name }}</span>
-          <span v-if="lastFmUserName && !playcountLoading" class="ml-2 text-xs text-gray-500 flex-shrink-0">
+          <span v-if="lastFmUserName" class="ml-2 text-xs text-gray-500 flex-shrink-0">
             {{ formatPlaycount(getTrackPlaycount(track)) }}
-          </span>
-          <span v-else-if="playcountLoading" class="ml-2 text-xs text-gray-400 flex-shrink-0">
-            ...
           </span>
         </span>
         <HeartIcon 

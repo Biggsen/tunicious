@@ -27,6 +27,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+import { useWebPlayerPlaycountTracking } from '@composables/useWebPlayerPlaycountTracking';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
@@ -55,6 +56,32 @@ const {
 
 // Initialize current playing track tracking
 const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack(userData.value?.lastFmUserName);
+
+/**
+ * Update track playcount in UI when playcount changes
+ */
+const updateTrackPlaycountInUI = (trackId, newPlaycount) => {
+  // Find the track in albumTracksData and update its playcount
+  Object.keys(albumTracksData.value).forEach(albumId => {
+    const tracks = albumTracksData.value[albumId];
+    const trackIndex = tracks.findIndex(t => t.id === trackId);
+    if (trackIndex !== -1) {
+      // Create new array to ensure Vue reactivity
+      albumTracksData.value[albumId] = [
+        ...tracks.slice(0, trackIndex),
+        {
+          ...tracks[trackIndex],
+          playcount: newPlaycount
+        },
+        ...tracks.slice(trackIndex + 1)
+      ];
+      logPlaylist(`Updated playcount in UI for track ${trackId} to ${newPlaycount}`);
+    }
+  });
+};
+
+// Initialize playcount tracking
+useWebPlayerPlaycountTracking(updateTrackPlaycountInUI);
 
 // Processing state
 const processingAlbum = ref(null);
