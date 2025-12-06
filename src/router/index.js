@@ -7,6 +7,8 @@ import AccountView from '@views/auth/AccountView.vue';
 import LoginView from '@views/auth/LoginView.vue';
 import SignupView from '@views/auth/SignupView.vue';
 import VerifyEmailView from '@views/auth/VerifyEmailView.vue';
+import ForgotPasswordView from '@views/auth/ForgotPasswordView.vue';
+import ResetPasswordView from '@views/auth/ResetPasswordView.vue';
 import AddPlaylistView from '@views/playlists/AddPlaylistView.vue';
 import EditPlaylistView from '@views/playlists/EditPlaylistView.vue';
 import PlaylistManagementView from '@views/playlists/PlaylistManagementView.vue';
@@ -90,6 +92,16 @@ const routes = [
     name: 'verifyEmail',
     component: VerifyEmailView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/forgot-password',
+    name: 'forgotPassword',
+    component: ForgotPasswordView
+  },
+  {
+    path: '/reset-password',
+    name: 'resetPassword',
+    component: ResetPasswordView
   },
   {
     path: '/spotify-callback',

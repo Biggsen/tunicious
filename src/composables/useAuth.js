@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, confirmPasswordReset, signOut } from 'firebase/auth';
 import { logAuth } from '@utils/logger';
 
 export function useAuth() {
@@ -47,6 +47,43 @@ export function useAuth() {
     }
   };
 
+  const sendPasswordReset = async (email) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      // Always show success message (security best practice - don't reveal if email exists)
+      return true;
+    } catch (err) {
+      logAuth('Password reset error:', err);
+      // For user-not-found, still show success (security best practice)
+      if (err.code === 'auth/user-not-found') {
+        return true;
+      }
+      error.value = getAuthErrorMessage(err.code);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const resetPassword = async (actionCode, newPassword) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      await confirmPasswordReset(auth, actionCode, newPassword);
+      return true;
+    } catch (err) {
+      logAuth('Password reset confirmation error:', err);
+      error.value = getAuthErrorMessage(err.code);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const logout = async (redirectPath = '/') => {
     loading.value = true;
     error.value = null;
@@ -81,6 +118,10 @@ export function useAuth() {
         return 'Operation not allowed.';
       case 'auth/network-request-failed':
         return 'Network error. Please check your connection.';
+      case 'auth/expired-action-code':
+        return 'Reset link has expired. Please request a new one.';
+      case 'auth/invalid-action-code':
+        return 'Invalid reset link. Please request a new one.';
       default:
         return 'An error occurred. Please try again.';
     }
@@ -91,6 +132,8 @@ export function useAuth() {
     error,
     login,
     signup,
+    sendPasswordReset,
+    resetPassword,
     logout
   };
 } 
