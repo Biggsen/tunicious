@@ -13,12 +13,13 @@ const { isAdmin } = useAdmin();
   <header class="bg-mint h-[64px] flex border-b-4 border-delft-blue">
     <div class="container mx-auto px-4 flex items-center justify-between">
       <div class="flex items-center gap-8">
-        <RouterLink to="/" class="no-underline hover:no-underline">
-          <h1
+        <RouterLink to="/" class="no-underline hover:no-underline flex items-center gap-1">
+          <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5" />
+          <span
             class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black text-delft-blue cursor-pointer hover:text-raspberry transition-colors"
           >
             Tunicious
-          </h1>
+          </span>
         </RouterLink>
         <nav class="flex items-center pt-[8px]">
           <ul class="flex gap-8">
@@ -44,7 +45,7 @@ const { isAdmin } = useAdmin();
         <RouterLink to="/login">Login</RouterLink>
       </div>
       <div v-else>
-        <RouterLink to="/account" class="text-delft-blue hover:text-raspberry hover:underline">
+        <RouterLink to="/account" class="text-delft-blue hover:text-raspberry">
           {{ userData?.displayName || user.email }}
         </RouterLink>
       </div>
@@ -54,7 +55,7 @@ const { isAdmin } = useAdmin();
 
 <style lang="scss" scoped>
 a {
-  @apply font-bold text-delft-blue hover:text-raspberry hover:underline;
+  @apply font-bold text-delft-blue hover:text-raspberry;
 }
 
 a.router-link-active {
@@ -65,7 +66,7 @@ nav a.router-link-active {
   @apply text-raspberry underline;
 }
 
-h1.router-link-exact-active {
+span.router-link-exact-active {
   @apply text-raspberry;
 }
 </style>
