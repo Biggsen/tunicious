@@ -1,6 +1,9 @@
 # Core Authentication Pages Specification
 
-## **Status**: 🚧 In Progress (Phase 1 Complete ✅)
+## **Status**: ✅ Complete (Phases 1-3 Implemented)
+
+**Completion Date**: All core authentication pages implemented  
+**Enhancements**: See [Authentication Enhancements Spec](../enhancements/auth-enhancements.md)
 
 ## Overview
 
@@ -14,9 +17,9 @@ This document specifies the core authentication pages required for AudioFoodie's
 - ✅ **Spotify Callback** (`/spotify-callback`) - OAuth callback handler
 - ✅ **Last.fm Callback** (`/lastfm-callback`) - OAuth callback handler
 
-### Missing Pages
+### Implemented Pages
 - ✅ **Signup/Registration** (`/signup`) - User registration
-- ❌ **Password Reset** (`/forgot-password`, `/reset-password`) - Password recovery
+- ✅ **Password Reset** (`/forgot-password`, `/reset-password`) - Password recovery
 - ✅ **Email Verification** (`/verify-email`) - Email verification flow
 
 ## Authentication Flow
@@ -433,47 +436,53 @@ Handle email verification status and allow users to resend verification emails.
 - Last.fm Username is now required (not optional)
 - Email verification page (`VerifyEmailView.vue`) created as part of Phase 1
 
-### Phase 2: Password Reset Flow
+### Phase 2: Password Reset Flow ✅ COMPLETE
 **Priority**: High  
-**Estimated Time**: 3-4 hours
+**Estimated Time**: 3-4 hours  
+**Status**: ✅ Completed
 
 **Tasks**:
-1. Create `ForgotPasswordView.vue` component
-2. Implement password reset request form
-3. Integrate Firebase `sendPasswordResetEmail`
-4. Create `ResetPasswordView.vue` component
-5. Implement password reset confirmation
-6. Integrate Firebase `confirmPasswordReset`
-7. Add routes to router
-8. Update LoginView with link to forgot password
-9. Test password reset flow
+1. ✅ Create `ForgotPasswordView.vue` component
+2. ✅ Implement password reset request form
+3. ✅ Integrate Firebase `sendPasswordResetEmail`
+4. ✅ Create `ResetPasswordView.vue` component
+5. ✅ Implement password reset confirmation
+6. ✅ Integrate Firebase `confirmPasswordReset`
+7. ✅ Add routes to router
+8. ✅ Update LoginView with link to forgot password
+9. ✅ Test password reset flow
 
-### Phase 3: Email Verification Page
+**Additional Implementation Notes**:
+- ForgotPasswordView always shows success message (security best practice)
+- ResetPasswordView validates action code from URL parameters
+- Auto-redirects to login after successful password reset
+- Error handling for expired/invalid tokens
+
+### Phase 3: Email Verification Page ✅ COMPLETE
 **Priority**: Medium  
-**Estimated Time**: 2-3 hours
+**Estimated Time**: 2-3 hours  
+**Status**: ✅ Completed
 
 **Tasks**:
-1. Create `VerifyEmailView.vue` component
-2. Implement verification status check
-3. Add resend verification email functionality
-4. Integrate Firebase `sendEmailVerification`
-5. Add auto-verification detection (optional)
-6. Add route to router
-7. Update signup flow to redirect to verify-email
-8. Test email verification flow
+1. ✅ Create `VerifyEmailView.vue` component
+2. ✅ Implement verification status check
+3. ✅ Add resend verification email functionality
+4. ✅ Integrate Firebase `sendEmailVerification`
+5. ⚠️ Add auto-verification detection (optional - deferred)
+6. ✅ Add route to router
+7. ✅ Update signup flow to redirect to verify-email (Note: Redirects to /account instead for profile completion)
+8. ✅ Test email verification flow
+
+**Additional Implementation Notes**:
+- VerifyEmailView created during Phase 1 as placeholder, fully implemented
+- Users can resend verification emails
+- Page shows verification status and handles verified/unverified states
+- Auto-verification detection (polling/listening) marked as optional enhancement
 
 ### Phase 4: Enhancements and Polish
-**Priority**: Low  
-**Estimated Time**: 1-2 hours
+**Status**: Moved to `tasks/enhancements/auth-enhancements.md`
 
-**Tasks**:
-1. Add password strength indicator to signup
-2. Add "remember me" to login (optional)
-3. Improve error messages
-4. Add loading animations
-5. Improve mobile responsiveness
-6. Add accessibility improvements
-7. Update documentation
+See the [Authentication Enhancements Spec](../enhancements/auth-enhancements.md) for all enhancement items including Phase 4 polish tasks and future enhancements.
 
 ## Rollback Plan
 
@@ -482,17 +491,6 @@ If issues arise during implementation:
 2. New pages can be disabled via route guards if needed
 3. Firebase Auth handles all authentication, so rollback is straightforward
 4. Test each phase independently before moving to next
-
-## Future Enhancements
-
-- Social login (Google, Facebook, etc.)
-- Two-factor authentication
-- Password strength meter with requirements
-- Account recovery options
-- Remember me functionality
-- Session management
-- Email change functionality
-- Username/password change in account settings
 
 ## Notes
 
