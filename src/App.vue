@@ -3,10 +3,8 @@ import { RouterView } from "vue-router";
 import TheHeader from "./components/TheHeader.vue";
 import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
-import { usePlaycountTracking } from "@composables/usePlaycountTracking";
 
 useSpotifyPlayer();
-usePlaycountTracking();
 </script>
 
 <template>
