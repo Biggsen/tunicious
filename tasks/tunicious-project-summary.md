@@ -9,7 +9,7 @@
   "status": "active",
   "domain": "music",
   "type": "webapp",
-  "lastUpdated": "2025-12-05",
+  "lastUpdated": "2025-12-06",
   "links": {
     "prod": null,
     "staging": "https://audiofoodie-d5b2c.web.app/"
@@ -89,7 +89,7 @@
   This helps track immediate priorities and current development state.
 -->
 
-Currently evaluating next priorities. Recent completion of **Unified Track Data Cache** has consolidated all track-related data into a single unified cache structure, eliminating duplication and improving performance. Next focus areas include Firebase Project Separation for environment isolation and Pipeline Groups Refactoring to remove redundant data structures.
+Currently working on **Cache-Driven Playcount System** to make playcounts fully cache-driven with updates only when tracks finish playing (matching Last.fm behavior). Recent completion of **Unified Track Data Cache** has consolidated all track-related data into a single unified cache structure, eliminating duplication and improving performance. Next focus areas include Firebase Project Separation for environment isolation and Pipeline Groups Refactoring to remove redundant data structures.
 
 ---
 
@@ -213,11 +213,19 @@ No features currently in progress.
 
 ### High Priority
 
+- [ ] Cache-Driven Playcount System - Make playcounts fully cache-driven with updates only when tracks finish playing (matching Last.fm scrobbling behavior). Remove API calls from TrackList and ensure UI automatically updates and re-sorts. Spec: `tasks/cache-driven-playcount-spec.md`
+
 - [ ] Firebase Project Separation - Separate development and production environments into distinct Firebase projects for complete data isolation. Spec: `tasks/firebase-project-separation-spec.md`
 
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
 
 ### Task Details
+
+#### Cache-Driven Playcount System
+- **Description**: Make playcounts fully cache-driven with updates only when tracks finish playing. Remove API calls from TrackList component and ensure UI automatically updates and re-sorts when playcounts change.
+- **Key Tasks**: Update playcount increment logic to only increment on track finish (not pause), remove API calls from TrackList component, update selectNextTrackToQueue to use cache, ensure UI updates and automatic reordering work correctly
+- **Benefits**: Reduces API calls, matches Last.fm scrobbling behavior exactly, improves performance, ensures consistent data source
+- **Spec**: `tasks/cache-driven-playcount-spec.md`
 
 #### Firebase Project Separation
 - **Description**: Separate development and production environments into distinct Firebase projects for complete data isolation
@@ -242,7 +250,7 @@ No features currently in progress.
 
 **Overall Status**: Active Development  
 **Completion**: ~80%  
-**Last Major Update**: December 2025
+**Last Major Update**: December 6, 2025
 
 ### Current State
 
@@ -256,7 +264,7 @@ No features currently in progress.
 
 - **Completed Features**: 10
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 2
+- **Outstanding Tasks**: 3
 - **Enhancements**: 6
 
 ---
@@ -270,8 +278,9 @@ No features currently in progress.
 
 ### Immediate (Next 1-3 months)
 
-1. Firebase Project Separation
-2. Pipeline Groups Refactoring
+1. Cache-Driven Playcount System
+2. Firebase Project Separation
+3. Pipeline Groups Refactoring
 
 ### Short-term (Next 3-6 months)
 
