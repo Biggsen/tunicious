@@ -36,7 +36,7 @@ The playcount system will transition from a hybrid API/cache approach to a fully
 ### Core Principles
 
 1. **Cache-First**: All playcount data comes from cache after initial load
-2. **Last.fm Threshold**: Increment only when track finishes and meets Last.fm scrobbling threshold (50% duration OR 4 minutes, whichever is shorter)
+2. **Finish-Based Increment**: Increment playcount when track finishes playing (no threshold required)
 3. **Explicit Refresh**: Only update from API when user clicks "Reload" button
 4. **Automatic UI Updates**: TrackList re-sorts automatically when playcounts change
 
@@ -47,7 +47,7 @@ Initial Load:
   Last.fm API → Unified Cache → UI Display
 
 Runtime (Web Player):
-  Track Finishes → Check Threshold → Update Cache → Update UI → Reorder
+  Track Finishes → Update Cache → Update UI → Reorder
 
 Runtime (Spotify Direct):
   No detection → Cache stays static → User clicks "Reload" → Last.fm API → Update Cache → Update UI
@@ -60,25 +60,23 @@ Manual Refresh:
 
 ### Phase 1: Update Playcount Increment Logic
 
-**File**: `src/composables/usePlaycountTracking.js`
+**File**: `src/composables/useWebPlayerPlaycountTracking.js`
 
 **Changes**:
-1. Remove increment on pause - only increment when track finishes
-2. Add detection for track completion (position reaches duration)
-3. Ensure threshold is checked before incrementing
+1. Increment playcount when track finishes (no threshold required)
+2. Add detection for track completion (position reaches duration OR track changes)
 
 **Key Modifications**:
-- Remove `watch(isPlaying)` that increments on pause (lines 186-194)
-- Add finish detection in `monitorPlayback()` when `position >= duration - 500ms`
-- Only increment if threshold was met AND track finished
+- Detect track finish when position reaches duration (within 500ms tolerance)
+- Detect track finish when track changes to a different track
+- Increment playcount immediately when track finishes
 
 **Code Structure**:
 ```javascript
-// In monitorPlayback():
 // Check if track has finished (position reached duration or very close to it)
 if (trackedTrackDuration.value > 0 && position.value > 0) {
   const remainingTime = trackedTrackDuration.value - position.value;
-  if (remainingTime <= 500 && thresholdMet.value && !playcountIncremented.value) {
+  if (remainingTime <= 500 && !playcountIncremented.value) {
     // Track finished - increment playcount
     handleTrackFinished();
   }
@@ -151,11 +149,7 @@ const tracksWithPlaycounts = nextAlbumTracks.map(track => {
 A playcount is incremented when **ALL** of the following are true:
 
 1. Track is playing via Spotify Web Player
-2. Track has met scrobbling threshold:
-   - Played for 50% of duration OR
-   - Played for 4 minutes
-   - (Whichever is shorter)
-3. Track has finished:
+2. Track has finished:
    - Position reaches duration (within 500ms tolerance)
    - OR track changes to a different track
    - OR playback stops and track was cleared
@@ -165,19 +159,17 @@ A playcount is incremented when **ALL** of the following are true:
 ```
 1. Track finishes playing
    ↓
-2. Check if threshold was met
+2. Get current playcount from cache
    ↓
-3. Get current playcount from cache
+3. Increment playcount (currentPlaycount + 1)
    ↓
-4. Increment playcount (currentPlaycount + 1)
+4. Update cache (in-memory + localStorage)
    ↓
-5. Update cache (in-memory + localStorage)
+5. Notify listeners (playcountUpdateListeners)
    ↓
-6. Notify listeners (playcountUpdateListeners)
+6. Update UI (albumTracksData)
    ↓
-7. Update UI (albumTracksData)
-   ↓
-8. TrackList re-sorts automatically (sortedTracks computed)
+7. TrackList re-sorts automatically (sortedTracks computed)
 ```
 
 ### Cache Structure
@@ -216,8 +208,8 @@ When "Reload" button is clicked:
 **Scenario**: User skips track before it finishes
 
 **Handling**: 
-- Playcount is NOT incremented (matches Last.fm behavior)
-- Threshold must be met AND track must finish
+- Playcount is NOT incremented (track didn't finish)
+- Track must finish to increment playcount
 
 ### 3. Track Paused
 
@@ -225,7 +217,7 @@ When "Reload" button is clicked:
 
 **Handling**: 
 - Playcount is NOT incremented on pause
-- Only increments when track finishes (if threshold was met)
+- Only increments when track finishes
 
 ### 4. Playing from Spotify Directly
 
@@ -237,15 +229,8 @@ When "Reload" button is clicked:
 - User must click "Reload" to get fresh playcounts from Last.fm
 - This is expected behavior (app relies on Last.fm data)
 
-### 5. Threshold Not Met
 
-**Scenario**: Track finishes but didn't meet threshold (e.g., skipped early)
-
-**Handling**: 
-- Playcount is NOT incremented (matches Last.fm behavior)
-- Last.fm wouldn't scrobble it, so we don't increment
-
-### 6. Multiple Plays of Same Track
+### 5. Multiple Plays of Same Track
 
 **Scenario**: Same track played multiple times in session
 
@@ -259,9 +244,9 @@ When "Reload" button is clicked:
 ### Unit Tests
 
 1. **Playcount Increment Logic**:
-   - Test threshold calculation (50% vs 4 minutes)
    - Test increment only on finish (not pause)
-   - Test threshold must be met before increment
+   - Test increment when position reaches duration
+   - Test increment when track changes
    - Test multiple plays of same track
 
 2. **Cache Updates**:
@@ -278,7 +263,7 @@ When "Reload" button is clicked:
 ### Integration Tests
 
 1. **Full Flow**:
-   - Play track → meet threshold → finish → increment → UI update → reorder
+   - Play track → finish → increment → UI update → reorder
    - Verify cache is updated
    - Verify UI reflects new playcount
    - Verify tracklist is re-sorted
@@ -289,7 +274,7 @@ When "Reload" button is clicked:
    - Verify UI reflects updated playcounts
 
 3. **Edge Cases**:
-   - Skip track before threshold → no increment
+   - Skip track before finish → no increment
    - Pause track → no increment
    - Track not in cache → error handling
 
@@ -297,10 +282,10 @@ When "Reload" button is clicked:
 
 ### Core Changes
 
-1. **`src/composables/usePlaycountTracking.js`**
-   - Remove pause watch
-   - Add finish detection in `monitorPlayback()`
-   - Ensure increment only on finish
+1. **`src/composables/useWebPlayerPlaycountTracking.js`**
+   - Detect track finish (position reaches duration OR track changes)
+   - Increment playcount when track finishes
+   - Notify listeners for UI updates
 
 2. **`src/components/TrackList.vue`**
    - Remove `fetchTrackPlaycounts()` function
@@ -327,7 +312,6 @@ When "Reload" button is clicked:
 
 - [ ] Playcounts are only fetched from API on initial load and explicit reload
 - [ ] Playcounts increment only when tracks finish (not on pause)
-- [ ] Playcounts increment only if threshold is met
 - [ ] TrackList no longer makes API calls for playcounts
 - [ ] `selectNextTrackToQueue()` uses cache (throws error if not found)
 - [ ] UI automatically updates when playcounts change
@@ -340,7 +324,7 @@ When "Reload" button is clicked:
 
 1. **Cache-First Approach**: All playcount data comes from cache after initial load. This reduces API calls and improves performance.
 
-2. **Last.fm Threshold Matching**: We match Last.fm's scrobbling behavior exactly (50% or 4 minutes, increment only on finish). This ensures consistency with Last.fm data.
+2. **Finish-Based Increment**: Playcounts increment when tracks finish playing, regardless of how much of the track was played. This provides immediate feedback and keeps the cache in sync with actual playback.
 
 3. **Error on Missing Cache**: If a track isn't in cache when queueing, we throw an error rather than fetching from API. This helps identify cache issues early.
 
