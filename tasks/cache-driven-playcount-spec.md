@@ -1,6 +1,6 @@
 # Cache-Driven Playcount System Specification
 
-## **Status**: 📋 **SPECIFICATION - READY FOR IMPLEMENTATION**
+## **Status**: ✅ **COMPLETED**
 
 This document specifies the implementation of a fully cache-driven playcount system where playcounts are fetched once on initial playlist load, then updated only in cache when tracks are played. Playcounts are only refreshed from the Last.fm API with an explicit "Reload" button action.
 
@@ -339,13 +339,13 @@ When "Reload" button is clicked:
 
 ## Success Criteria
 
-- [ ] Playcounts are only fetched from API on initial load and explicit reload
-- [ ] Playcounts increment only when tracks finish (not on pause)
-- [ ] TrackList no longer makes API calls for playcounts
-- [ ] `selectNextTrackToQueue()` uses cache (throws error if not found)
-- [ ] UI automatically updates when playcounts change
-- [ ] TrackList automatically re-sorts when playcounts change
-- [ ] All unused API-fetching code is removed from TrackList
+- [x] Playcounts are only fetched from API on initial load and explicit reload
+- [x] Playcounts increment only when tracks finish (not on pause)
+- [x] TrackList no longer makes API calls for playcounts
+- [x] `selectNextTrackToQueue()` uses cache (throws error if not found)
+- [x] UI automatically updates when playcounts change
+- [x] TrackList automatically re-sorts when playcounts change
+- [x] All unused API-fetching code is removed from TrackList
 
 ## Notes
 
