@@ -36,7 +36,7 @@ watch(currentUser, (user) => {
 
 <template>
   <div v-if="!currentUser?.email" class="p-4 pt-8">
-    <h2 class="text-xl font-bold mb-6">Login</h2>
+    <h1 class="h2 pb-4">Login</h1>
     <form @submit.prevent="handleSubmit(onSubmit)" class="login-form">
       <div class="form-group">
         <label for="email">Email</label>
@@ -85,7 +85,6 @@ watch(currentUser, (user) => {
 <style lang="scss" scoped>
 .login-form {
   max-width: 400px;
-  margin: 0 auto;
 }
 
 .form-group {
