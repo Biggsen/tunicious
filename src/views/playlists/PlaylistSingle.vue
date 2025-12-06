@@ -1612,6 +1612,51 @@ const handleProcessAlbum = async ({ album, action }) => {
       targetSpotifyPlaylistId = targetPlaylistData.playlistId;
     }
     
+    // Unlove all tracks if moving from transient to transient
+    if (currentPlaylistData?.pipelineRole === 'transient' && targetPlaylistData?.pipelineRole === 'transient') {
+      try {
+        logPlaylist(`Unloving all tracks from album ${album.id} (transient to transient)`);
+        
+        // Fetch all tracks from the album
+        let allTracks = [];
+        let offset = 0;
+        const limit = 50;
+        
+        while (true) {
+          const response = await getAlbumTracks(album.id, limit, offset);
+          if (response.items && response.items.length > 0) {
+            allTracks = [...allTracks, ...response.items];
+            
+            if (response.items.length < limit) {
+              break;
+            }
+            
+            offset += limit;
+          } else {
+            break;
+          }
+        }
+        
+        // Unlove each track
+        for (const track of allTracks) {
+          if (track.id) {
+            try {
+              await updateLovedStatus(track.id, false);
+              logPlaylist(`Unloved track ${track.id} from album ${album.id}`);
+            } catch (error) {
+              logPlaylist(`Error unloving track ${track.id}:`, error);
+              // Continue with other tracks even if one fails
+            }
+          }
+        }
+        
+        logPlaylist(`Finished unloving tracks from album ${album.id}`);
+      } catch (error) {
+        logPlaylist(`Error unloving tracks from album ${album.id}:`, error);
+        // Don't fail the whole operation if unloving fails
+      }
+    }
+    
     // 1. Remove album from current playlist
     await removeFromSpotify(id.value, album);
     await removeAlbumFromPlaylist(album.id, id.value);
