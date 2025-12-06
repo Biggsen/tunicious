@@ -224,11 +224,29 @@ No features currently in progress.
 
 ### High Priority
 
+- [ ] Core Authentication Pages - Complete authentication flow with signup, password reset, and email verification pages. Spec: `tasks/core-auth-pages-spec.md`
+
+- [ ] Account Sidebar Navigation - Reorganize account details page with sidebar navigation for better organization and user experience. Spec: `tasks/account-sidebar-spec.md`
+
 - [ ] Firebase Project Separation - Separate development and production environments into distinct Firebase projects for complete data isolation. Spec: `tasks/firebase-project-separation-spec.md`
 
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
 
 ### Task Details
+
+#### Core Authentication Pages
+- **Description**: Complete authentication system with signup, password reset, and email verification pages
+- **Key Tasks**: Create SignupView, ForgotPasswordView, ResetPasswordView, and VerifyEmailView components, implement password reset flow, add email verification handling, update router with new routes, enhance LoginView with links to new pages
+- **Benefits**: Complete authentication flow, better user onboarding, password recovery functionality, email verification security
+- **Spec**: `tasks/core-auth-pages-spec.md`
+- **Status**: Planning
+
+#### Account Sidebar Navigation
+- **Description**: Reorganize account details page from single long-scrolling page into sidebar-based navigation with distinct sections
+- **Key Tasks**: Create sidebar navigation component, implement nested routes for account sections, extract content into separate section components (Profile, Integrations, Diagnostics, Statistics, Cache, Security), update router with nested routes, implement responsive sidebar behavior
+- **Benefits**: Better organization, improved user experience, reduced scrolling, clearer separation of functionality, easier navigation between account-related tasks
+- **Spec**: `tasks/account-sidebar-spec.md`
+- **Status**: Planning
 
 #### Firebase Project Separation
 - **Description**: Separate development and production environments into distinct Firebase projects for complete data isolation
@@ -267,7 +285,7 @@ No features currently in progress.
 
 - **Completed Features**: 11
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 2
+- **Outstanding Tasks**: 4
 - **Enhancements**: 6
 
 ---
@@ -281,8 +299,10 @@ No features currently in progress.
 
 ### Immediate (Next 1-3 months)
 
-1. Firebase Project Separation
-2. Pipeline Groups Refactoring
+1. Core Authentication Pages
+2. Account Sidebar Navigation
+3. Firebase Project Separation
+4. Pipeline Groups Refactoring
 
 ### Short-term (Next 3-6 months)
 
