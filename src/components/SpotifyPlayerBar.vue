@@ -179,6 +179,111 @@ const handleLastFmSyncError = (event) => {
   }
 };
 
+// Handle track loved/unloved from tracklist
+const handleTrackLovedFromTracklist = (event) => {
+  const { track } = event.detail;
+  if (!track || !currentTrack.value) {
+    logPlayer('handleTrackLovedFromTracklist: missing track or currentTrack');
+    return;
+  }
+  
+  logPlayer('handleTrackLovedFromTracklist received:', { 
+    eventTrack: { id: track.id, name: track.name, artists: track.artists },
+    currentTrack: { id: currentTrack.value.id, name: currentTrack.value.name, artists: currentTrack.value.artists }
+  });
+  
+  // Check if this is the currently playing track
+  // First try by ID (might match even if IDs differ due to fallback lookup)
+  const idMatch = track.id === currentTrack.value.id;
+  
+  // Then check by name and artist
+  const nameMatch = track.name?.toLowerCase() === currentTrack.value.name?.toLowerCase();
+  
+  // Handle different artist formats
+  // Tracklist track: artists is array of objects { id, name }
+  // Player track: artists is array of strings
+  const trackArtist = typeof track.artists?.[0] === 'string' 
+    ? track.artists[0] 
+    : track.artists?.[0]?.name || '';
+  const currentArtist = typeof currentTrack.value.artists?.[0] === 'string'
+    ? currentTrack.value.artists[0]
+    : currentTrack.value.artists?.[0]?.name || '';
+  const artistMatch = trackArtist?.toLowerCase() === currentArtist?.toLowerCase();
+  
+  if (idMatch || (nameMatch && artistMatch)) {
+    logPlayer('Track loved from tracklist, updating player bar UI:', { 
+      trackId: currentTrack.value.id, 
+      trackName: track.name,
+      matchedBy: idMatch ? 'id' : 'name+artist'
+    });
+    
+    // Update optimistic status
+    optimisticLovedStatus.value = {
+      trackId: currentTrack.value.id,
+      loved: true
+    };
+  } else {
+    logPlayer('Track from tracklist does not match current track:', {
+      nameMatch,
+      artistMatch,
+      trackArtist,
+      currentArtist
+    });
+  }
+};
+
+const handleTrackUnlovedFromTracklist = (event) => {
+  const { track } = event.detail;
+  if (!track || !currentTrack.value) {
+    logPlayer('handleTrackUnlovedFromTracklist: missing track or currentTrack');
+    return;
+  }
+  
+  logPlayer('handleTrackUnlovedFromTracklist received:', { 
+    eventTrack: { id: track.id, name: track.name, artists: track.artists },
+    currentTrack: { id: currentTrack.value.id, name: currentTrack.value.name, artists: currentTrack.value.artists }
+  });
+  
+  // Check if this is the currently playing track
+  // First try by ID (might match even if IDs differ due to fallback lookup)
+  const idMatch = track.id === currentTrack.value.id;
+  
+  // Then check by name and artist
+  const nameMatch = track.name?.toLowerCase() === currentTrack.value.name?.toLowerCase();
+  
+  // Handle different artist formats
+  // Tracklist track: artists is array of objects { id, name }
+  // Player track: artists is array of strings
+  const trackArtist = typeof track.artists?.[0] === 'string' 
+    ? track.artists[0] 
+    : track.artists?.[0]?.name || '';
+  const currentArtist = typeof currentTrack.value.artists?.[0] === 'string'
+    ? currentTrack.value.artists[0]
+    : currentTrack.value.artists?.[0]?.name || '';
+  const artistMatch = trackArtist?.toLowerCase() === currentArtist?.toLowerCase();
+  
+  if (idMatch || (nameMatch && artistMatch)) {
+    logPlayer('Track unloved from tracklist, updating player bar UI:', { 
+      trackId: currentTrack.value.id, 
+      trackName: track.name,
+      matchedBy: idMatch ? 'id' : 'name+artist'
+    });
+    
+    // Update optimistic status
+    optimisticLovedStatus.value = {
+      trackId: currentTrack.value.id,
+      loved: false
+    };
+  } else {
+    logPlayer('Track from tracklist does not match current track:', {
+      nameMatch,
+      artistMatch,
+      trackArtist,
+      currentArtist
+    });
+  }
+};
+
 // Watch for track changes to sync optimistic status with cache
 watch(() => currentTrack.value?.id, (newTrackId) => {
   if (newTrackId) {
@@ -211,11 +316,16 @@ onMounted(() => {
   
   // Listen for Last.fm sync errors
   window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
+  // Listen for track loved/unloved from tracklist
+  window.addEventListener('track-loved-from-tracklist', handleTrackLovedFromTracklist);
+  window.addEventListener('track-unloved-from-tracklist', handleTrackUnlovedFromTracklist);
 });
 
 onUnmounted(() => {
-  // Clean up event listener
+  // Clean up event listeners
   window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
+  window.removeEventListener('track-loved-from-tracklist', handleTrackLovedFromTracklist);
+  window.removeEventListener('track-unloved-from-tracklist', handleTrackUnlovedFromTracklist);
 });
 
 

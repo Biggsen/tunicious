@@ -286,6 +286,17 @@ const handleTrackLoved = async ({ album, track }) => {
       };
     }
     
+    // Emit window event to notify player bar
+    window.dispatchEvent(new CustomEvent('track-loved-from-tracklist', {
+      detail: {
+        track: {
+          id: track.id,
+          name: track.name,
+          artists: track.artists || []
+        }
+      }
+    }));
+    
   } catch (error) {
     logPlaylist('Error loving track:', error);
     
@@ -356,6 +367,17 @@ const handleTrackUnloved = async ({ album, track }) => {
         isLoading: false
       };
     }
+    
+    // Emit window event to notify player bar
+    window.dispatchEvent(new CustomEvent('track-unloved-from-tracklist', {
+      detail: {
+        track: {
+          id: track.id,
+          name: track.name,
+          artists: track.artists || []
+        }
+      }
+    }));
     
   } catch (error) {
     logPlaylist('Error unloving track:', error);
@@ -1312,21 +1334,36 @@ const handleTrackLovedFromPlayer = async (event) => {
   const { track } = event.detail;
   if (!track || !userData.value?.lastFmUserName) return;
   
-  // Find the album that contains this track
-  const album = albumData.value.find(alb => {
-    const tracks = albumTracksData.value[alb.id] || [];
-    return tracks.some(t => 
-      t.name.toLowerCase() === track.name.toLowerCase() &&
-      t.artists?.some(a => a.name.toLowerCase() === track.artists[0]?.name?.toLowerCase())
-    );
-  });
+  // Find the album and actual track in albumTracksData (by name+artist since IDs might differ)
+  let foundTrack = null;
+  let foundAlbum = null;
   
-  if (album) {
-    // Use the existing handler which will update unified cache and recalculate percentages
-    await handleTrackLoved({ album, track });
+  for (const album of albumData.value) {
+    const tracks = albumTracksData.value[album.id] || [];
+    foundTrack = tracks.find(t => {
+      const nameMatch = t.name?.toLowerCase() === track.name?.toLowerCase();
+      const artistMatch = t.artists?.some(a => {
+        const trackArtist = typeof a === 'string' ? a : a.name;
+        const playerArtist = track.artists?.[0];
+        return trackArtist?.toLowerCase() === playerArtist?.toLowerCase();
+      });
+      return nameMatch && artistMatch;
+    });
+    
+    if (foundTrack) {
+      foundAlbum = album;
+      break;
+    }
+  }
+  
+  if (foundTrack && foundAlbum) {
+    // Use the existing handler with the found track (which has the correct ID from cache)
+    await handleTrackLoved({ album: foundAlbum, track: foundTrack });
   } else if (track.id) {
-    // If album not found but we have track ID, update unified cache directly
-    await updateLovedStatus(track.id, true);
+    // If track not found in any album, update unified cache directly (with fallback lookup)
+    const trackName = track.name;
+    const artistName = track.artists?.[0] || '';
+    await updateLovedStatus(track.id, true, trackName, artistName);
   }
 };
 
@@ -1334,21 +1371,36 @@ const handleTrackUnlovedFromPlayer = async (event) => {
   const { track } = event.detail;
   if (!track || !userData.value?.lastFmUserName) return;
   
-  // Find the album that contains this track
-  const album = albumData.value.find(alb => {
-    const tracks = albumTracksData.value[alb.id] || [];
-    return tracks.some(t => 
-      t.name.toLowerCase() === track.name.toLowerCase() &&
-      t.artists?.some(a => a.name.toLowerCase() === track.artists[0]?.name?.toLowerCase())
-    );
-  });
+  // Find the album and actual track in albumTracksData (by name+artist since IDs might differ)
+  let foundTrack = null;
+  let foundAlbum = null;
   
-  if (album) {
-    // Use the existing handler which will update unified cache and recalculate percentages
-    await handleTrackUnloved({ album, track });
+  for (const album of albumData.value) {
+    const tracks = albumTracksData.value[album.id] || [];
+    foundTrack = tracks.find(t => {
+      const nameMatch = t.name?.toLowerCase() === track.name?.toLowerCase();
+      const artistMatch = t.artists?.some(a => {
+        const trackArtist = typeof a === 'string' ? a : a.name;
+        const playerArtist = track.artists?.[0];
+        return trackArtist?.toLowerCase() === playerArtist?.toLowerCase();
+      });
+      return nameMatch && artistMatch;
+    });
+    
+    if (foundTrack) {
+      foundAlbum = album;
+      break;
+    }
+  }
+  
+  if (foundTrack && foundAlbum) {
+    // Use the existing handler with the found track (which has the correct ID from cache)
+    await handleTrackUnloved({ album: foundAlbum, track: foundTrack });
   } else if (track.id) {
-    // If album not found but we have track ID, update unified cache directly
-    await updateLovedStatus(track.id, false);
+    // If track not found in any album, update unified cache directly (with fallback lookup)
+    const trackName = track.name;
+    const artistName = track.artists?.[0] || '';
+    await updateLovedStatus(track.id, false, trackName, artistName);
   }
 };
 
