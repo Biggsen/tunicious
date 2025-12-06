@@ -230,6 +230,35 @@ const isTrackInPlaylist = (track) => {
 };
 
 /**
+ * Check if a track is currently playing via Spotify player
+ * Matches by track name and artist name (more reliable than URI matching)
+ */
+const isTrackPlayingBySpotify = (track) => {
+  if (!playerReady.value || !playerCurrentTrack.value || !isPlaying.value) {
+    return false;
+  }
+  
+  // Match track name (case-insensitive)
+  const trackNameMatch = track.name?.toLowerCase() === playerCurrentTrack.value.name?.toLowerCase();
+  if (!trackNameMatch) {
+    return false;
+  }
+  
+  // Match artist - check if any track artist matches any player artist
+  const trackArtists = track.artists?.map(a => (typeof a === 'string' ? a : a.name)?.toLowerCase()) || [];
+  const playerArtists = playerCurrentTrack.value.artists?.map(a => a?.toLowerCase()) || [];
+  
+  // Also check albumArtist prop as fallback
+  if (props.albumArtist) {
+    trackArtists.push(props.albumArtist.toLowerCase());
+  }
+  
+  return trackArtists.some(trackArtist => 
+    playerArtists.some(playerArtist => trackArtist === playerArtist)
+  );
+};
+
+/**
  * Handle heart icon click
  */
 const handleHeartClick = async (track, event) => {
@@ -427,18 +456,18 @@ const handleTrackClick = async (track) => {
         :key="track.id"
         :class="[
           'group flex justify-between items-start text-delft-blue hover:bg-white/30 pl-2 pr-2 py-1 transition-colors',
-          {
-            'bg-mint/20': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
-            'font-semibold': isTrackCurrentlyPlaying(track.name, albumArtist) || (playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)),
-            'cursor-pointer': playerReady,
-            'opacity-40 text-gray-500': !isTrackInPlaylist(track)
-          }
+           {
+             'bg-mint/20': (playerReady && isTrackPlayingBySpotify(track)) || (!playerReady && isTrackCurrentlyPlaying(track.name, albumArtist)),
+             'font-semibold': (playerReady && isTrackPlayingBySpotify(track)) || (!playerReady && isTrackCurrentlyPlaying(track.name, albumArtist)),
+             'cursor-pointer': playerReady,
+             'opacity-40 text-gray-500': !isTrackInPlaylist(track)
+           }
         ]"
         @click="playerReady ? handleTrackClick(track) : null"
       >
         <span class="flex items-start flex-1">
           <span 
-            v-if="playerReady && isTrackPlaying(track.uri || `spotify:track:${track.id}`)" 
+            v-if="playerReady && isTrackPlayingBySpotify(track)" 
             class="mr-2 text-delft-blue flex-shrink-0 cursor-pointer self-center" 
             title="Now Playing - Click to pause"
             @click.stop="togglePlayback()"
@@ -447,7 +476,7 @@ const handleTrackClick = async (track) => {
             <PlayIcon v-else class="w-3 h-3" />
           </span>
           <span 
-            v-else-if="isTrackCurrentlyPlaying(track.name, albumArtist)" 
+            v-else-if="!playerReady && isTrackCurrentlyPlaying(track.name, albumArtist)" 
             class="mr-2 text-delft-blue flex-shrink-0 self-center" 
             title="Now Playing (Last.fm)"
           >
