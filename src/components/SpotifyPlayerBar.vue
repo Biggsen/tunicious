@@ -4,6 +4,7 @@ import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+import { useWebPlayerPlaycountSimulation } from '@composables/useWebPlayerPlaycountSimulation';
 import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
@@ -21,6 +22,7 @@ const {
 const { userData, user } = useUserData();
 const { loveTrack, unloveTrack } = useLastFmApi();
 const { checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
+const { simulatedIncrements } = useWebPlayerPlaycountSimulation();
 const isLoving = ref(false);
 const albumInfo = ref({ name: null, year: null });
 
@@ -76,6 +78,11 @@ const formatTime = (ms) => {
 const progressPercentage = computed(() => {
   if (!duration.value || duration.value === 0) return 0;
   return (currentPosition.value / duration.value) * 100;
+});
+
+// Show web player playcount simulation indicator
+const showWebPlayerSimulation = computed(() => {
+  return simulatedIncrements.value.length > 0;
 });
 
 // Check if current track is loved using unified cache
@@ -277,6 +284,22 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           <span>{{ formatTime(currentPosition) }}</span>
           <span class="mx-2">/</span>
           <span>{{ formatTime(duration) }}</span>
+        </div>
+      </div>
+      
+      <!-- Web Player Playcount Simulation Indicators (POC) - Stacked Results -->
+      <div v-if="showWebPlayerSimulation" class="mt-2 space-y-1 max-h-48 overflow-y-auto">
+        <div 
+          v-for="(result, index) in simulatedIncrements" 
+          :key="`${result.trackId}-${result.timestamp}`"
+          class="px-3 py-2 rounded text-sm font-medium bg-mint text-delft-blue"
+        >
+          <span class="flex items-center gap-2">
+            <span class="font-bold">✓</span>
+            <span>
+              Playcount would increment: <strong>{{ result.trackName }}</strong> by <strong>{{ result.artist }}</strong>
+            </span>
+          </span>
         </div>
       </div>
       
