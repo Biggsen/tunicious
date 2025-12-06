@@ -140,13 +140,13 @@ export function useUnifiedTrackCache() {
 
   /**
    * Update track playcount in unified cache
-   * Returns the updated playcount for UI updates
+   * Returns the actual track ID that was updated (may differ from input if found by name+artist)
    */
-  const updatePlaycountForTrack = async (trackId, playcount) => {
-    if (!user.value) return;
+  const updatePlaycountForTrack = async (trackId, playcount, trackName = null, artistName = null) => {
+    if (!user.value) return null;
     try {
-      await updateTrackPlaycount(trackId, playcount, user.value.uid);
-      return playcount;
+      const actualTrackId = await updateTrackPlaycount(trackId, playcount, user.value.uid, trackName, artistName);
+      return actualTrackId || trackId;
     } catch (err) {
       logCache(`Error updating playcount for track ${trackId}:`, err);
       throw err;

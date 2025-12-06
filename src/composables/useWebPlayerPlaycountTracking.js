@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useUnifiedTrackCache } from './useUnifiedTrackCache';
+import { useUserData } from './useUserData';
 import { logPlayer } from '../utils/logger';
 
 // Global Set to track playcount increments (prevent duplicates)
@@ -14,6 +15,7 @@ const trackedPlaycountSessions = new Set();
 export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   const { currentTrack, position, duration, isPlaying } = useSpotifyPlayer();
   const { getPlaycountForTrack, updatePlaycountForTrack } = useUnifiedTrackCache();
+  const { user } = useUserData();
   
   // Track the current track being monitored
   const trackedTrack = ref(null);
@@ -44,20 +46,45 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
     trackedPlaycountSessions.add(trackKey);
     
     try {
-      // Get current playcount from cache
-      const currentPlaycount = getPlaycountForTrack(track.id) || 0;
+      if (!user.value?.uid) {
+        logPlayer(`[PLAYCOUNT] User not available, cannot increment playcount`);
+        return;
+      }
+      
+      // Get artist name for fallback lookup
+      const artistName = track.artists?.[0]?.name || (Array.isArray(track.artists) ? track.artists[0] : '') || '';
+      
+      // Get current playcount from cache (try by ID first)
+      let currentPlaycount = getPlaycountForTrack(track.id) || 0;
+      
+      // Try to find track by name + artist if we need to (updateTrackPlaycount will also do this, but we want the current playcount)
+      let actualTrackId = track.id;
+      if (track.name && artistName) {
+        const { findTrackIdByNameAndArtist } = await import('../utils/unifiedTrackCache');
+        const foundTrackId = findTrackIdByNameAndArtist(track.name, artistName, user.value.uid);
+        if (foundTrackId && foundTrackId !== track.id) {
+          // Found a different track ID - use its playcount
+          const foundPlaycount = getPlaycountForTrack(foundTrackId) || 0;
+          currentPlaycount = foundPlaycount;
+          actualTrackId = foundTrackId;
+          logPlayer(`[PLAYCOUNT] Found track by name+artist: ${foundTrackId} (player ID: ${track.id}, current playcount: ${foundPlaycount})`);
+        }
+      }
       
       // Increment playcount
       const newPlaycount = currentPlaycount + 1;
       
-      // Update cache
-      await updatePlaycountForTrack(track.id, newPlaycount);
+      // Update cache (with fallback to name+artist lookup)
+      const updatedTrackId = await updatePlaycountForTrack(track.id, newPlaycount, track.name, artistName);
       
-      logPlayer(`[PLAYCOUNT] Incremented playcount for "${track.name}" from ${currentPlaycount} to ${newPlaycount}`);
+      // Use the returned track ID if different from player ID
+      const finalTrackId = updatedTrackId || actualTrackId || track.id;
       
-      // Notify listener for UI updates
+      logPlayer(`[PLAYCOUNT] Incremented playcount for "${track.name}" from ${currentPlaycount} to ${newPlaycount} (track ID: ${finalTrackId})`);
+      
+      // Notify listener for UI updates (use actual track ID if found)
       if (onPlaycountUpdate) {
-        onPlaycountUpdate(track.id, newPlaycount);
+        onPlaycountUpdate(finalTrackId, newPlaycount);
       }
     } catch (error) {
       logPlayer(`[PLAYCOUNT] Error incrementing playcount for "${track.name}":`, error);

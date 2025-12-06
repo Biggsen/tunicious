@@ -419,6 +419,26 @@ export function getTrackPlaycount(trackId, userId) {
 }
 
 /**
+ * Find track ID by name and artist (fallback when track ID doesn't match)
+ */
+export function findTrackIdByNameAndArtist(trackName, artistName, userId) {
+  const cache = getInMemoryCache(userId);
+  const normalizedTrackName = normalizeTrackName(trackName);
+  const normalizedArtistName = normalizeArtistName(artistName);
+  
+  // Use the byTrackName index to find matching tracks
+  if (cache.indexes.byTrackName[normalizedTrackName]) {
+    const artistTracks = cache.indexes.byTrackName[normalizedTrackName][normalizedArtistName];
+    if (artistTracks && artistTracks.length > 0) {
+      // Return the first matching track ID
+      return artistTracks[0];
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Update track loved status (cache-first, syncs to Last.fm in background)
  * @param {Function} loveTrackFn - Function to love a track
  * @param {Function} unloveTrackFn - Function to unlove a track
@@ -562,20 +582,35 @@ async function syncLovedStatusToLastFm(trackName, artistName, loved, sessionKey,
 
 /**
  * Update track playcount (cache-first)
+ * Now supports fallback lookup by name + artist if track ID doesn't match
  */
-export async function updateTrackPlaycount(trackId, playcount, userId) {
+export async function updateTrackPlaycount(trackId, playcount, userId, trackName = null, artistName = null) {
   const cache = getInMemoryCache(userId);
   
-  if (!cache.tracks[trackId]) {
-    logCache(`Track ${trackId} not found in cache, cannot update playcount`);
-    return;
+  let actualTrackId = trackId;
+  
+  // If track not found by ID, try to find by name + artist
+  if (!cache.tracks[trackId] && trackName && artistName) {
+    const foundTrackId = findTrackIdByNameAndArtist(trackName, artistName, userId);
+    if (foundTrackId) {
+      logCache(`Track ${trackId} not found by ID, but found by name+artist as ${foundTrackId}`);
+      actualTrackId = foundTrackId;
+    }
   }
   
-  cache.tracks[trackId].playcount = playcount;
-  cache.tracks[trackId].lastPlaycountUpdate = Date.now();
-  updateTrackAccess(cache, trackId);
+  if (!cache.tracks[actualTrackId]) {
+    logCache(`Track ${trackId} not found in cache, cannot update playcount`);
+    return null;
+  }
+  
+  cache.tracks[actualTrackId].playcount = playcount;
+  cache.tracks[actualTrackId].lastPlaycountUpdate = Date.now();
+  updateTrackAccess(cache, actualTrackId);
   
   await saveUnifiedTrackCache(userId);
+  
+  // Return the actual track ID that was updated (for UI updates)
+  return actualTrackId;
 }
 
 /**
