@@ -410,12 +410,22 @@ const handleTrackClick = async (track) => {
   } else {
     // Play this track
     try {
-      // Create context if playing from a playlist
-      const context = props.playlistId ? {
-        type: 'playlist',
-        id: props.playlistId,
-        name: props.playlistName || 'Unknown Playlist'
-      } : null;
+      // Create context if playing from a playlist or album
+      // Priority: playlist context takes precedence over album context
+      let context = null;
+      if (props.playlistId) {
+        context = {
+          type: 'playlist',
+          id: props.playlistId,
+          name: props.playlistName || 'Unknown Playlist'
+        };
+      } else if (props.albumId) {
+        context = {
+          type: 'album',
+          id: props.albumId,
+          name: props.albumTitle || 'Unknown Album'
+        };
+      }
       
       await playTrack(trackUri, context);
       

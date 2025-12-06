@@ -117,10 +117,10 @@ export function useUnifiedTrackCache() {
   /**
    * Check if track is loved
    */
-  const checkTrackLoved = (trackId) => {
+  const checkTrackLoved = (trackId, trackName = null, artistName = null) => {
     if (!user.value) return false;
     try {
-      return isTrackLoved(trackId, user.value.uid);
+      return isTrackLoved(trackId, user.value.uid, trackName, artistName);
     } catch (err) {
       return false;
     }
@@ -156,7 +156,7 @@ export function useUnifiedTrackCache() {
   /**
    * Update track loved status
    */
-  const updateLovedStatus = async (trackId, loved) => {
+  const updateLovedStatus = async (trackId, loved, trackName = null, artistName = null) => {
     if (!user.value || !userData.value) return;
     
     try {
@@ -167,7 +167,9 @@ export function useUnifiedTrackCache() {
         userData.value.lastFmUserName || '',
         userData.value.lastFmSessionKey || '',
         loveTrackFn,
-        unloveTrackFn
+        unloveTrackFn,
+        trackName,
+        artistName
       );
     } catch (err) {
       logCache(`Error updating loved status for track ${trackId}:`, err);

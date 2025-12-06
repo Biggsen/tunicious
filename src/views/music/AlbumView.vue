@@ -486,6 +486,8 @@ onMounted(async () => {
           <TrackList 
             :tracks="tracks" 
             :albumArtist="album.artists[0]?.name || ''"
+            :albumId="album.id"
+            :albumTitle="album.name"
             :lastFmUserName="userData?.lastFmUserName || ''"
             :sortByPlaycount="false"
           />

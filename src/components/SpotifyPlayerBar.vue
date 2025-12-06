@@ -23,6 +23,7 @@ const { loveTrack, unloveTrack } = useLastFmApi();
 const { checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
 const isLoving = ref(false);
 const albumInfo = ref({ name: null, year: null });
+const optimisticLovedStatus = ref(null); // Track optimistic loved status for current track
 
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
@@ -84,8 +85,15 @@ const isCurrentTrackLoved = computed(() => {
     return false;
   }
   
+  // Use optimistic status if available, otherwise check cache
+  if (optimisticLovedStatus.value !== null && currentTrack.value.id === optimisticLovedStatus.value.trackId) {
+    return optimisticLovedStatus.value.loved;
+  }
+  
   try {
-    return checkTrackLoved(currentTrack.value.id);
+    const trackName = currentTrack.value.name;
+    const artistName = currentTrack.value.artists?.[0] || '';
+    return checkTrackLoved(currentTrack.value.id, trackName, artistName);
   } catch (err) {
     logPlayer('Error checking if track is loved:', err);
     return false;
@@ -97,7 +105,7 @@ const canLoveTracks = computed(() => {
   return !!(userData.value?.lastFmSessionKey && userData.value?.lastFmUserName);
 });
 
-// Handle love/unlove action
+// Handle love/unlove action with optimistic UI update
 const handleHeartClick = async () => {
   if (!canLoveTracks.value || !currentTrack.value?.id || !user.value || isLoving.value) {
     logPlayer('Cannot toggle love - missing requirements:', {
@@ -111,18 +119,29 @@ const handleHeartClick = async () => {
   }
 
   isLoving.value = true;
-  const isLoved = isCurrentTrackLoved.value;
   const trackId = currentTrack.value.id;
+  const trackName = currentTrack.value.name;
+  const artistName = currentTrack.value.artists?.[0] || '';
+  
+  // Get current loved status from cache (before optimistic update) - use fallback lookup
+  const wasLoved = checkTrackLoved(trackId, trackName, artistName);
+  const newLovedStatus = !wasLoved;
 
-  logPlayer(`${isLoved ? 'Unloving' : 'Loving'} track:`, { trackId, trackName: currentTrack.value.name });
+  logPlayer(`${wasLoved ? 'Unloving' : 'Loving'} track:`, { trackId, trackName, artistName });
+
+  // Optimistic UI update: update local state immediately
+  optimisticLovedStatus.value = {
+    trackId,
+    loved: newLovedStatus
+  };
 
   try {
-    // Use unified cache to update loved status (handles cache update and background sync)
-    await updateLovedStatus(trackId, !isLoved);
-    logPlayer(`Track ${isLoved ? 'unloved' : 'loved'} successfully`);
+    // Update loved status in unified cache (optimistic update with background sync)
+    await updateLovedStatus(trackId, newLovedStatus, trackName, artistName);
+    logPlayer(`Track ${wasLoved ? 'unloved' : 'loved'} successfully`);
     
     // Emit window event to notify other components
-    window.dispatchEvent(new CustomEvent(isLoved ? 'track-unloved-from-player' : 'track-loved-from-player', {
+    window.dispatchEvent(new CustomEvent(wasLoved ? 'track-unloved-from-player' : 'track-loved-from-player', {
       detail: {
         track: {
           id: trackId,
@@ -133,15 +152,72 @@ const handleHeartClick = async () => {
     }));
   } catch (error) {
     logPlayer('Error toggling loved status:', error);
+    
+    // Revert optimistic update on error
+    optimisticLovedStatus.value = {
+      trackId,
+      loved: wasLoved
+    };
   } finally {
     isLoving.value = false;
   }
 };
 
+// Handle Last.fm sync errors and revert optimistic updates
+const handleLastFmSyncError = (event) => {
+  const { trackId, attemptedLoved } = event.detail;
+  
+  // Only revert if this error is for the currently playing track
+  if (currentTrack.value?.id === trackId && optimisticLovedStatus.value?.trackId === trackId) {
+    logPlayer('Last.fm sync error for current track, reverting optimistic update:', { trackId, attemptedLoved });
+    
+    // Revert to the opposite of what we tried to set
+    optimisticLovedStatus.value = {
+      trackId,
+      loved: !attemptedLoved
+    };
+  }
+};
+
+// Watch for track changes to sync optimistic status with cache
+watch(() => currentTrack.value?.id, (newTrackId) => {
+  if (newTrackId) {
+    // Reset optimistic status when track changes
+    optimisticLovedStatus.value = null;
+    
+    // Sync with cache for new track (use fallback lookup)
+    try {
+      const trackName = currentTrack.value?.name;
+      const artistName = currentTrack.value?.artists?.[0] || '';
+      const loved = checkTrackLoved(newTrackId, trackName, artistName);
+      optimisticLovedStatus.value = {
+        trackId: newTrackId,
+        loved
+      };
+    } catch (err) {
+      optimisticLovedStatus.value = {
+        trackId: newTrackId,
+        loved: false
+      };
+    }
+  } else {
+    optimisticLovedStatus.value = null;
+  }
+}, { immediate: true });
+
 // No need to load loved tracks - unified cache handles this automatically
 onMounted(() => {
   logPlayer('SpotifyPlayerBar mounted');
+  
+  // Listen for Last.fm sync errors
+  window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
 });
+
+onUnmounted(() => {
+  // Clean up event listener
+  window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
+});
+
 
 // Helper function to find album in cache by name and artist
 const findAlbumInCache = (albumName, artistName) => {

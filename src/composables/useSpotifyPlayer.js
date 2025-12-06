@@ -216,18 +216,102 @@ export function useSpotifyPlayer() {
       const tokens = await getUserTokens();
       const accessToken = tokens.accessToken;
 
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
+      // If playing from a context (playlist or album), use context_uri for continuous playback after queue ends
+      let requestBody;
+      if (context && context.type && context.id) {
+        if (context.type === 'playlist') {
+          requestBody = {
+            context_uri: `spotify:playlist:${context.id}`,
+            offset: { uri: trackUri }
+          };
+        } else if (context.type === 'album') {
+          requestBody = {
+            context_uri: `spotify:album:${context.id}`,
+            offset: { uri: trackUri }
+          };
+        } else {
+          // Unknown context type, fall back to single track
+          requestBody = { uris: [trackUri] };
+        }
+      } else {
+        // No context - single track playback
+        requestBody = { uris: [trackUri] };
+      }
+
+      let response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
         method: 'PUT',
-        body: JSON.stringify({ uris: [trackUri] }),
+        body: JSON.stringify(requestBody),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         }
       });
 
+      // If context_uri fails with 403/404, try without device_id (uses active device)
+      if (!response.ok && requestBody.context_uri) {
+        const errorData = await response.json().catch(() => ({}));
+        logPlayer('Context playback with device_id failed, trying without device_id:', errorData);
+        
+        // Try without device_id - uses currently active device
+        response = await fetch(`https://api.spotify.com/v1/me/player/play`, {
+          method: 'PUT',
+          body: JSON.stringify(requestBody),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        // If that also fails, fall back to single track playback
+        if (!response.ok) {
+          logPlayer('Context playback failed, falling back to single track:', await response.json().catch(() => ({})));
+          
+          // Fall back to single track playback
+          response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
+            method: 'PUT',
+            body: JSON.stringify({ uris: [trackUri] }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+          
+          if (!response.ok) {
+            const fallbackErrorData = await response.json().catch(() => ({}));
+            const errorMessage = fallbackErrorData.error?.message || `Failed to play track: ${response.status}`;
+            
+            // Provide more specific error messages
+            if (response.status === 403) {
+              throw new Error('Device not found or not active. Please ensure Spotify is open and the web player is ready.');
+            } else if (response.status === 404) {
+              throw new Error('Device not found. Please refresh the page and try again.');
+            }
+            
+            throw new Error(errorMessage);
+          }
+          
+          // Single track playback succeeded, but context was not set
+          logPlayer('Playback succeeded with single track (context unavailable)');
+          playingFrom.value = null;
+          return;
+        }
+        
+        // Context playback succeeded without device_id
+        logPlayer('Context playback succeeded without device_id parameter');
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Failed to play track: ${response.status}`);
+        const errorMessage = errorData.error?.message || `Failed to play track: ${response.status}`;
+        
+        // Provide more specific error messages
+        if (response.status === 403) {
+          throw new Error('Device not found or not active. Please ensure Spotify is open and the web player is ready.');
+        } else if (response.status === 404) {
+          throw new Error('Device not found. Please refresh the page and try again.');
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Store the context after successful play

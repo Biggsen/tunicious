@@ -405,9 +405,23 @@ export async function getPlaylistTracks(playlistId, userId) {
 /**
  * Check if a track is loved
  */
-export function isTrackLoved(trackId, userId) {
+export function isTrackLoved(trackId, userId, trackName = null, artistName = null) {
   const cache = getInMemoryCache(userId);
-  return cache.tracks[trackId]?.loved || false;
+  
+  // Check by ID first
+  if (cache.tracks[trackId]) {
+    return cache.tracks[trackId]?.loved || false;
+  }
+  
+  // If not found by ID and we have name+artist, try fallback lookup (same as updateTrackLoved)
+  if (trackName && artistName) {
+    const foundTrackId = findTrackIdByNameAndArtist(trackName, artistName, userId);
+    if (foundTrackId && cache.tracks[foundTrackId]) {
+      return cache.tracks[foundTrackId]?.loved || false;
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -443,26 +457,37 @@ export function findTrackIdByNameAndArtist(trackName, artistName, userId) {
  * @param {Function} loveTrackFn - Function to love a track
  * @param {Function} unloveTrackFn - Function to unlove a track
  */
-export async function updateTrackLoved(trackId, loved, userId, lastFmUserName, sessionKey, loveTrackFn, unloveTrackFn) {
+export async function updateTrackLoved(trackId, loved, userId, lastFmUserName, sessionKey, loveTrackFn, unloveTrackFn, trackName = null, artistName = null) {
   const cache = getInMemoryCache(userId);
   
-  if (!cache.tracks[trackId]) {
+  let actualTrackId = trackId;
+  
+  // If track not found by ID, try to find by name + artist (same fallback as updateTrackPlaycount)
+  if (!cache.tracks[trackId] && trackName && artistName) {
+    const foundTrackId = findTrackIdByNameAndArtist(trackName, artistName, userId);
+    if (foundTrackId) {
+      logCache(`Track ${trackId} not found by ID, but found by name+artist as ${foundTrackId}`);
+      actualTrackId = foundTrackId;
+    }
+  }
+  
+  if (!cache.tracks[actualTrackId]) {
     logCache(`Track ${trackId} not found in cache, cannot update loved status`);
     return;
   }
   
-  const track = cache.tracks[trackId];
+  const track = cache.tracks[actualTrackId];
   
   // Update cache immediately (optimistic update)
   track.loved = loved;
   track.lastLovedUpdate = Date.now();
-  updateTrackAccess(cache, trackId);
+  updateTrackAccess(cache, actualTrackId);
   
   // Update lovedTrackIds index
   if (loved) {
-    addTrackToLovedIndex(cache, trackId);
+    addTrackToLovedIndex(cache, actualTrackId);
   } else {
-    removeTrackFromLovedIndex(cache, trackId);
+    removeTrackFromLovedIndex(cache, actualTrackId);
   }
   
   // Save cache immediately (critical operation)
@@ -470,10 +495,16 @@ export async function updateTrackLoved(trackId, loved, userId, lastFmUserName, s
   
   // Sync to Last.fm API in background (non-blocking)
   if (lastFmUserName && sessionKey && track.name && track.artists && track.artists.length > 0 && loveTrackFn && unloveTrackFn) {
-    const artistName = track.artists[0].name;
-    syncLovedStatusToLastFm(track.name, artistName, loved, sessionKey, userId, trackId, loveTrackFn, unloveTrackFn).catch(error => {
-      logCache('Background sync of loved status failed:', error);
-    });
+    // Handle both string and object artist formats
+    const artistNameForSync = typeof track.artists[0] === 'string' 
+      ? track.artists[0] 
+      : track.artists[0]?.name || '';
+    
+    if (artistNameForSync) {
+      syncLovedStatusToLastFm(track.name, artistNameForSync, loved, sessionKey, userId, actualTrackId, loveTrackFn, unloveTrackFn).catch(error => {
+        logCache('Background sync of loved status failed:', error);
+      });
+    }
   }
 }
 
