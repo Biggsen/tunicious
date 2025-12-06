@@ -89,7 +89,7 @@
   This helps track immediate priorities and current development state.
 -->
 
-Recent completion of **Cache-Driven Playcount System** makes playcounts fully cache-driven with updates only when tracks finish playing (matching Last.fm scrobbling behavior with threshold requirements). The **Unified Track Data Cache** has consolidated all track-related data into a single unified cache structure, eliminating duplication and improving performance. Next focus areas include Firebase Project Separation for environment isolation and Pipeline Groups Refactoring to remove redundant data structures.
+Recent completion of **Core Authentication Pages** provides a complete authentication flow with signup, password reset, and email verification. The **Cache-Driven Playcount System** makes playcounts fully cache-driven with updates only when tracks finish playing (matching Last.fm scrobbling behavior with threshold requirements). The **Unified Track Data Cache** has consolidated all track-related data into a single unified cache structure, eliminating duplication and improving performance. Next focus areas include Account Sidebar Navigation for better UX, Firebase Project Separation for environment isolation, and Pipeline Groups Refactoring to remove redundant data structures.
 
 ---
 
@@ -115,6 +115,7 @@ Recent completion of **Cache-Driven Playcount System** makes playcounts fully ca
 - [x] Security remediation
 - [x] Unified Track Data Cache - Consolidated track data into single unified cache structure
 - [x] Cache-Driven Playcount System - Fully cache-driven playcounts with threshold-based increment logic
+- [x] Core Authentication Pages - Complete authentication flow with signup, password reset, and email verification
 
 ### Detailed Completed Features
 
@@ -155,6 +156,16 @@ Recent completion of **Cache-Driven Playcount System** makes playcounts fully ca
 - UI automatically updates and re-sorts when playcounts change
 - Matches Last.fm scrobbling behavior
 - Spec: `tasks/completed/cache-driven-playcount-spec.md` (completed December 6, 2025)
+- Status: Completed
+
+#### Core Authentication Pages
+- Complete authentication system with signup, password reset, and email verification
+- Signup page with email/password registration and profile creation flow
+- Password reset flow (forgot password and reset password pages)
+- Email verification page with resend functionality
+- All pages integrated with Firebase Auth
+- Profile creation redirects to account page for completion
+- Spec: `tasks/enhancements/auth-enhancements.md` (core implementation completed December 6, 2025)
 - Status: Completed
 
 ---
@@ -224,8 +235,6 @@ No features currently in progress.
 
 ### High Priority
 
-- [ ] Core Authentication Pages - Complete authentication flow with signup, password reset, and email verification pages. Spec: `tasks/core-auth-pages-spec.md`
-
 - [ ] Account Sidebar Navigation - Reorganize account details page with sidebar navigation for better organization and user experience. Spec: `tasks/account-sidebar-spec.md`
 
 - [ ] Firebase Project Separation - Separate development and production environments into distinct Firebase projects for complete data isolation. Spec: `tasks/firebase-project-separation-spec.md`
@@ -233,13 +242,6 @@ No features currently in progress.
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
 
 ### Task Details
-
-#### Core Authentication Pages
-- **Description**: Complete authentication system with signup, password reset, and email verification pages
-- **Key Tasks**: Create SignupView, ForgotPasswordView, ResetPasswordView, and VerifyEmailView components, implement password reset flow, add email verification handling, update router with new routes, enhance LoginView with links to new pages
-- **Benefits**: Complete authentication flow, better user onboarding, password recovery functionality, email verification security
-- **Spec**: `tasks/core-auth-pages-spec.md`
-- **Status**: Planning
 
 #### Account Sidebar Navigation
 - **Description**: Reorganize account details page from single long-scrolling page into sidebar-based navigation with distinct sections
@@ -283,9 +285,9 @@ No features currently in progress.
 
 ### Metrics
 
-- **Completed Features**: 11
+- **Completed Features**: 12
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 4
+- **Outstanding Tasks**: 3
 - **Enhancements**: 6
 
 ---
@@ -299,10 +301,9 @@ No features currently in progress.
 
 ### Immediate (Next 1-3 months)
 
-1. Core Authentication Pages
-2. Account Sidebar Navigation
-3. Firebase Project Separation
-4. Pipeline Groups Refactoring
+1. Account Sidebar Navigation
+2. Firebase Project Separation
+3. Pipeline Groups Refactoring
 
 ### Short-term (Next 3-6 months)
 
