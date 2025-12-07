@@ -960,7 +960,7 @@ Guide users through making a yes/no decision about an album already in the trans
 - Reuse `handleProcessAlbum` logic from `PlaylistSingle.vue`
 - Reuse `useUserSpotifyApi` for playlist operations
 - Reuse `useAlbumsData` for collection updates
-- New: `OnboardingProcessAlbumStep.vue`
+- New: `OnboardingProcessAlbumTransientStep.vue`
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'process_album_transient'`
@@ -1089,18 +1089,18 @@ src/views/
 └── OnboardingView.vue              # Main onboarding container
 
 src/components/onboarding/
-├── OnboardingProgress.vue          # Progress indicator (steps 0-8)
-├── OnboardingStep.vue              # Base step wrapper component
-├── WelcomeStep.vue                  # Step 0
-├── SpotifyConnectStep.vue           # Step 1
-├── LastFmConnectStep.vue            # Step 2
-├── CreateSourcePlaylistStep.vue     # Step 3
-├── AddAlbumStep.vue                 # Step 4
-├── CreateTransientPlaylistStep.vue  # Step 5
-├── ProcessAlbumSourceStep.vue        # Step 6
-├── ListenHeartStep.vue              # Step 7
-├── ProcessAlbumTransientStep.vue     # Step 8
-└── CreateMorePlaylistsStep.vue      # Step 9
+├── OnboardingProgress.vue                    # Progress indicator (steps 0-9)
+├── OnboardingStep.vue                        # Base step wrapper component
+├── OnboardingWelcomeStep.vue                  # Step 0
+├── OnboardingSpotifyConnectStep.vue           # Step 1
+├── OnboardingLastFmConnectStep.vue           # Step 2
+├── OnboardingCreateSourcePlaylistStep.vue     # Step 3
+├── OnboardingAddAlbumStep.vue                # Step 4
+├── OnboardingCreateTransientPlaylistStep.vue  # Step 5
+├── OnboardingProcessAlbumSourceStep.vue       # Step 6
+├── OnboardingListenHeartStep.vue             # Step 7
+├── OnboardingProcessAlbumTransientStep.vue    # Step 8
+└── OnboardingCreateMorePlaylistsStep.vue      # Step 9
 ```
 
 ### Composables
