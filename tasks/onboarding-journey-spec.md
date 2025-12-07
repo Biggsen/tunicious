@@ -29,11 +29,13 @@ This document specifies a comprehensive onboarding flow that guides new users th
    ↓
 5. Create First Transient Playlist
    ↓
-6. Listen & Heart Tracks
+6. Process Album from Source to Transient
    ↓
-7. Process Album (Yes/No Decision)
+7. Listen & Heart Tracks
    ↓
-8. Create Sink & Additional Transient Playlists
+8. Process Album from Transient (Yes/No Decision)
+   ↓
+9. Create Sink & Additional Transient Playlists
    ↓
 ✅ Onboarding Complete
 ```
@@ -55,7 +57,7 @@ This document specifies a comprehensive onboarding flow that guides new users th
 **Location**: Above content area (between header and main content)
 
 **Design**:
-- Horizontal progress bar showing "Step X of 9" (includes welcome step)
+- Horizontal progress bar showing "Step X of 10" (includes welcome step)
 - Visual checkmarks for completed steps
 - Current step highlighted
 - Step names visible (optional, can be abbreviated)
@@ -156,8 +158,8 @@ if (user && !onboarding.completed && !onboarding.skipped) {
 │  [Minimal Header]                        │
 │  Logo (disabled) | Account Link          │
 ├─────────────────────────────────────────┤
-│  [Progress Indicator: Step X of 9]      │
-│  ✓ ● ○ ○ ○ ○ ○ ○ ○                      │
+│  [Progress Indicator: Step X of 10]      │
+│  ✓ ● ○ ○ ○ ○ ○ ○ ○ ○                    │
 ├─────────────────────────────────────────┤
 │                                         │
 │  [Onboarding Content - max-w-*]        │
@@ -234,8 +236,9 @@ const ONBOARDING_STEPS = {
   CREATE_SOURCE: 'create_source',
   CREATE_TRANSIENT: 'create_transient',
   ADD_ALBUM: 'add_album',
+  PROCESS_ALBUM_SOURCE: 'process_album_source',
   LISTEN_HEART: 'listen_heart',
-  PROCESS_ALBUM: 'process_album',
+  PROCESS_ALBUM_TRANSIENT: 'process_album_transient',
   CREATE_MORE_PLAYLISTS: 'create_more_playlists'
 };
 ```
@@ -584,7 +587,7 @@ Create the first playlist in the pipeline - the source playlist where new albums
 **Step ID**: `add_album`  
 **Order**: 4  
 **Estimated Time**: 2-4 minutes  
-**Required Before**: Steps 5, 6, 7
+**Required Before**: Steps 5, 6, 7, 8
 
 #### Purpose
 Add an album to the source playlist, demonstrating the album addition workflow.
@@ -666,7 +669,7 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 **Step ID**: `create_transient`  
 **Order**: 5  
 **Estimated Time**: 3-5 minutes  
-**Required Before**: Steps 6, 7
+**Required Before**: Steps 6, 7, 8
 
 #### Purpose
 Create a transient playlist and link it to the source playlist, establishing the pipeline connection.
@@ -734,20 +737,93 @@ Create a transient playlist and link it to the source playlist, establishing the
 
 ---
 
-### Step 6: Listen & Heart Tracks
+### Step 6: Process Album from Source to Transient
+
+**Step ID**: `process_album_source`  
+**Order**: 6  
+**Estimated Time**: 1-2 minutes  
+**Required Before**: Step 7
+
+#### Purpose
+Introduce the concept of processing albums by moving an album from the source playlist to the transient playlist using the "Yes" button.
+
+#### Prerequisites
+- Step 4 (Add Album) completed
+- Step 5 (Create Transient) completed
+- Album in source playlist
+- Transient playlist linked to source playlist
+
+#### User Experience
+
+**Initial State**
+- Brief explanation: "Now let's move the album from your source playlist to your transient playlist"
+- Brief explanation: "This is how you process albums - moving them through your pipeline"
+- Show album in source playlist view:
+  - Display album card/item with "Yes" and "No" buttons
+  - Highlight or point to the "Yes" button
+  - Instructions: "Click the 'Yes' button on the album to move it to your transient playlist"
+
+**During Processing**
+- Show loading state: "Processing album..."
+- Show progress:
+  - "Removing from source playlist..."
+  - "Adding to transient playlist..."
+  - "Updating database..."
+
+**Success State**
+- Checkmark icon
+- Success message: "[Album Name] moved to transient playlist 'Checking'!"
+- Brief explanation: "The album is now in your transient playlist where you can evaluate it"
+- Show album in transient playlist (optional, to confirm move)
+- "Continue" button to proceed to Step 7
+- User must click button to advance (no auto-advance)
+
+**Error Handling**
+- If processing fails, show error and retry option
+- If playlist move fails, show error
+- Allow manual processing via playlist view
+
+#### Technical Implementation
+
+**Components**
+- Reuse `AlbumItem` component (with Yes/No buttons)
+- Reuse `handleProcessAlbum` logic from `PlaylistSingle.vue`
+- Reuse `useUserSpotifyApi` for playlist operations
+- Reuse `useAlbumsData` for collection updates
+- New: `OnboardingProcessAlbumSourceStep.vue`
+
+**State Updates**
+- Update `onboarding.completedSteps` to include `'process_album_source'`
+- Update `onboarding.currentStep` to `'listen_heart'`
+- Move album in Spotify (remove from source, add to transient)
+- Update Firestore album document (playlist history)
+- Update unified track cache
+
+**Validation**
+- Verify album removed from source playlist
+- Verify album added to transient playlist
+- Verify Firestore document updated
+- Check album appears in transient playlist
+
+**Skip Behavior**
+- Not skippable - user must process the album to continue onboarding
+
+---
+
+### Step 7: Listen & Heart Tracks
 
 **Step ID**: `listen_heart`  
-**Order**: 6  
+**Order**: 7  
 **Estimated Time**: 5-10 minutes (user-controlled)  
-**Required Before**: Step 7
+**Required Before**: Step 8
 
 #### Purpose
 Guide users through playing an album and hearting/loving tracks, demonstrating the listening and hearting workflow.
 
 #### Prerequisites
-- Step 4 (Add Album) completed
+- Step 6 (Process Album from Source) completed
 - Step 2 (Last.fm) completed (for hearting)
-- Album ID available
+- Album in transient playlist
 - Spotify player initialized
 
 #### User Experience
@@ -762,7 +838,7 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
   - "Open Album in Playlist" button (links to playlist view)
   - Or: Embedded player/track list (if feasible)
 - Instructions:
-  1. "Click to open the album in your source playlist"
+  1. "Click to open the album in your transient playlist"
   2. "Start playing the album"
   3. "Love at least one track you enjoy"
 
@@ -802,7 +878,7 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'listen_heart'`
-- Update `onboarding.currentStep` to `'process_album'`
+- Update `onboarding.currentStep` to `'process_album_transient'`
 - Store in `onboarding.stepData.lovedTracksCount` (optional)
 - Track loved status in unified cache
 - Sync to Last.fm (background)
@@ -819,60 +895,59 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
 
 ---
 
-### Step 7: Process Album (Yes/No Decision)
+### Step 8: Process Album from Transient (Yes/No Decision)
 
-**Step ID**: `process_album`  
-**Order**: 7  
+**Step ID**: `process_album_transient`  
+**Order**: 8  
 **Estimated Time**: 1-2 minutes  
-**Required Before**: Step 8
+**Required Before**: Step 9
 
 #### Purpose
-Guide users through making a yes/no decision about an album and moving it through the pipeline.
+Guide users through making a yes/no decision about an album already in the transient playlist and moving it to the next stage or sink.
 
 #### Prerequisites
-- Step 4 (Add Album) completed
-- Step 5 (Create Transient) completed
-- Step 6 (Listen & Heart) completed (recommended)
-- Album in source playlist
+- Step 6 (Process Album from Source) completed
+- Step 7 (Listen & Heart) completed (recommended)
+- Album in transient playlist
 - Transient playlist available
 
 #### User Experience
 
 **Initial State**
-- Explanation of processing albums:
-  - "After listening, decide: do you want to explore more? (Yes) or stop here? (No)"
-  - "Yes = move to transient playlist (keep exploring)"
-  - "No = move to sink playlist (stop here)"
-  - Visual: Pipeline diagram showing decision point
-- Show album card:
+- Brief explanation: "Now that you've listened, decide: do you want to explore more? (Yes) or stop here? (No)"
+- Brief explanation: "Yes = move to next transient playlist (keep exploring)"
+- Brief explanation: "No = move to sink playlist (stop here)"
+- Show album card in transient playlist:
   - Album cover, name, artist
-  - Current location: "In: Source Playlist"
+  - Current location: "In: Transient Playlist 'Checking'"
   - Loved tracks count (if available)
-- Show decision buttons:
+- Show decision buttons on album item:
   - "Yes - Keep Exploring" (primary, green)
   - "No - Stop Here" (secondary, red)
-- Instructions: "Make your decision about this album"
+- Instructions: "Click 'Yes' or 'No' on the album to process it"
 
 **During Processing**
 - Show loading state: "Processing album..."
 - Show progress:
-  - "Removing from source playlist..."
+  - "Removing from transient playlist..."
   - "Adding to [target] playlist..."
   - "Updating database..."
 
 **Success State - Yes Path**
 - Checkmark icon
-- Success message: "[Album Name] moved to [Transient Playlist Name]"
-- Explanation: "The album will stay in your transient playlist for further evaluation"
-- Visual: Updated pipeline showing album in transient
-- "Continue" button to next step
+- Success message: "[Album Name] will move to the next transient playlist"
+- Note: "You'll create additional transient playlists in the next step"
+- Brief explanation: "Albums you choose 'Yes' for continue through the pipeline"
+- "Continue" button to proceed to Step 9
+- User must click button to advance (no auto-advance)
 
 **Success State - No Path**
 - Checkmark icon
-- Success message: "[Album Name] moved to sink playlist"
+- Success message: "[Album Name] will move to sink playlist"
 - Note: "You'll create a sink playlist in the next step"
-- Explanation: "Albums you choose 'No' for go to sink playlists"
-- "Continue" button to next step
+- Brief explanation: "Albums you choose 'No' for go to sink playlists"
+- "Continue" button to proceed to Step 9
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If processing fails, show error and retry option
@@ -888,18 +963,18 @@ Guide users through making a yes/no decision about an album and moving it throug
 - New: `OnboardingProcessAlbumStep.vue`
 
 **State Updates**
-- Update `onboarding.completedSteps` to include `'process_album'`
+- Update `onboarding.completedSteps` to include `'process_album_transient'`
 - Update `onboarding.currentStep` to `'create_more_playlists'`
 - Store in `onboarding.stepData.processDecision` ('yes' or 'no')
-- Move album in Spotify (remove from source, add to target)
+- Move album in Spotify (remove from transient, add to target)
 - Update Firestore album document (playlist history)
 - Update unified track cache
 
 **Validation**
-- Verify album removed from source playlist
-- Verify album added to target playlist
+- Verify album removed from transient playlist
+- Verify album added to target playlist (if target exists, otherwise mark for next step)
 - Verify Firestore document updated
-- Check album appears in correct playlist
+- Check album appears in correct playlist (if target exists)
 
 **Skip Behavior**
 - Allow skip if user has already processed albums
@@ -908,10 +983,10 @@ Guide users through making a yes/no decision about an album and moving it throug
 
 ---
 
-### Step 8: Create Sink & Additional Transient Playlists
+### Step 9: Create Sink & Additional Transient Playlists
 
 **Step ID**: `create_more_playlists`  
-**Order**: 8  
+**Order**: 9  
 **Estimated Time**: 5-7 minutes  
 **Required Before**: Onboarding completion
 
@@ -920,7 +995,7 @@ Complete the pipeline setup by creating sink playlist and optionally additional 
 
 #### Prerequisites
 - Step 5 (Create Transient) completed
-- Step 7 (Process Album) completed
+- Step 8 (Process Album from Transient) completed
 - Understanding of pipeline structure
 
 #### User Experience
@@ -1022,9 +1097,10 @@ src/components/onboarding/
 ├── CreateSourcePlaylistStep.vue     # Step 3
 ├── AddAlbumStep.vue                 # Step 4
 ├── CreateTransientPlaylistStep.vue  # Step 5
-├── ListenHeartStep.vue              # Step 6
-├── ProcessAlbumStep.vue             # Step 7
-└── CreateMorePlaylistsStep.vue      # Step 8
+├── ProcessAlbumSourceStep.vue        # Step 6
+├── ListenHeartStep.vue              # Step 7
+├── ProcessAlbumTransientStep.vue     # Step 8
+└── CreateMorePlaylistsStep.vue      # Step 9
 ```
 
 ### Composables
@@ -1250,19 +1326,25 @@ router.beforeEach(async (to, from, next) => {
 - [ ] Album added to Firestore collection
 - [ ] Existing albums can be selected
 
-**Step 6: Listen & Heart**
+**Step 6: Process Album from Source to Transient**
+- [ ] User can see album in source playlist
+- [ ] User can click "Yes" button on album
+- [ ] Album moved from source to transient playlist
+- [ ] Firestore updated correctly
+
+**Step 7: Listen & Heart**
 - [ ] User can play album
 - [ ] User can love tracks
 - [ ] Loved status tracked correctly
 - [ ] Completion criteria met
 
-**Step 7: Process Album**
+**Step 8: Process Album from Transient**
 - [ ] User can make yes/no decision
-- [ ] Album moved correctly (yes path)
-- [ ] Album moved correctly (no path)
+- [ ] Album processed correctly (yes path)
+- [ ] Album processed correctly (no path)
 - [ ] Firestore updated correctly
 
-**Step 8: Create More Playlists**
+**Step 9: Create More Playlists**
 - [ ] User can create sink playlist
 - [ ] Sink linked to transient
 - [ ] Optional additional transient can be created
