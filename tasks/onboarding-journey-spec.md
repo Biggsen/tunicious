@@ -4,11 +4,11 @@
 
 ## Overview
 
-This document specifies a comprehensive onboarding flow that guides new users through the complete AudioFoodie workflow. The onboarding journey takes users from initial account setup through all core features: Spotify and Last.fm integrations, playlist creation, album management, listening and hearting, album processing, and advanced playlist setup.
+This document specifies a comprehensive onboarding flow that guides new users through the complete Tunicious workflow. The onboarding journey takes users from initial account setup through all core features: Spotify and Last.fm integrations, playlist creation, album management, listening and hearting, album processing, and advanced playlist setup.
 
 ## Goals
 
-1. **Educate Users**: Teach users how AudioFoodie works through hands-on experience
+1. **Educate Users**: Teach users how Tunicious works through hands-on experience
 2. **Reduce Friction**: Make initial setup feel guided and supported
 3. **Complete Setup**: Ensure users have a working pipeline after onboarding
 4. **Build Confidence**: Help users understand the core workflow before they're on their own
@@ -352,7 +352,7 @@ Connect user's Spotify account to enable playlist management and music playback.
 #### User Experience
 
 **Initial State**
-- Welcome message explaining what AudioFoodie is
+- Welcome message explaining what Tunicious is
 - Brief explanation of why Spotify connection is needed
 - Visual: Large Spotify logo/icon
 - Clear call-to-action button: "Connect Spotify"
@@ -391,7 +391,7 @@ Connect user's Spotify account to enable playlist management and music playback.
 - Test API connection (optional)
 
 **Skip Behavior**
-- Allow skip with warning: "You'll need Spotify to use AudioFoodie"
+- Allow skip with warning: "You'll need Spotify to use Tunicious"
 - If skipped, mark step as skipped but don't mark onboarding complete
 - User can return to complete later
 
@@ -535,7 +535,7 @@ Create the first playlist in the pipeline - the source playlist where new albums
 **Validation**
 - Verify playlist exists on Spotify
 - Verify Firestore document created
-- Check playlist has `[AudioFoodie]` tag in description
+- Check playlist has `[Tunicious]` tag in description
 
 **Skip Behavior**
 - Allow skip if user already has source playlists
@@ -945,7 +945,7 @@ Complete the pipeline setup by creating sink playlist and optionally additional 
 - Celebration animation/icon
 - Success message: "Congratulations! Your pipeline is set up!"
 - Summary of what was created
-- "Start Using AudioFoodie" button (goes to home/playlists)
+- "Start Using Tunicious" button (goes to home/playlists)
 
 #### Technical Implementation
 
