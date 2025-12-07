@@ -597,10 +597,11 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 
 **Initial State**
 - Brief explanation: "Add albums to your source playlist to start exploring"
-- Show album search interface:
+- Show album search interface (reuse existing `AlbumSearch` component):
   - Search input field
   - "Search Albums" button
   - Results display (album cards with cover, name, artist)
+  - No playlist selector needed (target is source playlist from Step 3)
 - Instructions: "Search for an album you'd like to explore"
 
 **Search Results**
@@ -620,7 +621,11 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 **Success State**
 - Checkmark icon
 - Success message: "[Album Name] added to your source playlist!"
-- Show album card with confirmation
+- Display playlist UI element (playlist card):
+  - Show source playlist card with album art collage
+  - Display playlist name ("Queued")
+  - Show track count
+  - Introduces users to the playlist UI they'll see in the app
 - Brief explanation: "This album is now in your queue"
 - Store album ID for next steps
 - "Continue" button to proceed to Step 5
