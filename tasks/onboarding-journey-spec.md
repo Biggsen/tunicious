@@ -688,25 +688,20 @@ Create a transient playlist and link it to the source playlist, establishing the
 **During Creation**
 - Show loading state: "Creating transient playlist..."
 - Disable form inputs
-
-**After Creation - Link to Source**
-- Show success: "Transient playlist created!"
-- Brief explanation: "Now let's connect it to your source playlist"
-- Show connection UI:
-  - Source playlist: "Queued" (read-only, from step 3)
-  - Transient playlist: "Checking" (read-only, just created)
-  - "Link Playlists" button
-- During linking: "Connecting playlists..."
+- Automatically link to source playlist after creation:
+  - Update source playlist's `nextStagePlaylistId` to the newly created transient playlist
+  - This happens automatically (no separate linking step)
 
 **Success State**
 - Checkmark icon
-- Success message: "Playlists connected! Albums will flow from source to transient"
+- Success message: "Transient playlist 'Checking' created and connected!"
+- Brief explanation: "Albums will flow from source to transient"
 - "Continue" button to proceed to Step 6
 - User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If creation fails, show error and retry option
-- If linking fails, show error and retry option
+- If linking fails (updating source playlist), show error and retry option
 
 #### Technical Implementation
 
