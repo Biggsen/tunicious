@@ -25,9 +25,9 @@ This document specifies a comprehensive onboarding flow that guides new users th
    ↓
 3. Create Source Playlist
    ↓
-4. Create First Transient Playlist
+4. Add First Album
    ↓
-5. Add First Album
+5. Create First Transient Playlist
    ↓
 6. Listen & Heart Tracks
    ↓
@@ -93,7 +93,7 @@ Spotify Last.fm Create Source...
 
 **When to Show**:
 - After Step 3 (Create Source Playlist) - user has basic setup
-- Or after Step 4 (Create Transient) - user has pipeline started
+- Or after Step 5 (Create Transient) - user has pipeline started
 - Always available in a menu/overflow (three dots) for power users
 
 **Behavior**:
@@ -579,15 +579,15 @@ Create the first playlist in the pipeline - the source playlist where new albums
 
 ---
 
-### Step 4: Create First Transient Playlist
+### Step 4: Add First Album
 
-**Step ID**: `create_transient`  
+**Step ID**: `add_album`  
 **Order**: 4  
-**Estimated Time**: 3-5 minutes  
-**Required Before**: Steps 5, 7
+**Estimated Time**: 2-4 minutes  
+**Required Before**: Steps 5, 6, 7
 
 #### Purpose
-Create a transient playlist and link it to the source playlist, establishing the pipeline connection.
+Add an album to the source playlist, demonstrating the album addition workflow.
 
 #### Prerequisites
 - Step 3 (Create Source) completed
@@ -596,92 +596,7 @@ Create a transient playlist and link it to the source playlist, establishing the
 #### User Experience
 
 **Initial State**
-- Explanation of transient playlists:
-  - "Transient playlists are where you evaluate albums"
-  - "You'll listen and decide: keep exploring (yes) or stop (no)"
-  - Visual: Updated pipeline diagram showing source → transient
-- Show form to create transient playlist:
-  - Playlist name input (suggest: "Checking Out" or "Under Review")
-  - Description (optional, pre-filled)
-  - Public/Private toggle (default: private)
-  - "Create Transient Playlist" button
-
-**During Creation**
-- Show loading state: "Creating transient playlist..."
-- Disable form inputs
-
-**After Creation - Link to Source**
-- Show success: "Transient playlist created!"
-- Explanation: "Now let's connect it to your source playlist"
-- Show connection UI:
-  - Source playlist: [display name] (read-only, from step 3)
-  - Transient playlist: [display name] (read-only, just created)
-  - "Link Playlists" button
-- During linking: "Connecting playlists..."
-
-**Success State**
-- Checkmark icon
-- Success message: "Playlists connected! Albums will flow from source to transient"
-- Visual: Pipeline diagram showing connection
-- "Continue" button to next step
-
-**Error Handling**
-- If creation fails, show error and retry option
-- If linking fails, show error and retry option
-- Allow manual linking via playlist selection
-
-#### Technical Implementation
-
-**Components**
-- Reuse `useUserSpotifyApi.createPlaylist`
-- Reuse `usePlaylistData` for linking
-- New: `OnboardingCreateTransientStep.vue`
-
-**State Updates**
-- Update `onboarding.completedSteps` to include `'create_transient'`
-- Update `onboarding.currentStep` to `'add_album'`
-- Store in `onboarding.stepData.transientPlaylistId`
-- Create Firestore playlist document with:
-  - `pipelineRole: 'transient'`
-  - `group: 'default'` (match source playlist group)
-  - `nextStagePlaylistId: null` (will be set later)
-  - `terminationPlaylistId: null` (will be set in step 8)
-  - `userId: user.uid`
-- Update source playlist document:
-  - `nextStagePlaylistId: transientPlaylistId`
-
-**Validation**
-- Verify transient playlist exists on Spotify
-- Verify Firestore documents created/updated
-- Verify source playlist has `nextStagePlaylistId` set correctly
-
-**Skip Behavior**
-- Allow skip if user already has transient playlists
-- Show list of existing transient playlists, allow selection
-- If skipped, use first available transient playlist
-
----
-
-### Step 5: Add First Album
-
-**Step ID**: `add_album`  
-**Order**: 5  
-**Estimated Time**: 2-4 minutes  
-**Required Before**: Steps 6, 7
-
-#### Purpose
-Add an album to the source playlist, demonstrating the album addition workflow.
-
-#### Prerequisites
-- Step 3 (Create Source) completed
-- Source playlist ID available
-
-#### User Experience
-
-**Initial State**
-- Explanation of adding albums:
-  - "Add albums to your source playlist to start exploring"
-  - "You can search for any album on Spotify"
+- Brief explanation: "Add albums to your source playlist to start exploring"
 - Show album search interface:
   - Search input field
   - "Search Albums" button
@@ -708,7 +623,8 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 - Show album card with confirmation
 - Brief explanation: "This album is now in your queue"
 - Store album ID for next steps
-- "Continue" button to next step
+- "Continue" button to proceed to Step 5
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If search fails, show error and retry option
@@ -725,7 +641,7 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'add_album'`
-- Update `onboarding.currentStep` to `'listen_heart'`
+- Update `onboarding.currentStep` to `'create_transient'`
 - Store in `onboarding.stepData.firstAlbumId`
 - Album added to Spotify playlist (via `addAlbumToPlaylist`)
 - Album added to Firestore collection (via `addAlbumToCollection`)
@@ -736,9 +652,85 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 - Check album appears in playlist view
 
 **Skip Behavior**
-- Allow skip if source playlist already has albums
-- Show list of existing albums, allow selection
-- If skipped, use first album from source playlist
+- Not skippable - user must add an album to continue onboarding
+
+---
+
+### Step 5: Create First Transient Playlist
+
+**Step ID**: `create_transient`  
+**Order**: 5  
+**Estimated Time**: 3-5 minutes  
+**Required Before**: Steps 6, 7
+
+#### Purpose
+Create a transient playlist and link it to the source playlist, establishing the pipeline connection.
+
+#### Prerequisites
+- Step 3 (Create Source) completed
+- Step 4 (Add Album) completed
+- Source playlist ID stored
+
+#### User Experience
+
+**Initial State**
+- Brief explanation: "Transient playlists are where you evaluate albums"
+- Brief explanation: "You'll listen and decide: keep exploring (yes) or stop (no)"
+- Show form to create transient playlist:
+  - Playlist name: Fixed as "Checking" (no user input)
+  - "Create Transient Playlist" button
+
+**During Creation**
+- Show loading state: "Creating transient playlist..."
+- Disable form inputs
+
+**After Creation - Link to Source**
+- Show success: "Transient playlist created!"
+- Brief explanation: "Now let's connect it to your source playlist"
+- Show connection UI:
+  - Source playlist: "Queued" (read-only, from step 3)
+  - Transient playlist: "Checking" (read-only, just created)
+  - "Link Playlists" button
+- During linking: "Connecting playlists..."
+
+**Success State**
+- Checkmark icon
+- Success message: "Playlists connected! Albums will flow from source to transient"
+- "Continue" button to proceed to Step 6
+- User must click button to advance (no auto-advance)
+
+**Error Handling**
+- If creation fails, show error and retry option
+- If linking fails, show error and retry option
+
+#### Technical Implementation
+
+**Components**
+- Reuse `useUserSpotifyApi.createPlaylist`
+- Reuse `usePlaylistData` for linking
+- New: `OnboardingCreateTransientStep.vue`
+
+**State Updates**
+- Update `onboarding.completedSteps` to include `'create_transient'`
+- Update `onboarding.currentStep` to `'listen_heart'`
+- Store in `onboarding.stepData.transientPlaylistId`
+- Create Firestore playlist document with:
+  - `pipelineRole: 'transient'`
+  - `group: 'known'` or `'new'` (match source playlist group from step 3)
+  - `name: 'Checking'`
+  - `nextStagePlaylistId: null` (will be set later)
+  - `terminationPlaylistId: null` (will be set in step 8)
+  - `userId: user.uid`
+- Update source playlist document:
+  - `nextStagePlaylistId: transientPlaylistId`
+
+**Validation**
+- Verify transient playlist exists on Spotify
+- Verify Firestore documents created/updated
+- Verify source playlist has `nextStagePlaylistId` set correctly
+
+**Skip Behavior**
+- Not skippable - user must create a new transient playlist
 
 ---
 
@@ -753,7 +745,7 @@ Add an album to the source playlist, demonstrating the album addition workflow.
 Guide users through playing an album and hearting/loving tracks, demonstrating the listening and hearting workflow.
 
 #### Prerequisites
-- Step 5 (Add Album) completed
+- Step 4 (Add Album) completed
 - Step 2 (Last.fm) completed (for hearting)
 - Album ID available
 - Spotify player initialized
@@ -838,8 +830,8 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
 Guide users through making a yes/no decision about an album and moving it through the pipeline.
 
 #### Prerequisites
-- Step 4 (Create Transient) completed
-- Step 5 (Add Album) completed
+- Step 4 (Add Album) completed
+- Step 5 (Create Transient) completed
 - Step 6 (Listen & Heart) completed (recommended)
 - Album in source playlist
 - Transient playlist available
@@ -927,7 +919,7 @@ Guide users through making a yes/no decision about an album and moving it throug
 Complete the pipeline setup by creating sink playlist and optionally additional transient playlists.
 
 #### Prerequisites
-- Step 4 (Create Transient) completed
+- Step 5 (Create Transient) completed
 - Step 7 (Process Album) completed
 - Understanding of pipeline structure
 
@@ -1028,8 +1020,8 @@ src/components/onboarding/
 ├── SpotifyConnectStep.vue           # Step 1
 ├── LastFmConnectStep.vue            # Step 2
 ├── CreateSourcePlaylistStep.vue     # Step 3
-├── CreateTransientPlaylistStep.vue  # Step 4
-├── AddAlbumStep.vue                 # Step 5
+├── AddAlbumStep.vue                 # Step 4
+├── CreateTransientPlaylistStep.vue  # Step 5
 ├── ListenHeartStep.vue              # Step 6
 ├── ProcessAlbumStep.vue             # Step 7
 └── CreateMorePlaylistsStep.vue      # Step 8
@@ -1246,13 +1238,13 @@ router.beforeEach(async (to, from, next) => {
 - [ ] Playlist document created in Firestore
 - [ ] Existing source playlists can be selected
 
-**Step 4: Create Transient Playlist**
+**Step 4: Add Album**
 - [ ] User can create transient playlist
 - [ ] Playlist linked to source
 - [ ] Firestore documents updated correctly
 - [ ] Existing transient playlists can be selected
 
-**Step 5: Add Album**
+**Step 5: Create Transient Playlist**
 - [ ] User can search for albums
 - [ ] Album can be added to source playlist
 - [ ] Album added to Firestore collection
