@@ -352,9 +352,10 @@ Connect user's Spotify account to enable playlist management and music playback.
 #### User Experience
 
 **Initial State**
-- Welcome message explaining what Tunicious is
-- Brief explanation of why Spotify connection is needed
-- Visual: Large Spotify logo/icon
+- Brief explanation of why Spotify connection is needed:
+  - "Spotify is required for playing music and managing playlists"
+  - Safety note: "We won't mess with any of your existing playlists"
+- Visual: Spotify logo/icon (matches existing design patterns)
 - Clear call-to-action button: "Connect Spotify"
 
 **During Connection**
@@ -362,23 +363,35 @@ Connect user's Spotify account to enable playlist management and music playback.
 - Redirect to Spotify OAuth (existing flow)
 - Handle callback at `/spotify-callback`
 
-**Success State**
+**Callback Page Behavior**
+- Show loading state while processing: "Connecting to Spotify..."
+- On success: Show success message "Spotify connected successfully!"
+- Display "Continue" button to proceed back to onboarding
+- On error: Show error message with "Try Again" button
+- Check if user is in onboarding mode and redirect accordingly
+
+**Success State** (on onboarding step after callback)
 - Checkmark icon
 - Success message: "Spotify connected successfully!"
 - Brief explanation of what's now possible
-- "Continue" button to next step
+- "Continue" button to proceed to Step 2 (Last.fm)
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If connection fails, show error message
 - Provide "Try Again" button
-- Allow skipping (with warning about limitations)
+- Not skippable - user must connect Spotify to continue onboarding
 
 #### Technical Implementation
 
 **Components**
 - Reuse existing `useSpotifyAuth` composable
-- Reuse existing `SpotifyCallbackView` (with onboarding context)
+- Modify existing `SpotifyCallbackView` to:
+  - Detect if user is in onboarding mode
+  - Show success message with "Continue" button
+  - Redirect to `/onboarding` when Continue is clicked (instead of `/account`)
 - New: `OnboardingSpotifyStep.vue`
+- Visual design matches existing Spotify connect button patterns
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'spotify'`
@@ -391,9 +404,9 @@ Connect user's Spotify account to enable playlist management and music playback.
 - Test API connection (optional)
 
 **Skip Behavior**
-- Allow skip with warning: "You'll need Spotify to use Tunicious"
-- If skipped, mark step as skipped but don't mark onboarding complete
-- User can return to complete later
+- Not skippable - Spotify connection is required
+- User must complete this step to continue onboarding
+- All subsequent steps (3-8) require Spotify connection
 
 ---
 
