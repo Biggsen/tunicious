@@ -17,6 +17,8 @@ This document specifies a comprehensive onboarding flow that guides new users th
 ## User Flow Overview
 
 ```
+0. Welcome & Profile Setup
+   ↓
 1. Spotify Integration
    ↓
 2. Last.fm Integration
@@ -53,7 +55,7 @@ This document specifies a comprehensive onboarding flow that guides new users th
 **Location**: Above content area (between header and main content)
 
 **Design**:
-- Horizontal progress bar showing "Step X of 8"
+- Horizontal progress bar showing "Step X of 9" (includes welcome step)
 - Visual checkmarks for completed steps
 - Current step highlighted
 - Step names visible (optional, can be abbreviated)
@@ -154,8 +156,8 @@ if (user && !onboarding.completed && !onboarding.skipped) {
 │  [Minimal Header]                        │
 │  Logo (disabled) | Account Link          │
 ├─────────────────────────────────────────┤
-│  [Progress Indicator: Step X of 8]      │
-│  ✓ ✓ ● ○ ○ ○ ○ ○                        │
+│  [Progress Indicator: Step X of 9]      │
+│  ✓ ● ○ ○ ○ ○ ○ ○ ○                      │
 ├─────────────────────────────────────────┤
 │                                         │
 │  [Onboarding Content - max-w-*]        │
@@ -201,10 +203,11 @@ Add to `users` collection:
 {
   onboarding: {
     completed: false,                    // Boolean - true when all steps done
-    currentStep: 'spotify',              // String - current step identifier
+    currentStep: 'welcome',              // String - current step identifier
     startedAt: Timestamp,                // When onboarding was first started
     completedAt: Timestamp,              // When onboarding was completed (null if not done)
     completedSteps: [                    // Array of completed step identifiers
+      'welcome',
       'spotify',
       'lastfm',
       // ...
@@ -225,6 +228,7 @@ Add to `users` collection:
 
 ```javascript
 const ONBOARDING_STEPS = {
+  WELCOME: 'welcome',
   SPOTIFY: 'spotify',
   LASTFM: 'lastfm',
   CREATE_SOURCE: 'create_source',
@@ -238,12 +242,105 @@ const ONBOARDING_STEPS = {
 
 ## Step-by-Step Specifications
 
+### Step 0: Welcome & Profile Setup
+
+**Step ID**: `welcome`  
+**Order**: 0  
+**Estimated Time**: 1-2 minutes  
+**Required Before**: All other steps
+
+#### Purpose
+Welcome new users to Tunicious, collect profile information, and set expectations about what's needed for the onboarding process.
+
+#### Prerequisites
+- User must be authenticated (Firebase Auth)
+- User document exists in Firestore (created during signup)
+
+#### User Experience
+
+**Initial State - Profile Doesn't Exist**
+- Welcome heading: "Welcome to Tunicious!"
+- Brief explanation: "Tunicious helps you discover and organize your music through a pipeline system"
+- "What You'll Need" section:
+  - Last.fm account (with username)
+  - Premium Spotify account
+  - Brief explanation of why each is needed
+- Profile form:
+  - Display Name input (required)
+  - "Get Started" button (disabled until field filled)
+
+**Initial State - Profile Already Exists**
+- Welcome heading: "Welcome to Tunicious!"
+- Brief explanation: "Tunicious helps you discover and organize your music through a pipeline system"
+- "What You'll Need" section:
+  - Last.fm account (with username)
+  - Premium Spotify account
+  - Brief explanation of why each is needed
+- Welcome message: "Let's get you set up!"
+- "Get Started" button (immediately available)
+
+**During Profile Creation**
+- Show loading state: "Setting up your profile..."
+- Disable form inputs
+- Show progress indicator
+
+**Success State**
+- Brief success message (if profile was created)
+- "Get Started" button to proceed to Step 1
+
+**Error Handling**
+- If profile creation fails, show error message
+- Provide "Try Again" button
+- Form validation errors shown inline
+
+#### Technical Implementation
+
+**Components**
+- New: `OnboardingWelcomeStep.vue`
+- Reuse profile creation logic from `AccountView.vue`
+
+**State Updates**
+- Update `onboarding.completedSteps` to include `'welcome'`
+- Update `onboarding.currentStep` to `'spotify'`
+- If profile created, update Firestore user document:
+  - `displayName`: from form
+  - `updatedAt`: serverTimestamp()
+
+**Validation**
+- `displayName` is required
+- Display name: non-empty string
+- Check if profile already exists before showing form
+
+**Skip Behavior**
+- Not skippable - required first step
+- If profile already exists, form is skipped but welcome screen still shown
+
+**Content Details**
+
+**Welcome Message**:
+- Brief, friendly introduction to Tunicious
+- Focus on value proposition: music discovery and organization
+
+**"What You'll Need" Section**:
+- **Last.fm Account**:
+  - Explanation: "For tracking your listening and loving tracks"
+  - Note: "You'll need your Last.fm username"
+- **Premium Spotify Account**:
+  - Explanation: "Required for playing full albums and managing playlists"
+  - Note: "Free accounts have limited playback features"
+
+**Profile Form** (if needed):
+- Display Name: Text input, required
+- Field must be filled to enable "Get Started" button
+
+---
+
 ### Step 1: Spotify Integration
 
 **Step ID**: `spotify`  
 **Order**: 1  
 **Estimated Time**: 2-3 minutes  
-**Required Before**: All other steps
+**Required Before**: Steps 3-8
 
 #### Purpose
 Connect user's Spotify account to enable playlist management and music playback.
@@ -285,7 +382,7 @@ Connect user's Spotify account to enable playlist management and music playback.
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'spotify'`
-- Update `onboarding.currentStep` to `'lastfm'`
+- Update `onboarding.currentStep` to `'lastfm'` (or `'welcome'` if not completed)
 - Set `userData.spotifyConnected = true` (existing)
 
 **Validation**
@@ -312,7 +409,7 @@ Connect Last.fm account to enable track loving/hearting functionality.
 
 #### Prerequisites
 - Step 1 (Spotify) completed
-- User must have `lastFmUserName` set in profile
+- Step 0 (Welcome) completed (for displayName)
 
 #### User Experience
 
@@ -321,13 +418,14 @@ Connect Last.fm account to enable track loving/hearting functionality.
 - What track loving enables (tracking favorites, scrobbling)
 - Visual: Last.fm logo/icon
 - Check if `lastFmUserName` exists:
-  - If yes: Show username and "Enable Track Loving" button
-  - If no: Show form to enter Last.fm username first
+  - If no: Show form to enter Last.fm username first (required)
+  - If yes: Show username and proceed to connection
 
 **Username Entry (if needed)**
-- Input field for Last.fm username
+- Input field for Last.fm username (required)
 - "Save Username" button
 - Validation: Check username exists on Last.fm (optional)
+- After saving: Show success message and proceed to connection step
 
 **During Connection**
 - Show loading state: "Connecting to Last.fm..."
@@ -356,9 +454,12 @@ Connect Last.fm account to enable track loving/hearting functionality.
 - Update `onboarding.completedSteps` to include `'lastfm'`
 - Update `onboarding.currentStep` to `'create_source'`
 - Set `userData.lastFmAuthenticated = true` (existing)
-- If username was entered, update `userData.lastFmUserName`
+- If username was entered, update Firestore user document:
+  - `lastFmUserName`: from form
+  - `updatedAt`: serverTimestamp()
 
 **Validation**
+- `lastFmUserName` must be set (either already exists or entered in this step)
 - Check `userData.lastFmAuthenticated === true`
 - Verify session key exists in Firestore
 - Test API connection (optional)
@@ -886,8 +987,9 @@ src/views/
 └── OnboardingView.vue              # Main onboarding container
 
 src/components/onboarding/
-├── OnboardingProgress.vue          # Progress indicator (steps 1-8)
+├── OnboardingProgress.vue          # Progress indicator (steps 0-8)
 ├── OnboardingStep.vue              # Base step wrapper component
+├── WelcomeStep.vue                  # Step 0
 ├── SpotifyConnectStep.vue           # Step 1
 ├── LastFmConnectStep.vue            # Step 2
 ├── CreateSourcePlaylistStep.vue     # Step 3
