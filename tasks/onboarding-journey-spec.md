@@ -427,41 +427,61 @@ Connect Last.fm account to enable track loving/hearting functionality.
 #### User Experience
 
 **Initial State**
-- Explanation of Last.fm integration
-- What track loving enables (tracking favorites, scrobbling)
-- Visual: Last.fm logo/icon
+- Brief explanation of why Last.fm is needed:
+  - "Last.fm enables track loving/hearting functionality"
+  - What track loving enables (tracking favorites)
+- Visual: Last.fm logo/icon (matches existing design patterns)
 - Check if `lastFmUserName` exists:
-  - If no: Show form to enter Last.fm username first (required)
-  - If yes: Show username and proceed to connection
+  - If no: Show username entry form first (Step 2a)
+  - If yes: Show username and proceed to connection (Step 2b)
 
-**Username Entry (if needed)**
+**Username Entry (Step 2a - if needed)**
 - Input field for Last.fm username (required)
 - "Save Username" button
 - Validation: Check username exists on Last.fm (optional)
-- After saving: Show success message and proceed to connection step
+- After saving: Show success message
+- Then proceed to connection step (Step 2b)
+
+**Connection Step (Step 2b)**
+- Show Last.fm username (read-only, from Step 2a or existing)
+- "Enable Track Loving" button to connect
 
 **During Connection**
 - Show loading state: "Connecting to Last.fm..."
 - Redirect to Last.fm OAuth (existing flow)
 - Handle callback at `/lastfm-callback`
 
-**Success State**
+**Callback Page Behavior**
+- Show loading state while processing: "Connecting to Last.fm..."
+- On success: Show success message "Last.fm connected successfully!"
+- Display "Continue" button to proceed back to onboarding
+- On error: Show error message with "Try Again" button
+- Check if user is in onboarding mode and redirect accordingly
+
+**Success State** (on onboarding step after callback)
 - Checkmark icon
 - Success message: "Last.fm connected successfully!"
-- Explanation: "You can now love tracks while listening"
-- "Continue" button to next step
+- Brief explanation: "You can now love tracks while listening"
+- "Continue" button to proceed to Step 3 (Create Source Playlist)
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
+- If username save fails, show error message
+- Provide "Try Again" button
 - If connection fails, show error message
 - Provide "Try Again" button
-- Allow skipping (with note that hearting won't work)
+- Not skippable - user must connect Last.fm to continue onboarding
 
 #### Technical Implementation
 
 **Components**
 - Reuse existing `useLastFmApi` composable
-- Reuse existing `LastFmCallbackView` (with onboarding context)
+- Modify existing `LastFmCallbackView` to:
+  - Detect if user is in onboarding mode
+  - Show success message with "Continue" button
+  - Redirect to `/onboarding` when Continue is clicked (instead of `/account`)
 - New: `OnboardingLastFmStep.vue`
+- Visual design matches existing design patterns
 
 **State Updates**
 - Update `onboarding.completedSteps` to include `'lastfm'`
@@ -478,9 +498,9 @@ Connect Last.fm account to enable track loving/hearting functionality.
 - Test API connection (optional)
 
 **Skip Behavior**
-- Allow skip with note: "You can connect Last.fm later to enable track loving"
-- If skipped, mark step as skipped
-- User can return to complete later
+- Not skippable - Last.fm connection is required
+- User must complete this step to continue onboarding
+- Steps 6-7 (Listen & Heart, Process Album) require Last.fm connection
 
 ---
 
