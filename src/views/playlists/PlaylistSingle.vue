@@ -146,6 +146,22 @@ const albumTracks = computed(() => {
 // Reactive tracks storage (populated from cache)
 const albumTracksData = ref({});
 
+// Computed property to build playlistTrackIds map from albumTracksData
+// This maps albumId -> { trackId: true } for filtering tracks during queueing
+const playlistTrackIds = computed(() => {
+  const map = {};
+  for (const albumId in albumTracksData.value) {
+    const tracks = albumTracksData.value[albumId] || [];
+    map[albumId] = {};
+    tracks.forEach(track => {
+      if (track.id) {
+        map[albumId][track.id] = true;
+      }
+    });
+  }
+  return map;
+});
+
 const setSortMode = async (mode) => {
   // New mode, default to ascending
   sortMode.value = mode;
@@ -2790,7 +2806,7 @@ const handleUpdateYear = async (mismatch) => {
           :allowTrackLoving="userData?.lastFmAuthenticated || false"
           :playlistId="id"
           :albumsList="sortedAlbumsList"
-          :playlistTrackIds="{}"
+          :playlistTrackIds="playlistTrackIds"
           @added-to-collection="refreshInCollectionForAlbum"
           @update-album="handleUpdateAlbumDetails"
           @remove-album="handleRemoveAlbum"
