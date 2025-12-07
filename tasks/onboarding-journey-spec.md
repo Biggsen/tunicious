@@ -521,15 +521,12 @@ Create the first playlist in the pipeline - the source playlist where new albums
 #### User Experience
 
 **Initial State**
-- Explanation of source playlists:
-  - "Source playlists are where you add new albums you want to explore"
-  - "Albums flow from source → transient → terminal/sink"
-  - Visual: Simple pipeline diagram (source → transient → terminal)
-- Show form to create playlist:
-  - Playlist name input (suggest: "My Music Queue" or "Albums to Check")
-  - Description (optional, pre-filled with explanation)
-  - Public/Private toggle (default: private)
-  - "Create Source Playlist" button
+- Brief explanation: "Source playlists are where you add new albums you want to explore"
+- Question: "What type of music will you be exploring?"
+  - Radio buttons: "Known artists" / "New discoveries"
+  - User must select one option
+- Playlist name: Fixed as "Queued" (no user input required)
+- "Create Source Playlist" button (enabled after selection)
 
 **During Creation**
 - Show loading state: "Creating playlist on Spotify..."
@@ -538,15 +535,16 @@ Create the first playlist in the pipeline - the source playlist where new albums
 
 **Success State**
 - Checkmark icon
-- Success message: "Source playlist created!"
-- Show playlist name and Spotify link (optional)
+- Success message: "Source playlist 'Queued' created!"
 - Store playlist ID for later steps
-- "Continue" button to next step
+- Store selected type (known/new) for later steps
+- "Continue" button to proceed to Step 4
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If creation fails, show error message
 - Provide "Try Again" button
-- Allow manual entry of existing playlist ID (advanced option)
+- Not skippable - user must create a new source playlist
 
 #### Technical Implementation
 
@@ -559,21 +557,25 @@ Create the first playlist in the pipeline - the source playlist where new albums
 - Update `onboarding.completedSteps` to include `'create_source'`
 - Update `onboarding.currentStep` to `'create_transient'`
 - Store in `onboarding.stepData.sourcePlaylistId`
+- Store in `onboarding.stepData.sourcePlaylistType` ('known' or 'new')
 - Create Firestore playlist document with:
   - `pipelineRole: 'source'`
-  - `group: 'default'` (or user-selected group)
+  - `group: 'known'` or `'new'` (based on user selection)
+  - `name: 'Queued'`
   - `userId: user.uid`
   - Other required fields
 
 **Validation**
+- User must select known or new type before creating
 - Verify playlist exists on Spotify
 - Verify Firestore document created
 - Check playlist has `[Tunicious]` tag in description
+- Verify playlist name is "Queued"
+- Check playlist has `[Tunicious]` tag in description
 
 **Skip Behavior**
-- Allow skip if user already has source playlists
-- Show list of existing playlists, allow selection
-- If skipped, use first available source playlist
+- Not skippable - user must create a new source playlist
+- Even if user already has source playlists, they must create a new one for onboarding
 
 ---
 
