@@ -829,18 +829,15 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
 #### User Experience
 
 **Initial State**
-- Explanation of listening and hearting:
-  - "Listen to the album you just added"
-  - "Love tracks you enjoy - this helps you remember favorites"
-  - "You can love tracks from the player bar or track list"
-- Show album card:
+- Brief explanation: "Listen to the album in your transient playlist"
+- Brief explanation: "Love tracks you enjoy - this helps you remember favorites"
+- Brief explanation: "You can love tracks from the player bar or track list"
+- Display album item with embedded tracklist (reuse existing `AlbumItem` component):
   - Album cover, name, artist
-  - "Open Album in Playlist" button (links to playlist view)
-  - Or: Embedded player/track list (if feasible)
-- Instructions:
-  1. "Click to open the album in your transient playlist"
-  2. "Start playing the album"
-  3. "Love at least one track you enjoy"
+  - Track list displayed directly in the onboarding step
+  - Player bar (existing component)
+  - Heart icons on each track
+- Instructions: "Start playing the album and love at least one track you enjoy"
 
 **During Listening**
 - Show progress indicator:
@@ -859,8 +856,10 @@ Guide users through playing an album and hearting/loving tracks, demonstrating t
 **Success State**
 - Checkmark icon
 - Success message: "Great! You've loved [X] tracks"
-- Brief explanation: "Loved tracks help you track your favorites"
-- "Continue" button to next step
+- Brief explanation: "Now you'll decide: do you want to explore more? (Yes) or stop here? (No)"
+- Brief explanation: "Depending on your answer, you'll create playlists in the next steps"
+- "Continue" button to proceed to Step 8
+- User must click button to advance (no auto-advance)
 
 **Error Handling**
 - If player doesn't initialize, show troubleshooting
