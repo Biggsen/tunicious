@@ -36,6 +36,161 @@ This document specifies a comprehensive onboarding flow that guides new users th
 ✅ Onboarding Complete
 ```
 
+## Layout & Navigation
+
+### Header During Onboarding
+
+**Approach**: Minimal Header (Option 1)
+
+- **Logo/Home Link**: Disabled (non-clickable, visual only)
+- **Navigation Links**: Hidden (Playlists, Search, Styleguide not visible)
+- **Account Link**: Visible but limited (see Account Access below)
+- **Login Link**: Visible if not authenticated
+- **Visual State**: Logo appears but is not clickable (cursor: not-allowed, opacity: 0.6)
+
+### Progress Indicator
+
+**Location**: Above content area (between header and main content)
+
+**Design**:
+- Horizontal progress bar showing "Step X of 8"
+- Visual checkmarks for completed steps
+- Current step highlighted
+- Step names visible (optional, can be abbreviated)
+- Matches existing page container width
+
+**Example**:
+```
+[✓] [✓] [●] [ ] [ ] [ ] [ ] [ ]
+Spotify Last.fm Create Source...
+```
+
+### Account Access
+
+**Limited Account View**: During onboarding, account access is restricted
+
+**Accessible**:
+- View profile information (read-only)
+- Access integrations section (for Spotify/Last.fm setup)
+- View diagnostics (if needed for troubleshooting)
+
+**Not Accessible**:
+- Full account navigation
+- Cache management
+- Statistics (not relevant during onboarding)
+- Security settings (except logout if needed)
+
+**Implementation**: 
+- Special route: `/account?onboarding=true`
+- Conditional rendering in AccountView based on onboarding state
+- Simplified sidebar or single-page view
+
+### Skip Button
+
+**Visibility**: Hidden until later steps
+
+**When to Show**:
+- After Step 3 (Create Source Playlist) - user has basic setup
+- Or after Step 4 (Create Transient) - user has pipeline started
+- Always available in a menu/overflow (three dots) for power users
+
+**Behavior**:
+- Shows warning: "You can skip onboarding, but some features may not be set up"
+- Option to "Skip for Now" or "Complete Setup"
+- If skipped, mark `onboarding.skipped = true`
+- User can return to complete later via account settings
+
+### Container Width
+
+**Match Existing Pages**: Use same container width as other views
+
+**Implementation**:
+- Use existing container classes (e.g., `max-w-2xl`, `max-w-6xl` from existing views)
+- Match padding and spacing patterns
+- Consistent with HomeView, AccountView, etc.
+
+### Route Locking
+
+**Locked Routes** (redirect to `/onboarding`):
+- `/` (home)
+- `/playlists`
+- `/playlist/*` (all playlist routes)
+- `/search`
+- `/artist/*`
+- `/album/*`
+- Any other main app routes
+
+**Accessible Routes**:
+- `/onboarding` (main onboarding flow)
+- `/account` (limited view)
+- `/login` (if not authenticated)
+- `/signup` (if not authenticated)
+- `/spotify-callback` (OAuth callback)
+- `/lastfm-callback` (OAuth callback)
+- `/verify-email` (if needed)
+- `/forgot-password` (if needed)
+- `/reset-password` (if needed)
+
+**Router Guard Logic**:
+```javascript
+// In router/index.js beforeEach guard
+if (user && !onboarding.completed && !onboarding.skipped) {
+  // Check if current route is allowed
+  const allowedRoutes = ['/onboarding', '/account', '/login', '/signup', 
+                         '/spotify-callback', '/lastfm-callback', 
+                         '/verify-email', '/forgot-password', '/reset-password'];
+  
+  if (!allowedRoutes.includes(to.path)) {
+    next({ path: '/onboarding' });
+    return;
+  }
+}
+```
+
+### Layout Structure
+
+```
+┌─────────────────────────────────────────┐
+│  [Minimal Header]                        │
+│  Logo (disabled) | Account Link          │
+├─────────────────────────────────────────┤
+│  [Progress Indicator: Step X of 8]      │
+│  ✓ ✓ ● ○ ○ ○ ○ ○                        │
+├─────────────────────────────────────────┤
+│                                         │
+│  [Onboarding Content - max-w-*]        │
+│  - Step title                           │
+│  - Step explanation                     │
+│  - Step-specific content                │
+│  - Forms, buttons, etc.                │
+│                                         │
+├─────────────────────────────────────────┤
+│  [Action Buttons]                       │
+│  [Back] [Continue] [Skip (if shown)]    │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Visual Design
+
+**Header**:
+- Same styling as existing header (bg-mint, border-delft-blue)
+- Disabled logo: `opacity: 0.6, cursor: not-allowed, pointer-events: none`
+- Account link: Normal styling, functional
+
+**Progress Indicator**:
+- Background: Light (white or celadon)
+- Active step: Highlighted with delft-blue or raspberry
+- Completed steps: Checkmark icon, muted color
+- Future steps: Empty circle, muted color
+- Responsive: Stack vertically on mobile if needed
+
+**Content Area**:
+- Matches existing page container width
+- Consistent padding (p-6 or similar)
+- Card-based layout for step content
+- Loading states, error states match existing patterns
+
 ## Data Structure
 
 ### Onboarding State in Firestore
