@@ -116,8 +116,11 @@ const hasDisplayName = computed(() => {
 
 // Watch for userData changes to populate form if displayName exists
 watch(() => userData.value?.displayName, (newDisplayName) => {
-  if (newDisplayName && !form.value.displayName) {
+  if (newDisplayName) {
+    // Always update form and emit to parent when userData has displayName
     form.value.displayName = newDisplayName;
+    emit('update:displayName', newDisplayName);
+    console.log('[WelcomeStep] DisplayName found in userData, syncing:', newDisplayName);
   }
 }, { immediate: true });
 

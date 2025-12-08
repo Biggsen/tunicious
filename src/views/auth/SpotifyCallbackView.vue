@@ -1,18 +1,35 @@
 <script setup>
 import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { SpotifyAuth } from '@/constants';
 import { useBackendApi } from '@/composables/useBackendApi';
 import { logSpotify } from '@utils/logger';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const router = useRouter();
+const route = useRoute();
 const currentUser = useCurrentUser();
 const loading = ref(true);
 const error = ref(null);
+const success = ref(false);
+const isOnboardingMode = ref(false);
 const { exchangeSpotifyCode } = useBackendApi();
+
+const handleContinue = () => {
+  console.log('[SpotifyCallback] Continue button clicked, redirecting to onboarding');
+  router.push('/onboarding?step=spotify');
+};
+
+const handleErrorReturn = () => {
+  if (isOnboardingMode.value) {
+    router.push('/onboarding?step=spotify');
+  } else {
+    router.push('/account');
+  }
+};
 
 const exchangeCodeForTokens = async (code) => {
   try {
@@ -42,6 +59,9 @@ const storeTokens = async (tokens) => {
 
 onMounted(async () => {
   try {
+    // Check if user is in onboarding mode
+    isOnboardingMode.value = sessionStorage.getItem('spotify_onboarding') === 'true';
+    
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
@@ -71,8 +91,20 @@ onMounted(async () => {
     // Store tokens in Firestore
     await storeTokens(tokens);
 
-    // Redirect to account page or home
-    router.push('/account');
+    // Check if user is in onboarding mode
+    const isOnboarding = sessionStorage.getItem('spotify_onboarding') === 'true';
+    sessionStorage.removeItem('spotify_onboarding');
+    
+    console.log('[SpotifyCallback] Connection successful, isOnboarding:', isOnboarding);
+    
+    if (isOnboarding) {
+      // Show success message and let user continue
+      success.value = true;
+      loading.value = false;
+    } else {
+      // Redirect to account page
+      router.push('/account');
+    }
   } catch (err) {
     logSpotify('Spotify callback error:', err);
     error.value = err.message;
@@ -89,12 +121,29 @@ onMounted(async () => {
       <p>Please wait while we complete your Spotify authorization.</p>
     </div>
     
+    <div v-else-if="success" class="text-center">
+      <div class="success-icon mb-4">✓</div>
+      <h2 class="text-xl font-bold mb-4 text-green-600">Spotify Connected Successfully!</h2>
+      <p class="text-gray-700 mb-6">You can now play music and manage playlists.</p>
+      <BaseButton
+        @click="handleContinue"
+        variant="primary"
+        class="continue-button"
+      >
+        Continue
+      </BaseButton>
+    </div>
+    
     <div v-else-if="error" class="text-center">
       <h2 class="text-xl font-bold mb-4 text-red-600">Connection Failed</h2>
       <p class="text-red-500 mb-4">{{ error }}</p>
-      <button @click="router.push('/account')" class="btn-primary">
-        Return to Account
-      </button>
+      <BaseButton
+        @click="handleErrorReturn"
+        variant="secondary"
+        class="return-button"
+      >
+        {{ isOnboardingMode ? 'Return to Onboarding' : 'Return to Account' }}
+      </BaseButton>
     </div>
   </div>
 </template>

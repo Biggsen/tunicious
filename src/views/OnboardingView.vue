@@ -32,6 +32,11 @@
             @update:display-name="welcomeDisplayName = $event"
           />
           
+          <!-- Spotify Step -->
+          <OnboardingSpotifyStep
+            v-else-if="currentStep === 'spotify'"
+          />
+          
           <!-- Other steps will be added here -->
           <div v-else class="step-placeholder">
             <p>Step content for: {{ currentStepObjectComputed.title }}</p>
@@ -90,6 +95,7 @@ import { useOnboarding, ONBOARDING_STEPS } from '@composables/useOnboarding';
 import { useUserData } from '@composables/useUserData';
 import OnboardingProgress from '@components/onboarding/OnboardingProgress.vue';
 import OnboardingWelcomeStep from '@components/onboarding/OnboardingWelcomeStep.vue';
+import OnboardingSpotifyStep from '@components/onboarding/OnboardingSpotifyStep.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 
 const route = useRoute();
@@ -148,6 +154,10 @@ const canProceed = computed(() => {
   // For welcome step, require displayName
   if (currentStep.value === 'welcome') {
     return !!userData.value?.displayName || !!welcomeDisplayName.value.trim();
+  }
+  // For spotify step, require Spotify connection
+  if (currentStep.value === 'spotify') {
+    return !!userData.value?.spotifyConnected;
   }
   // For other steps, default to true (will be step-specific later)
   return true;
@@ -237,6 +247,7 @@ const handleNext = async () => {
     currentStep: currentStep.value,
     welcomeDisplayName: welcomeDisplayName.value,
     userDisplayName: userData.value?.displayName,
+    spotifyConnected: userData.value?.spotifyConnected,
     canProceed: canProceed.value,
     savingDisplayName: savingDisplayName.value
   });
@@ -254,6 +265,15 @@ const handleNext = async () => {
       await saveDisplayName(displayNameToSave);
     } else {
       console.log('[Onboarding] DisplayName already exists or empty, skipping save');
+    }
+  }
+  
+  // For spotify step, refresh user data to check connection status
+  if (currentStep.value === 'spotify') {
+    console.log('[Onboarding] Spotify step - refreshing user data to check connection...');
+    if (user.value) {
+      await fetchUserData(user.value.uid);
+      console.log('[Onboarding] User data refreshed, spotifyConnected:', userData.value?.spotifyConnected);
     }
   }
 
@@ -307,6 +327,26 @@ const handleSkip = async () => {
 onMounted(async () => {
   await loadOnboardingState();
   
+  // Refresh user data to ensure we have latest state
+  if (user.value) {
+    console.log('[Onboarding] Refreshing user data on mount...');
+    await fetchUserData(user.value.uid);
+    
+    // If displayName exists and we're on welcome step, sync it
+    if (currentStep.value === 'welcome' && userData.value?.displayName) {
+      console.log('[Onboarding] DisplayName exists, syncing welcomeDisplayName:', userData.value.displayName);
+      welcomeDisplayName.value = userData.value.displayName;
+    }
+  }
+  
+  // If returning from Spotify callback, refresh user data
+  if (route.query.step === 'spotify' || currentStep.value === 'spotify') {
+    console.log('[Onboarding] On spotify step, refreshing user data...');
+    if (user.value) {
+      await fetchUserData(user.value.uid);
+    }
+  }
+  
   // If URL doesn't have step param, update it
   if (!route.query.step) {
     router.replace({
@@ -320,8 +360,22 @@ onMounted(async () => {
 watch(() => route.query.step, async (newStep) => {
   if (newStep && newStep !== onboardingCurrentStep.value) {
     await updateCurrentStep(newStep);
+    
+    // If navigating to welcome step and displayName exists, sync it
+    if (newStep === 'welcome' && userData.value?.displayName) {
+      console.log('[Onboarding] Navigating to welcome step, syncing displayName:', userData.value.displayName);
+      welcomeDisplayName.value = userData.value.displayName;
+    }
   }
 });
+
+// Watch userData changes to sync welcomeDisplayName when displayName is set
+watch(() => userData.value?.displayName, (newDisplayName) => {
+  if (newDisplayName && currentStep.value === 'welcome') {
+    console.log('[Onboarding] userData.displayName changed on welcome step, syncing:', newDisplayName);
+    welcomeDisplayName.value = newDisplayName;
+  }
+}, { immediate: true });
 </script>
 
 <style lang="scss" scoped>
