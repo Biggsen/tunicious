@@ -75,8 +75,8 @@ const onSubmit = async (formData) => {
         emailVerified: user.emailVerified
       });
       
-      // Redirect to account page to complete profile
-      router.push('/account');
+      // Redirect to onboarding to complete setup
+      router.push('/onboarding');
     }
 };
 

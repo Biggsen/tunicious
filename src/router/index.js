@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
 import HomeView from '@views/HomeView.vue';
 import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
@@ -18,6 +20,7 @@ import SearchView from '@views/music/SearchView.vue';
 import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 import StyleguideView from '@views/StyleguideView.vue';
+import OnboardingView from '@views/OnboardingView.vue';
 
 const routes = [
   {
@@ -76,6 +79,15 @@ const routes = [
     name: 'account',
     component: AccountView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: OnboardingView,
+    meta: { 
+      requiresAuth: true,
+      skipIfCompleted: true
+    }
   },
   {
     path: '/login',
@@ -164,16 +176,73 @@ function getCurrentUser() {
 }
 
 
-// Keep existing auth guard
+// Allowed routes during onboarding (when not completed)
+const allowedOnboardingRoutes = [
+  '/onboarding',
+  '/account',
+  '/login',
+  '/signup',
+  '/spotify-callback',
+  '/lastfm-callback',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password'
+];
+
+// Check onboarding status
+async function checkOnboardingStatus(uid) {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      const onboarding = data.onboarding || {};
+      return {
+        completed: onboarding.completed === true,
+        skipped: onboarding.skipped === true
+      };
+    }
+    // If user document doesn't exist, they need onboarding
+    return { completed: false, skipped: false };
+  } catch (error) {
+    console.error('Error checking onboarding status:', error);
+    // On error, allow access (fail open)
+    return { completed: true, skipped: true };
+  }
+}
+
+// Router guards
 router.beforeEach(async (to, from, next) => {
+  // First check authentication
   if (to.matched.some((record) => record.meta.requiresAuth)) {
-    if (await getCurrentUser()) {
-      next();
-    } else {
+    const user = await getCurrentUser();
+    if (!user) {
       alert('You must be logged in to access this page');
       next({ path: '/login', query: { redirect: to.fullPath } });
+      return;
     }
+
+    // Check onboarding status for authenticated users
+    const onboardingStatus = await checkOnboardingStatus(user.uid);
+    
+    // If onboarding is not completed and not skipped, enforce route restrictions
+    if (!onboardingStatus.completed && !onboardingStatus.skipped) {
+      // Check if current route is allowed during onboarding
+      const currentPath = to.path;
+      const isAllowedRoute = allowedOnboardingRoutes.includes(currentPath) ||
+        currentPath.startsWith('/spotify-callback') ||
+        currentPath.startsWith('/lastfm-callback');
+
+      // If route is not allowed, redirect to onboarding
+      if (!isAllowedRoute) {
+        next({ path: '/onboarding' });
+        return;
+      }
+    }
+
+    // If onboarding is completed or skipped, allow access
+    next();
   } else {
+    // Public routes - no auth required
     next();
   }
 });

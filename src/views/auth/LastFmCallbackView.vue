@@ -1,17 +1,34 @@
 <script setup>
 import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useCurrentUser } from 'vuefire';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBackendApi } from '@/composables/useBackendApi';
 import { logLastFm } from '@utils/logger';
+import BaseButton from '@components/common/BaseButton.vue';
 
 const router = useRouter();
+const route = useRoute();
 const currentUser = useCurrentUser();
 const loading = ref(true);
 const error = ref(null);
+const success = ref(false);
+const isOnboardingMode = ref(false);
 const { lastfmApiCall } = useBackendApi();
+
+const handleContinue = () => {
+  console.log('[LastFmCallback] Continue button clicked, redirecting to onboarding');
+  router.push('/onboarding?step=lastfm');
+};
+
+const handleErrorReturn = () => {
+  if (isOnboardingMode.value) {
+    router.push('/onboarding?step=lastfm');
+  } else {
+    router.push('/account');
+  }
+};
 
 const getSessionKey = async (token) => {
   try {
@@ -48,6 +65,9 @@ const storeSessionKey = async (sessionKey) => {
 
 onMounted(async () => {
   try {
+    // Check if user is in onboarding mode
+    isOnboardingMode.value = sessionStorage.getItem('lastfm_onboarding') === 'true';
+    
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const errorParam = urlParams.get('error');
@@ -66,13 +86,25 @@ onMounted(async () => {
     // Store session key in Firestore
     await storeSessionKey(sessionKey);
 
-    // Redirect to account page
-    router.push('/account');
+    console.log('[LastFmCallback] Connection successful, isOnboarding:', isOnboardingMode.value);
+    
+    if (isOnboardingMode.value) {
+      // Show success message and let user continue
+      success.value = true;
+      loading.value = false;
+      sessionStorage.removeItem('lastfm_onboarding');
+    } else {
+      // Redirect to account page
+      router.push('/account');
+    }
   } catch (err) {
     logLastFm('Last.fm callback error:', err);
     error.value = err.message;
+    sessionStorage.removeItem('lastfm_onboarding');
   } finally {
-    loading.value = false;
+    if (!success.value) {
+      loading.value = false;
+    }
   }
 });
 </script>
@@ -86,19 +118,29 @@ onMounted(async () => {
       </div>
     </div>
     
-    <div v-else-if="error" class="text-center">
-      <p class="text-red-500 text-lg mb-4">{{ error }}</p>
-      <button 
-        @click="router.push('/account')" 
-        class="bg-delft-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+    <div v-else-if="success" class="text-center">
+      <div class="success-icon mb-4">✓</div>
+      <h2 class="text-xl font-bold mb-4 text-green-600">Last.fm Connected Successfully!</h2>
+      <p class="text-gray-700 mb-6">You can now love tracks while listening to music.</p>
+      <BaseButton
+        @click="handleContinue"
+        variant="primary"
+        class="continue-button"
       >
-        Return to Account
-      </button>
+        Continue
+      </BaseButton>
     </div>
     
-    <div v-else class="text-center">
-      <p class="text-green-600 text-lg">Successfully connected to Last.fm!</p>
-      <p class="text-delft-blue mt-2">Redirecting to your account...</p>
+    <div v-else-if="error" class="text-center">
+      <h2 class="text-xl font-bold mb-4 text-red-600">Connection Failed</h2>
+      <p class="text-red-500 mb-4">{{ error }}</p>
+      <BaseButton
+        @click="handleErrorReturn"
+        variant="secondary"
+        class="return-button"
+      >
+        {{ isOnboardingMode ? 'Return to Onboarding' : 'Return to Account' }}
+      </BaseButton>
     </div>
   </div>
 </template>
