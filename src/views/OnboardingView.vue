@@ -37,6 +37,11 @@
             v-else-if="currentStep === 'spotify'"
           />
           
+          <!-- Last.fm Step -->
+          <OnboardingLastFmStep
+            v-else-if="currentStep === 'lastfm'"
+          />
+          
           <!-- Other steps will be added here -->
           <div v-else class="step-placeholder">
             <p>Step content for: {{ currentStepObjectComputed.title }}</p>
@@ -96,6 +101,7 @@ import { useUserData } from '@composables/useUserData';
 import OnboardingProgress from '@components/onboarding/OnboardingProgress.vue';
 import OnboardingWelcomeStep from '@components/onboarding/OnboardingWelcomeStep.vue';
 import OnboardingSpotifyStep from '@components/onboarding/OnboardingSpotifyStep.vue';
+import OnboardingLastFmStep from '@components/onboarding/OnboardingLastFmStep.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 
 const route = useRoute();
@@ -158,6 +164,10 @@ const canProceed = computed(() => {
   // For spotify step, require Spotify connection
   if (currentStep.value === 'spotify') {
     return !!userData.value?.spotifyConnected;
+  }
+  // For lastfm step, require Last.fm authentication
+  if (currentStep.value === 'lastfm') {
+    return !!userData.value?.lastFmAuthenticated;
   }
   // For other steps, default to true (will be step-specific later)
   return true;
@@ -276,6 +286,15 @@ const handleNext = async () => {
       console.log('[Onboarding] User data refreshed, spotifyConnected:', userData.value?.spotifyConnected);
     }
   }
+  
+  // For lastfm step, refresh user data to check connection status
+  if (currentStep.value === 'lastfm') {
+    console.log('[Onboarding] Last.fm step - refreshing user data to check connection...');
+    if (user.value) {
+      await fetchUserData(user.value.uid);
+      console.log('[Onboarding] User data refreshed, lastFmAuthenticated:', userData.value?.lastFmAuthenticated);
+    }
+  }
 
   await proceedToNextStep();
 };
@@ -339,9 +358,16 @@ onMounted(async () => {
     }
   }
   
-  // If returning from Spotify callback, refresh user data
+  // If returning from Spotify or Last.fm callback, refresh user data
   if (route.query.step === 'spotify' || currentStep.value === 'spotify') {
     console.log('[Onboarding] On spotify step, refreshing user data...');
+    if (user.value) {
+      await fetchUserData(user.value.uid);
+    }
+  }
+  
+  if (route.query.step === 'lastfm' || currentStep.value === 'lastfm') {
+    console.log('[Onboarding] On lastfm step, refreshing user data...');
     if (user.value) {
       await fetchUserData(user.value.uid);
     }
