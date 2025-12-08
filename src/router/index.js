@@ -18,6 +18,7 @@ import SearchView from '@views/music/SearchView.vue';
 import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 import StyleguideView from '@views/StyleguideView.vue';
+import OnboardingView from '@views/OnboardingView.vue';
 
 const routes = [
   {
@@ -76,6 +77,15 @@ const routes = [
     name: 'account',
     component: AccountView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: OnboardingView,
+    meta: { 
+      requiresAuth: true,
+      skipIfCompleted: true
+    }
   },
   {
     path: '/login',
