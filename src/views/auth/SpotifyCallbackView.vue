@@ -108,6 +108,7 @@ onMounted(async () => {
   } catch (err) {
     logSpotify('Spotify callback error:', err);
     error.value = err.message;
+    sessionStorage.removeItem('spotify_onboarding');
   } finally {
     loading.value = false;
   }
