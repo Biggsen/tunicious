@@ -25,8 +25,15 @@
         </div>
         
         <div class="step-body">
-          <!-- Step content will be added here later -->
-          <div class="step-placeholder">
+          <!-- Welcome Step -->
+          <OnboardingWelcomeStep
+            v-if="currentStep === 'welcome'"
+            :display-name="welcomeDisplayName"
+            @update:display-name="welcomeDisplayName = $event"
+          />
+          
+          <!-- Other steps will be added here -->
+          <div v-else class="step-placeholder">
             <p>Step content for: {{ currentStepObjectComputed.title }}</p>
             <p class="text-sm text-gray-500 mt-2">
               This step's content will be implemented next.
@@ -46,12 +53,19 @@
         </BaseButton>
         
         <BaseButton
-          @click="handleNext"
-          :disabled="!canProceed"
+          @click="() => { console.log('[Onboarding] Get Started/Next button clicked'); handleNext(); }"
+          :disabled="!canProceed || savingDisplayName"
           variant="primary"
         >
-          {{ isLastStep ? 'Complete' : 'Next' }}
+          {{ savingDisplayName ? 'Saving...' : (isLastStep ? 'Complete' : (currentStep === 'welcome' ? 'Get Started' : 'Next')) }}
         </BaseButton>
+        
+        <!-- Debug info (remove in production) -->
+        <div v-if="currentStep === 'welcome'" class="text-xs text-gray-500 mt-2">
+          Debug: canProceed={{ canProceed }}, saving={{ savingDisplayName }}, 
+          welcomeDisplayName="{{ welcomeDisplayName }}", 
+          userDisplayName="{{ userData?.displayName }}"
+        </div>
         
         <BaseButton
           v-if="showSkip"
@@ -67,10 +81,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, watch, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useCurrentUser } from 'vuefire';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebase';
 import { useOnboarding, ONBOARDING_STEPS } from '@composables/useOnboarding';
+import { useUserData } from '@composables/useUserData';
 import OnboardingProgress from '@components/onboarding/OnboardingProgress.vue';
+import OnboardingWelcomeStep from '@components/onboarding/OnboardingWelcomeStep.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 
 const route = useRoute();
@@ -91,6 +110,13 @@ const {
   isStepCompleted,
   steps
 } = useOnboarding();
+
+const user = useCurrentUser();
+const { userData, fetchUserData } = useUserData();
+const welcomeDisplayName = ref('');
+const savingDisplayName = ref(false);
+
+// Removed per-keystroke logging - only log important actions
 
 // Get step from URL query param or use onboarding state
 const currentStep = computed(() => {
@@ -117,10 +143,17 @@ const canGoBack = computed(() => {
   return currentStepIndexComputed.value > 0;
 });
 
-// Check if we can proceed (for now, always true - will be step-specific later)
+// Check if we can proceed (step-specific validation)
 const canProceed = computed(() => {
+  // For welcome step, require displayName
+  if (currentStep.value === 'welcome') {
+    return !!userData.value?.displayName || !!welcomeDisplayName.value.trim();
+  }
+  // For other steps, default to true (will be step-specific later)
   return true;
 });
+
+// Removed canProceed logging - only log important actions
 
 // Check if this is the last step
 const isLastStep = computed(() => {
@@ -164,27 +197,101 @@ const goToPreviousStep = () => {
   updateCurrentStep(prevStep.id);
 };
 
+// Save display name for welcome step
+const saveDisplayName = async (displayName) => {
+  console.log('[Onboarding] saveDisplayName called:', { displayName, userId: user.value?.uid });
+  
+  if (!user.value || !displayName || !displayName.trim()) {
+    console.error('[Onboarding] saveDisplayName validation failed:', { 
+      hasUser: !!user.value, 
+      displayName,
+      trimmed: displayName?.trim() 
+    });
+    throw new Error('Display name is required');
+  }
+
+  savingDisplayName.value = true;
+  try {
+    console.log('[Onboarding] Saving displayName to Firestore...');
+    await setDoc(doc(db, 'users', user.value.uid), {
+      displayName: displayName.trim(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log('[Onboarding] displayName saved successfully');
+
+    // Refresh user data
+    console.log('[Onboarding] Refreshing user data...');
+    await fetchUserData(user.value.uid);
+    console.log('[Onboarding] User data refreshed');
+  } catch (error) {
+    console.error('[Onboarding] Error saving displayName:', error);
+    throw error;
+  } finally {
+    savingDisplayName.value = false;
+  }
+};
+
 // Handle next button
 const handleNext = async () => {
+  console.log('[Onboarding] handleNext called:', {
+    currentStep: currentStep.value,
+    welcomeDisplayName: welcomeDisplayName.value,
+    userDisplayName: userData.value?.displayName,
+    canProceed: canProceed.value,
+    savingDisplayName: savingDisplayName.value
+  });
+  
+  // For welcome step, save displayName first if needed
+  if (currentStep.value === 'welcome') {
+    const displayNameToSave = welcomeDisplayName.value.trim();
+    console.log('[Onboarding] Welcome step - checking if displayName needs saving:', {
+      displayNameToSave,
+      hasUserDisplayName: !!userData.value?.displayName
+    });
+    
+    if (displayNameToSave && !userData.value?.displayName) {
+      console.log('[Onboarding] Saving displayName before proceeding...');
+      await saveDisplayName(displayNameToSave);
+    } else {
+      console.log('[Onboarding] DisplayName already exists or empty, skipping save');
+    }
+  }
+
+  await proceedToNextStep();
+};
+
+// Proceed to next step
+const proceedToNextStep = async () => {
+  console.log('[Onboarding] proceedToNextStep called:', {
+    isLastStep: isLastStep.value,
+    currentStepIndex: currentStepIndexComputed.value,
+    currentStep: currentStep.value
+  });
+  
   if (isLastStep.value) {
     // Complete onboarding
+    console.log('[Onboarding] Last step - completing onboarding');
     await completeOnboarding();
     router.push('/');
   } else {
     // Go to next step
     const nextIndex = currentStepIndexComputed.value + 1;
     const nextStep = steps[nextIndex];
+    console.log('[Onboarding] Moving to next step:', { nextIndex, nextStep: nextStep.id });
     
     // Mark current step as completed
+    console.log('[Onboarding] Marking current step as completed:', currentStep.value);
     await completeStep(currentStep.value);
     
     // Navigate to next step
+    console.log('[Onboarding] Navigating to next step');
     router.push({
       path: '/onboarding',
       query: { step: nextStep.id }
     });
     
     await updateCurrentStep(nextStep.id);
+    console.log('[Onboarding] Step updated successfully');
   }
 };
 
