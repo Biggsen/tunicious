@@ -206,7 +206,7 @@ async function checkOnboardingStatus(uid) {
   } catch (error) {
     console.error('Error checking onboarding status:', error);
     // On error, allow access (fail open)
-    return { completed: false, skipped: false };
+    return { completed: true, skipped: true };
   }
 }
 

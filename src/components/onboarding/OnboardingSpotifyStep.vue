@@ -77,7 +77,6 @@ onMounted(async () => {
   console.log('[SpotifyStep] Component mounted, checking Spotify connection status...');
   if (userData.value && !userData.value.spotifyConnected) {
     // Try to refresh user data in case connection was just established
-    const { user } = useCurrentUser();
     if (user.value) {
       await fetchUserData(user.value.uid);
     }

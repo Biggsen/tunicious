@@ -70,13 +70,6 @@
           {{ savingDisplayName ? 'Saving...' : (isLastStep ? 'Complete' : (currentStep === 'welcome' ? 'Get Started' : 'Next')) }}
         </BaseButton>
         
-        <!-- Debug info (remove in production) -->
-        <div v-if="currentStep === 'welcome'" class="text-xs text-gray-500 mt-2">
-          Debug: canProceed={{ canProceed }}, saving={{ savingDisplayName }}, 
-          welcomeDisplayName="{{ welcomeDisplayName }}", 
-          userDisplayName="{{ userData?.displayName }}"
-        </div>
-        
         <BaseButton
           v-if="showSkip"
           @click="handleSkip"

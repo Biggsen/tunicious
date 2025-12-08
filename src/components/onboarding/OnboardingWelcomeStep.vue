@@ -101,7 +101,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:displayName']);
 
-const { user } = useCurrentUser();
+const user = useCurrentUser();
 const { userData } = useUserData();
 
 const form = ref({

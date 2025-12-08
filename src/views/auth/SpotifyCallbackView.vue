@@ -65,10 +65,10 @@ onMounted(async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
-    const error = urlParams.get('error');
+    const errorParam = urlParams.get('error');
 
-    if (error) {
-      throw new Error(`Spotify authorization failed: ${error}`);
+    if (errorParam) {
+      throw new Error(`Spotify authorization failed: ${errorParam}`);
     }
 
     // Validate state parameter for CSRF protection
