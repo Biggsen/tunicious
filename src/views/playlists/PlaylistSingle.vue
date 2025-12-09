@@ -2973,7 +2973,7 @@ const handleUpdateYear = async (mismatch) => {
     <p v-else class="no-data-message">No albums found in this playlist.</p>
 
     <!-- Spotify Connection Required Message -->
-    <div v-else class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+    <div v-if="!userData?.spotifyConnected" class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
       <p class="text-yellow-800">
         <strong>Spotify Connection Required:</strong> Please connect your Spotify account in your 
         <router-link to="/account" class="text-yellow-900 underline">Account Settings</router-link> 
