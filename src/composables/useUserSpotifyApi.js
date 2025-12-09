@@ -601,6 +601,13 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Checks if a playlist was created by Tunicious
+   */
+  const isTuniciousPlaylist = (playlist) => {
+    return playlist.description && playlist.description.includes('[Tunicious]');
+  };
+
+  /**
    * Fetches album IDs and their added dates from a playlist
    * @param {string} playlistId - The Spotify playlist ID
    * @returns {Promise<Array<{id: string, addedAt: string}>>} Array of objects containing album ID and when it was added
@@ -737,6 +744,7 @@ export function useUserSpotifyApi() {
     removeAlbumFromPlaylist,
     searchAlbums,
     isAudioFoodiePlaylist,
+    isTuniciousPlaylist,
     getUserTokens,
     refreshUserToken,
     ensureTokenFresh,

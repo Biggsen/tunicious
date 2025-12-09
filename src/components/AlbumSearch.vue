@@ -152,6 +152,11 @@ watch(() => props.modelValue, (newValue) => {
   selectedAlbum.value = newValue;
   if (newValue) {
     searchQuery.value = `${newValue.name} - ${newValue.artists.map(a => a.name).join(', ')}`;
+  } else {
+    // Clear search query when modelValue is set to null
+    searchQuery.value = '';
+    searchResults.value = [];
+    showResults.value = false;
   }
 });
 

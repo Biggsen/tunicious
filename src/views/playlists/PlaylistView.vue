@@ -349,6 +349,16 @@ onUnmounted(() => {
               <span>Playlist Management</span>
             </div>
           </RouterLink>
+          <RouterLink
+            to="/playlist/add-album"
+            class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <PlusIcon class="h-4 w-4" />
+              <span>Add Album to Playlist</span>
+            </div>
+          </RouterLink>
         </DropdownMenu>
       </div>
     </div>

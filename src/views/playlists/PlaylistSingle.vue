@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, RouterLink } from "vue-router";
 import { setCache, getCache, clearCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
@@ -14,7 +14,7 @@ import DropdownMenu from '@components/common/DropdownMenu.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
-import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon } from '@heroicons/vue/24/solid'
+import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon, PlusIcon } from '@heroicons/vue/24/solid'
 import { MusicalNoteIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
@@ -22,7 +22,6 @@ import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ProgressModal from '@components/common/ProgressModal.vue';
 import { albumTitleSimilarity } from '@utils/fuzzyMatch';
-import AlbumSearch from '@components/AlbumSearch.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
@@ -1561,9 +1560,6 @@ onUnmounted(() => {
 });
 
 // Add album to playlist state
-const selectedAlbum = ref(null);
-const addingAlbum = ref(false);
-
 const formatAlbumName = (album) => {
   const artistName = album?.artists?.[0]?.name || album?.artistName || 'Unknown Artist';
   return {
@@ -1575,58 +1571,6 @@ const formatAlbumName = (album) => {
   };
 };
 const successMessage = ref('');
-
-const handleAddAlbum = async () => {
-  try {
-    addingAlbum.value = true;
-    spotifyError.value = null;
-    
-    if (!selectedAlbum.value) {
-      showToast('Please select an album first', 'warning');
-      return;
-    }
-    
-    // Add album to Spotify playlist
-    await addAlbumToPlaylist(id.value, selectedAlbum.value.id);
-    
-    // Add album to Firebase collection
-    await addAlbumToCollection({
-      album: selectedAlbum.value,
-      playlistId: id.value,
-      playlistData: playlistDoc.value?.data(),
-      spotifyAddedAt: new Date()
-    });
-    
-    const albumText = formatAlbumName(selectedAlbum.value);
-    showToast({
-      parts: [
-        ...albumText.parts,
-        { text: ' added to playlist and collection successfully!' }
-      ]
-    }, 'success');
-    
-    // Reset form
-    selectedAlbum.value = null;
-    
-    // Clear cache and reload the playlist to show the new album
-    await handleClearCache();
-    
-    // Update count of albums in database
-    await countAlbumsInDatabase();
-    
-    // Also clear the PlaylistView cache to update track counts
-    if (user.value) {
-      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      await clearCache(playlistViewCacheKey);
-    }
-    
-  } catch (err) {
-    logPlaylist('Error adding album:', err);
-    showToast(err.message || 'Failed to add album to playlist', 'error');
-  } finally {
-    addingAlbum.value = false;
-  }
-};
 
 const handleRemoveAlbum = async (album) => {
   if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {
@@ -2597,6 +2541,17 @@ const handleUpdateYear = async (mismatch) => {
               }}</span>
             </div>
           </button>
+          <RouterLink
+            v-if="userData?.spotifyConnected"
+            :to="{ name: 'addAlbumToPlaylist', query: { playlistId: id } }"
+            class="block px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors no-underline"
+            role="menuitem"
+          >
+            <div class="flex items-center gap-2">
+              <PlusIcon class="h-4 w-4" />
+              <span>Add Album to Playlist</span>
+            </div>
+          </RouterLink>
         </DropdownMenu>
       </div>
     </div>
@@ -3016,27 +2971,6 @@ const handleUpdateYear = async (mismatch) => {
       </div>
     </template>
     <p v-else class="no-data-message">No albums found in this playlist.</p>
-
-    <!-- Add Album to Playlist Section -->
-    <div v-if="userData?.spotifyConnected" class="mt-8 bg-white shadow rounded-lg p-6">
-      <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
-      
-      <form @submit.prevent="handleAddAlbum" class="space-y-4">
-        <div class="form-group">
-          <AlbumSearch v-model="selectedAlbum" />
-        </div>
-        
-        <div class="flex gap-4">
-          <BaseButton 
-            type="submit" 
-            :disabled="addingAlbum || !selectedAlbum"
-            customClass="btn-primary"
-          >
-            {{ addingAlbum ? 'Adding...' : 'Add Album to Playlist' }}
-          </BaseButton>
-        </div>
-      </form>
-    </div>
 
     <!-- Spotify Connection Required Message -->
     <div v-else class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

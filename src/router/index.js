@@ -66,6 +66,15 @@ const routes = [
     }
   },
   {
+    path: '/playlist/add-album',
+    name: 'addAlbumToPlaylist',
+    component: () => import('@views/playlists/AddAlbumToPlaylistView.vue'),
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
+  },
+  {
     path: '/playlist/:id',
     name: 'playlistSingle',
     component: PlaylistSingle,

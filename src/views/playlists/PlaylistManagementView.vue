@@ -69,45 +69,7 @@
         </form>
       </div>
 
-             <!-- Add Album to Playlist Section -->
-       <div class="bg-white shadow rounded-lg p-6">
-         <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
-         
-         <form @submit.prevent="handleAddAlbum" class="space-y-4">
-           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div class="form-group">
-               <AlbumSearch v-model="selectedAlbum" />
-             </div>
-             
-             <div class="form-group">
-               <label for="targetPlaylist">Target Playlist</label>
-               <select 
-                 id="targetPlaylist" 
-                 v-model="albumForm.playlistId"
-                 required
-                 class="form-input"
-               >
-                 <option value="">Select a playlist</option>
-                 <option v-for="playlist in userPlaylists" :key="playlist.id" :value="playlist.id">
-                   {{ playlist.name }} ({{ playlist.tracks.total }} tracks)
-                 </option>
-               </select>
-             </div>
-           </div>
-           
-           <div class="flex gap-4">
-             <BaseButton 
-               type="submit" 
-               :disabled="spotifyLoading || !selectedAlbum"
-               customClass="btn-primary"
-             >
-               {{ spotifyLoading ? 'Adding...' : 'Add Album to Playlist' }}
-             </BaseButton>
-           </div>
-         </form>
-       </div>
-
-             <!-- User's Playlists Section -->
+      <!-- User's Playlists Section -->
        <div class="bg-white shadow rounded-lg p-6">
          <div class="flex justify-between items-center mb-4">
            <h2 class="text-lg font-semibold">Your Playlists</h2>
@@ -283,7 +245,6 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
-import AlbumSearch from '@components/AlbumSearch.vue';
 import { logPlaylist } from '@utils/logger';
 
 const router = useRouter();
@@ -292,7 +253,6 @@ const {
   loading: spotifyLoading, 
   error: spotifyError, 
   createPlaylist, 
-  addAlbumToPlaylist, 
   getUserPlaylists,
   getPlaylistAlbums,
   removeAlbumFromPlaylist,
@@ -311,11 +271,6 @@ const createForm = ref({
   name: '',
   description: '',
   isPublic: false
-});
-
-const selectedAlbum = ref(null);
-const albumForm = ref({
-  playlistId: ''
 });
 
 // Rename playlist state
@@ -347,45 +302,6 @@ const handleCreatePlaylist = async () => {
      } catch (err) {
      logPlaylist('Error creating playlist:', err);
      spotifyError.value = err.message || 'Failed to create playlist';
-   }
-};
-
-const handleAddAlbum = async () => {
-  try {
-    spotifyError.value = null;
-    successMessage.value = '';
-    
-    if (!selectedAlbum.value) {
-      throw new Error('Please select an album first');
-    }
-    
-    const targetPlaylistId = albumForm.value.playlistId;
-    
-    await addAlbumToPlaylist(targetPlaylistId, selectedAlbum.value.id);
-    
-    successMessage.value = `"${selectedAlbum.value.name}" added to playlist successfully!`;
-    
-    // Reset form
-    selectedAlbum.value = null;
-    albumForm.value = {
-      playlistId: ''
-    };
-    
-         // Only refresh playlists if the target playlist is currently visible
-     const targetPlaylist = userPlaylists.value.find(p => p.id === targetPlaylistId);
-     if (targetPlaylist) {
-       // Get the actual number of tracks from the selected album
-       // The selectedAlbum should have the track count from the search results
-       const trackCount = selectedAlbum.value.total_tracks || selectedAlbum.value.tracks?.length || 1;
-       targetPlaylist.tracks.total += trackCount;
-       
-       // Clear cached album data for this specific playlist only
-       playlistAlbums.value.delete(targetPlaylistId);
-     }
-     
-     } catch (err) {
-     logPlaylist('Error adding album:', err);
-     spotifyError.value = err.message || 'Failed to add album to playlist';
    }
 };
 
