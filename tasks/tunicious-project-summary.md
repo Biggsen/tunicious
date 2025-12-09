@@ -9,7 +9,7 @@
   "status": "active",
   "domain": "music",
   "type": "webapp",
-  "lastUpdated": "2025-12-06",
+  "lastUpdated": "2025-12-09",
   "links": {
     "prod": null,
     "staging": "https://audiofoodie-d5b2c.web.app/"
@@ -240,6 +240,7 @@ No features currently in progress.
 - [ ] Firebase Project Separation - Separate development and production environments into distinct Firebase projects for complete data isolation. Spec: `tasks/firebase-project-separation-spec.md`
 
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
+- [ ] Add Album to Playlist Page - Move "Add Album to Playlist" functionality to dedicated page with query string support for pre-selecting playlist. Spec: `tasks/add-album-to-playlist-page-spec.md`
 
 ### Task Details
 
@@ -262,6 +263,13 @@ No features currently in progress.
 - **Benefits**: Eliminates data redundancy, ensures consistency via graph connections, allows group metadata storage, more maintainable structure
 - **Spec**: `tasks/pipeline-groups-refactor-spec.md`
 
+#### Add Album to Playlist Page
+- **Description**: Create dedicated page for adding albums to playlists, moving functionality from embedded panels in PlaylistManagementView and PlaylistSingle
+- **Key Tasks**: Create AddAlbumToPlaylistView component, add route with query string support, remove panels from existing views, add navigation links
+- **Benefits**: Dedicated interface, improved UX, consistent design, supports both standalone use and navigation from playlist pages
+- **Spec**: `tasks/add-album-to-playlist-page-spec.md`
+- **Status**: Planning
+
 ---
 
 ## Project Status
@@ -273,7 +281,7 @@ No features currently in progress.
 
 **Overall Status**: Active Development  
 **Completion**: ~80%  
-**Last Major Update**: December 6, 2025
+**Last Major Update**: December 9, 2025
 
 ### Current State
 
@@ -287,8 +295,9 @@ No features currently in progress.
 
 - **Completed Features**: 12
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 3
+- **Outstanding Tasks**: 4
 - **Enhancements**: 6
+- **UI/UX Improvements**: Documented in `tasks/enhancements/ui-ux-improvements.md`
 
 ---
 
@@ -301,9 +310,10 @@ No features currently in progress.
 
 ### Immediate (Next 1-3 months)
 
-1. Account Sidebar Navigation
-2. Firebase Project Separation
-3. Pipeline Groups Refactoring
+1. Add Album to Playlist Page
+2. Account Sidebar Navigation
+3. Firebase Project Separation
+4. Pipeline Groups Refactoring
 
 ### Short-term (Next 3-6 months)
 
@@ -343,6 +353,8 @@ No features currently in progress.
 -->
 
 - All major tasks have detailed specifications in the `tasks/` directory
+- UI/UX improvements are tracked in `tasks/enhancements/ui-ux-improvements.md` for lightweight tweaks
+- Bugs are tracked in `tasks/buglist.md` with priority levels
 - Commercialization roadmap is a longer-term strategic initiative
 - Enhancement tasks are optional and can be prioritized based on user feedback
 - The project has a solid foundation with the pipeline system successfully implemented
