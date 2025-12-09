@@ -28,6 +28,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useWebPlayerPlaycountTracking } from '@composables/useWebPlayerPlaycountTracking';
+import { useToast } from '@composables/useToast';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
@@ -56,6 +57,9 @@ const {
 
 // Initialize current playing track tracking
 const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack(userData.value?.lastFmUserName);
+
+// Initialize toast
+const { showToast } = useToast();
 
 /**
  * Update track playcount in UI when playcount changes
@@ -1558,15 +1562,26 @@ onUnmounted(() => {
 
 // Add album to playlist state
 const selectedAlbum = ref(null);
+
+const formatAlbumName = (album) => {
+  const artistName = album?.artists?.[0]?.name || album?.artistName || 'Unknown Artist';
+  return {
+    parts: [
+      { text: album.name, bold: true },
+      { text: ' by ' },
+      { text: artistName, bold: true }
+    ]
+  };
+};
 const successMessage = ref('');
 
 const handleAddAlbum = async () => {
   try {
     spotifyError.value = null;
-    successMessage.value = '';
     
     if (!selectedAlbum.value) {
-      throw new Error('Please select an album first');
+      showToast('Please select an album first', 'warning');
+      return;
     }
     
     // Add album to Spotify playlist
@@ -1580,7 +1595,13 @@ const handleAddAlbum = async () => {
       spotifyAddedAt: new Date()
     });
     
-    successMessage.value = `"${selectedAlbum.value.name}" added to playlist and collection successfully!`;
+    const albumText = formatAlbumName(selectedAlbum.value);
+    showToast({
+      parts: [
+        ...albumText.parts,
+        { text: ' added to playlist and collection successfully!' }
+      ]
+    }, 'success');
     
     // Reset form
     selectedAlbum.value = null;
@@ -1599,7 +1620,7 @@ const handleAddAlbum = async () => {
     
   } catch (err) {
     logPlaylist('Error adding album:', err);
-    spotifyError.value = err.message || 'Failed to add album to playlist';
+    showToast(err.message || 'Failed to add album to playlist', 'error');
   }
 };
 
@@ -1740,7 +1761,13 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
       }
     }
     
-    successMessage.value = `"${album.name}" moved back to previous playlist successfully!`;
+    const albumText = formatAlbumName(album);
+    showToast({
+      parts: [
+        ...albumText.parts,
+        { text: ' moved back to previous playlist' }
+      ]
+    }, 'success');
     
     // Clear album list cache for both playlists so they refetch fresh data
     await clearCache(`playlist_${id.value}_albumsWithDates`);
@@ -1793,7 +1820,7 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
     
   } catch (err) {
     logPlaylist('Error undoing album:', err);
-    spotifyError.value = err.message || 'Failed to undo album move';
+    showToast(err.message || 'Failed to undo album move', 'error');
   } finally {
     processingAlbum.value = null;
   }
@@ -1923,8 +1950,13 @@ const handleProcessAlbum = async ({ album, action }) => {
       }
     }
     
-    const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
-    successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
+    const albumText = formatAlbumName(album);
+    showToast({
+      parts: [
+        ...albumText.parts,
+        { text: ' moved to new playlist' }
+      ]
+    }, 'success');
     
     // Clear album list cache for both playlists so they refetch fresh data
     await clearCache(`playlist_${id.value}_albumsWithDates`);
@@ -2010,7 +2042,7 @@ const handleProcessAlbum = async ({ album, action }) => {
     
   } catch (err) {
     logPlaylist('Error processing album:', err);
-    spotifyError.value = err.message || 'Failed to process album';
+    showToast(err.message || 'Failed to process album', 'error');
   } finally {
     processingAlbum.value = null;
   }
@@ -3000,14 +3032,6 @@ const handleUpdateYear = async (mismatch) => {
           </BaseButton>
         </div>
       </form>
-
-      <!-- Error Messages -->
-      <ErrorMessage v-if="spotifyError" :message="spotifyError" class="mt-4" />
-      
-      <!-- Success Messages -->
-      <div v-if="successMessage" class="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
-        {{ successMessage }}
-      </div>
     </div>
 
     <!-- Spotify Connection Required Message -->
