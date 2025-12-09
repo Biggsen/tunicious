@@ -70,15 +70,27 @@ This document specifies the refactoring to rename the playlist identification ta
 **Update `getUserPlaylists()`:**
 - Add mandatory filtering before returning results
 - Only return playlists that have `[Tunicious]` tag
-- Filter at API level, not just UI level
+- Filter at API level (always filters, no parameter)
+- This ensures the app never receives non-Tunicious playlists
+
+**Add `getAllUserPlaylists()` (Admin Only):**
+- New function that returns all playlists without filtering
+- Only accessible to admin users (check `isAdmin` before allowing)
+- Used by admin tool for bulk tag management
 
 **Update `getPlaylist()`:**
 - Add validation to check for `[Tunicious]` tag
-- Throw error if playlist doesn't have tag
+- Throw user-friendly error if playlist doesn't have tag (e.g., "This playlist is not a Tunicious playlist")
 - Prevents operations on non-Tunicious playlists
 
+**Remove `isAudioFoodiePlaylist()`:**
+- Remove function entirely (no backward compatibility)
+- Remove from exports
+
 **Update exports:**
-- Export `isTuniciousPlaylist` instead of `isAudioFoodiePlaylist`
+- Export `isTuniciousPlaylist` (already exists)
+- Export `getAllUserPlaylists` (admin only)
+- Remove `isAudioFoodiePlaylist` export
 
 ### Phase 2: Update Views
 
@@ -96,8 +108,9 @@ This document specifies the refactoring to rename the playlist identification ta
 - "AudioFoodie: Yes/No" → "Tunicious: Yes/No"
 
 **Filtering:**
-- Keep existing filter (now redundant but safe)
-- `getUserPlaylists()` already filters, but keep for safety
+- Remove client-side filtering (now redundant)
+- `getUserPlaylists()` already filters at API level
+- Update empty state message: "No Tunicious playlists found. Create one first."
 
 #### 2.2 Update `PlaylistManagementView.vue`
 
@@ -119,86 +132,140 @@ This document specifies the refactoring to rename the playlist identification ta
 - Badge: "AudioFoodie" → "Tunicious"
 
 **Filtering logic:**
-- `loadUserPlaylists()` always filters (remove conditional)
+- Remove all client-side filtering logic
+- `getUserPlaylists()` already filters at API level
 - Remove `showOnlyAudioFoodie` ref entirely
+- Update empty state message: "No Tunicious playlists found. Create your first Tunicious playlist above!"
 
-### Phase 3: Update Other References
+### Phase 3: Admin Tool for Tag Management
 
-#### 3.1 Search for remaining references
+#### 3.1 Create Admin Playlist Tag Management View
 
-**Files to check:**
-- Any other views that use `isAudioFoodiePlaylist`
-- Any components that reference AudioFoodie in playlist context
-- Documentation files (update if needed)
+**New admin view/route:**
+- Create separate admin area/page for playlist tag management
+- Route: `/admin/playlist-tags` (or similar, gated by `isAdmin`)
+- Use `getAllUserPlaylists()` to fetch all playlists (unfiltered)
 
-**Update pattern:**
-- `[AudioFoodie]` → `[Tunicious]`
+**Features:**
+- List all user playlists (both tagged and untagged)
+- Bulk replace `[AudioFoodie]` → `[Tunicious]`
+- Apply `[Tunicious]` tag to untagged playlists
+- View/manage playlist tags
+- Filter/search playlists by tag status
+
+**Implementation:**
+- Use `useAdmin()` composable to check admin status
+- Use `getAllUserPlaylists()` from `useUserSpotifyApi` (admin-only function)
+- Use `updatePlaylist()` to modify playlist descriptions
+- Show confirmation dialogs for bulk operations
+
+### Phase 4: Update Other References
+
+#### 4.1 Search for remaining references
+
+**Files identified:**
+- ✅ `src/views/playlists/AddAlbumToPlaylistView.vue` - Already uses `isTuniciousPlaylist()`
+- No other views need updates (already checked)
+
+**Files with non-playlist AudioFoodie references (no changes needed):**
+- `src/views/auth/AccountView.vue` - App name reference (not playlist tag)
+- `src/composables/useSpotifyPlayer.js` - App name reference (not playlist tag)
+- `functions/src/lastfm.js` - User-Agent string (not playlist tag)
+- Documentation files - Historical references (no changes needed)
+
+**Update pattern (if any found):**
+- `[AudioFoodie]` → `[Tunicious]` (playlist tags only)
 - `AudioFoodie` (in playlist context) → `Tunicious`
 - Function name updates where applicable
 
-### Phase 4: Validation & Testing
+### Phase 5: Validation & Testing
 
-#### 4.1 Test Playlist Creation
+#### 5.1 Test Playlist Creation
 - ✅ New playlists get `[Tunicious]` tag
 - ✅ Tag is appended correctly to descriptions
 - ✅ Empty descriptions get just `[Tunicious]`
+- ✅ No validation needed for duplicate tags (user input unlikely to contain tag)
 
-#### 4.2 Test Playlist Retrieval
-- ✅ `getUserPlaylists()` only returns Tunicious playlists
-- ✅ `getPlaylist()` rejects non-Tunicious playlists
-- ✅ All views only show Tunicious playlists
+#### 5.2 Test Playlist Retrieval
+- ✅ `getUserPlaylists()` only returns Tunicious playlists (filtered at API level)
+- ✅ `getPlaylist()` rejects non-Tunicious playlists with user-friendly error
+- ✅ All views only show Tunicious playlists (never receive non-Tunicious playlists)
+- ✅ Admin can use `getAllUserPlaylists()` to see all playlists
 
-#### 4.3 Test Error Handling
-- ✅ Error message when accessing non-Tunicious playlist
-- ✅ Graceful handling when no Tunicious playlists exist
+#### 5.3 Test Error Handling
+- ✅ User-friendly error message when accessing non-Tunicious playlist
+- ✅ Specific empty state message: "No Tunicious playlists found. Create one first."
 - ✅ Clear user messaging about Tunicious requirement
 
-#### 4.4 Test Edge Cases
+#### 5.4 Test Edge Cases
 - ✅ Playlists with old `[AudioFoodie]` tag (should be filtered out)
 - ✅ Playlists with no tag (should be filtered out)
 - ✅ Playlists with both tags (should work if `[Tunicious]` present)
+
+#### 5.5 Test Admin Tool
+- ✅ Admin can access all playlists via `getAllUserPlaylists()`
+- ✅ Bulk tag replacement works correctly
+- ✅ Applying tags to untagged playlists works
+- ✅ Non-admin users cannot access admin functions
 
 ## Code Changes Summary
 
 ### Files to Modify
 
 1. **`src/composables/useUserSpotifyApi.js`**
-   - Rename `isAudioFoodiePlaylist` → `isTuniciousPlaylist`
-   - Update tag from `[AudioFoodie]` to `[Tunicious]`
-   - Add filtering to `getUserPlaylists()`
-   - Add validation to `getPlaylist()`
-   - Update `createPlaylist()` tag
+   - Remove `isAudioFoodiePlaylist()` function entirely
+   - Update `isTuniciousPlaylist()` (already exists, ensure it's correct)
+   - Update tag from `[AudioFoodie]` to `[Tunicious]` in `createPlaylist()`
+   - Add mandatory filtering to `getUserPlaylists()` (always filter at API level)
+   - Add `getAllUserPlaylists()` function (admin-only, no filtering)
+   - Add validation to `getPlaylist()` with user-friendly error message
+   - Remove `isAudioFoodiePlaylist` from exports
 
 2. **`src/views/playlists/AddPlaylistView.vue`**
-   - Update function import and usage
-   - Update all UI text references
-   - Keep filtering (redundant but safe)
+   - Update function import: `isTuniciousPlaylist` instead of `isAudioFoodiePlaylist`
+   - Update all UI text references (4 instances)
+   - Remove client-side filtering (now redundant, API filters)
+   - Update empty state message: "No Tunicious playlists found. Create one first."
 
 3. **`src/views/playlists/PlaylistManagementView.vue`**
    - Remove `showOnlyAudioFoodie` checkbox and ref
    - Remove watch for filtering toggle
-   - Always filter playlists
-   - Update function import and usage
-   - Update all UI text references
-   - Update description replacement logic
+   - Remove all client-side filtering logic
+   - Update function import: `isTuniciousPlaylist` instead of `isAudioFoodiePlaylist`
+   - Update all UI text references (6 instances)
+   - Update description replacement logic: `[AudioFoodie]` → `[Tunicious]`
+   - Update empty state message: "No Tunicious playlists found. Create your first Tunicious playlist above!"
 
-### Files to Review (May Need Updates)
+4. **`src/views/admin/PlaylistTagManagementView.vue` (NEW)**
+   - Create new admin view for playlist tag management
+   - Use `useAdmin()` composable to gate access
+   - Use `getAllUserPlaylists()` to fetch all playlists
+   - Implement bulk tag replacement: `[AudioFoodie]` → `[Tunicious]`
+   - Implement tag application for untagged playlists
+   - Add route with admin guard
 
-- Any other components that use playlist functions
-- Documentation files mentioning AudioFoodie playlists
-- Test files (if any)
+### Files Already Updated (No Changes Needed)
+
+- ✅ `src/views/playlists/AddAlbumToPlaylistView.vue` - Already uses `isTuniciousPlaylist()`
 
 ## Migration Considerations
 
+### Migration Strategy
+- **Immediate switch**: No transition period, `[AudioFoodie]` playlists filtered out immediately
+- **Manual migration**: Admin will manually migrate playlists using admin tool
+- **Admin tool**: Separate admin area provides bulk tag management functionality
+
 ### Existing Playlists
-- Playlists with `[AudioFoodie]` tag will be filtered out
-- Users need to manually update playlist descriptions or use migration script
-- Consider providing admin tool to bulk-update playlist tags
+- Playlists with `[AudioFoodie]` tag will be filtered out immediately
+- Admin tool allows bulk replacement: `[AudioFoodie]` → `[Tunicious]`
+- Admin tool allows applying `[Tunicious]` tag to untagged playlists
+- Users cannot access non-Tunicious playlists through the app
 
 ### Backward Compatibility
-- No backward compatibility needed
-- Old tag is intentionally filtered out
+- **No backward compatibility**: `isAudioFoodiePlaylist()` removed entirely
+- Old tag is intentionally filtered out at API level
 - Forces migration to new tag
+- Admin tool provides migration path
 
 ## Success Criteria
 
@@ -211,12 +278,24 @@ This document specifies the refactoring to rename the playlist identification ta
 - ✅ No optional filtering checkboxes remain
 - ✅ Consistent behavior across all views
 
-## Future Considerations
+## Implementation Details
 
-### Migration Script
-- Consider creating script to update existing playlists
-- Batch update `[AudioFoodie]` → `[Tunicious]` in Spotify
-- Admin interface for bulk updates
+### API-Level Filtering
+- `getUserPlaylists()` always filters at API level before returning results
+- Regular users never receive non-Tunicious playlists
+- Admin users can use `getAllUserPlaylists()` for unfiltered access
+- This ensures security by default - app cannot operate on non-Tunicious playlists
+
+### Error Messages
+- `getPlaylist()` throws user-friendly error: "This playlist is not a Tunicious playlist"
+- Empty state messages: "No Tunicious playlists found. Create one first."
+- All error messages use friendly language, not technical details
+
+### Admin Tool
+- Separate admin area/page for playlist tag management
+- Gated by `isAdmin` check using `useAdmin()` composable
+- Uses `getAllUserPlaylists()` to see all playlists (unfiltered)
+- Provides bulk operations for tag replacement and application
 
 ### Documentation
 - Update user documentation about Tunicious tag requirement
@@ -226,7 +305,9 @@ This document specifies the refactoring to rename the playlist identification ta
 ## Notes
 
 - This is a breaking change for existing playlists with old tag
-- Users will need to update their playlist descriptions
-- Consider communication strategy for existing users
+- Immediate switch - no transition period
+- Admin will manually migrate playlists using admin tool
+- API-level filtering ensures security - app cannot access non-Tunicious playlists
 - Tag validation provides security by preventing operations on untagged playlists
+- All filtering happens at API level, not in views
 
