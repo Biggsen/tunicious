@@ -2,6 +2,7 @@
 import { RouterView } from "vue-router";
 import TheHeader from "./components/TheHeader.vue";
 import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
+import ToastContainer from "./components/ToastContainer.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
 
 useSpotifyPlayer();
@@ -9,6 +10,7 @@ useSpotifyPlayer();
 
 <template>
   <TheHeader></TheHeader>
+  <ToastContainer />
   <div class="container mx-auto pb-24">
     <RouterView />
   </div>

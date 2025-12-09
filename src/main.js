@@ -5,8 +5,13 @@ import { firebaseApp } from "./firebase";
 import App from "./App.vue";
 import router from "./router";
 import { logDebug } from "./utils/logger";
+import { useToast } from "./composables/useToast";
 
 const app = createApp(App);
+const { showToast } = useToast();
+
+// Make toast available globally for error handler
+window.showToast = showToast;
 
 // Global error handler for quota exceeded errors
 app.config.errorHandler = (err, instance, info) => {
