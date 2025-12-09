@@ -137,27 +137,12 @@ This document specifies the refactoring to rename the playlist identification ta
 - Remove `showOnlyAudioFoodie` ref entirely
 - Update empty state message: "No Tunicious playlists found. Create your first Tunicious playlist above!"
 
-### Phase 3: Admin Tool for Tag Management
+### Phase 3: Manual Tag Management
 
-#### 3.1 Create Admin Playlist Tag Management View
-
-**New admin view/route:**
-- Create separate admin area/page for playlist tag management
-- Route: `/admin/playlist-tags` (or similar, gated by `isAdmin`)
-- Use `getAllUserPlaylists()` to fetch all playlists (unfiltered)
-
-**Features:**
-- List all user playlists (both tagged and untagged)
-- Bulk replace `[AudioFoodie]` → `[Tunicious]`
-- Apply `[Tunicious]` tag to untagged playlists
-- View/manage playlist tags
-- Filter/search playlists by tag status
-
-**Implementation:**
-- Use `useAdmin()` composable to check admin status
-- Use `getAllUserPlaylists()` from `useUserSpotifyApi` (admin-only function)
-- Use `updatePlaylist()` to modify playlist descriptions
-- Show confirmation dialogs for bulk operations
+**Tag management approach:**
+- Admin will manually update playlists via Spotify directly
+- No admin tool needed in the application
+- `getAllUserPlaylists()` function remains available for future use if needed
 
 ### Phase 4: Update Other References
 
@@ -202,10 +187,8 @@ This document specifies the refactoring to rename the playlist identification ta
 - ✅ Playlists with no tag (should be filtered out)
 - ✅ Playlists with both tags (should work if `[Tunicious]` present)
 
-#### 5.5 Test Admin Tool
-- ✅ Admin can access all playlists via `getAllUserPlaylists()`
-- ✅ Bulk tag replacement works correctly
-- ✅ Applying tags to untagged playlists works
+#### 5.5 Test Admin Functions
+- ✅ Admin can access all playlists via `getAllUserPlaylists()` (if needed)
 - ✅ Non-admin users cannot access admin functions
 
 ## Code Changes Summary
@@ -236,14 +219,6 @@ This document specifies the refactoring to rename the playlist identification ta
    - Update description replacement logic: `[AudioFoodie]` → `[Tunicious]`
    - Update empty state message: "No Tunicious playlists found. Create your first Tunicious playlist above!"
 
-4. **`src/views/admin/PlaylistTagManagementView.vue` (NEW)**
-   - Create new admin view for playlist tag management
-   - Use `useAdmin()` composable to gate access
-   - Use `getAllUserPlaylists()` to fetch all playlists
-   - Implement bulk tag replacement: `[AudioFoodie]` → `[Tunicious]`
-   - Implement tag application for untagged playlists
-   - Add route with admin guard
-
 ### Files Already Updated (No Changes Needed)
 
 - ✅ `src/views/playlists/AddAlbumToPlaylistView.vue` - Already uses `isTuniciousPlaylist()`
@@ -252,20 +227,18 @@ This document specifies the refactoring to rename the playlist identification ta
 
 ### Migration Strategy
 - **Immediate switch**: No transition period, `[AudioFoodie]` playlists filtered out immediately
-- **Manual migration**: Admin will manually migrate playlists using admin tool
-- **Admin tool**: Separate admin area provides bulk tag management functionality
+- **Manual migration**: Admin will manually update playlists via Spotify directly
 
 ### Existing Playlists
 - Playlists with `[AudioFoodie]` tag will be filtered out immediately
-- Admin tool allows bulk replacement: `[AudioFoodie]` → `[Tunicious]`
-- Admin tool allows applying `[Tunicious]` tag to untagged playlists
+- Admin will manually update playlists via Spotify to replace tags
 - Users cannot access non-Tunicious playlists through the app
 
 ### Backward Compatibility
 - **No backward compatibility**: `isAudioFoodiePlaylist()` removed entirely
 - Old tag is intentionally filtered out at API level
 - Forces migration to new tag
-- Admin tool provides migration path
+- Admin will manually update playlists via Spotify
 
 ## Success Criteria
 
@@ -291,11 +264,10 @@ This document specifies the refactoring to rename the playlist identification ta
 - Empty state messages: "No Tunicious playlists found. Create one first."
 - All error messages use friendly language, not technical details
 
-### Admin Tool
-- Separate admin area/page for playlist tag management
-- Gated by `isAdmin` check using `useAdmin()` composable
-- Uses `getAllUserPlaylists()` to see all playlists (unfiltered)
-- Provides bulk operations for tag replacement and application
+### Admin Functions
+- `getAllUserPlaylists()` function available for admin use if needed
+- Admin will manually update playlists via Spotify directly
+- No admin tool interface needed in the application
 
 ### Documentation
 - Update user documentation about Tunicious tag requirement
@@ -306,7 +278,7 @@ This document specifies the refactoring to rename the playlist identification ta
 
 - This is a breaking change for existing playlists with old tag
 - Immediate switch - no transition period
-- Admin will manually migrate playlists using admin tool
+- Admin will manually update playlists via Spotify directly
 - API-level filtering ensures security - app cannot access non-Tunicious playlists
 - Tag validation provides security by preventing operations on untagged playlists
 - All filtering happens at API level, not in views
