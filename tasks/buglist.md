@@ -16,6 +16,7 @@
 
 ### Medium Priority
 - [ ] Playlist name mismatch between database and UI
+- [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -87,6 +88,37 @@ Need to investigate:
 - Whether the `name` field is actually needed or if it's redundant
 - Where playlist names are being updated and why the database isn't being updated accordingly
 - Potential race conditions or caching issues that might cause this discrepancy
+
+---
+
+### RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: Music Service Links, RYM Integration
+
+**Description**:  
+The Rate Your Music (RYM) links are frequently failing with 404 errors. This appears to be related to URL formatting issues, specifically the use of dashes vs underscores in the URL construction.
+
+**Steps to Reproduce**:
+1. Navigate to an album or artist page
+2. Click on the RYM link
+3. Observe 404 error on RYM website
+
+**Expected Behavior**:  
+RYM links should correctly navigate to the album/artist page on Rate Your Music.
+
+**Actual Behavior**:  
+RYM links frequently return 404 errors, likely due to incorrect URL formatting (dashes vs underscores).
+
+**Workaround**:  
+None identified at this time.
+
+**Notes**:  
+Need to investigate:
+- How RYM URLs are being constructed
+- Whether RYM uses dashes or underscores in their URL format
+- The `musicServiceLinks.js` utility function that generates RYM links
+- Compare working RYM URLs vs failing ones to identify the pattern
 
 ---
 
