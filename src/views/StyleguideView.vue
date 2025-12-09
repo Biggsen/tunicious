@@ -64,6 +64,20 @@ const dummyAlbum3 = {
   albumCover: createPlaceholderImage('#D81E5B', '#FFFFFF', 'Kind of Blue')
 };
 
+const dummyAlbumWithImage = {
+  id: 'dummy-album-image',
+  name: 'Revenge',
+  albumTitle: 'Revenge',
+  artists: [{ id: 'artist-image', name: 'Bleep Bloop' }],
+  artistName: 'Bleep Bloop',
+  release_date: '2021-01-01',
+  releaseYear: '2021',
+  images: [
+    { url: 'https://i.scdn.co/image/ab67616d00001e02845ea8b79726029cc92044c0' }
+  ],
+  albumCover: 'https://i.scdn.co/image/ab67616d00001e02845ea8b79726029cc92044c0'
+};
+
 const dummyTracks = [
   {
     id: 'track-1',
@@ -585,7 +599,7 @@ const dummyTracks = [
             :is-processing="true"
           />
           <AlbumItem 
-            :album="dummyAlbum3" 
+            :album="dummyAlbumWithImage" 
             :in-collection="true"
             :is-processing="true"
           />

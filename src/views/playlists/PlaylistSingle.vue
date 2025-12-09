@@ -1638,6 +1638,167 @@ const handleRemoveAlbum = async (album) => {
   }
 };
 
+const getPreviousPlaylistId = (albumId) => {
+  const userData = albumDbDataMap.value[albumId];
+  if (!userData || !userData.playlistHistory || !Array.isArray(userData.playlistHistory)) {
+    return null;
+  }
+  
+  // Sort history by addedAt to get chronological order
+  const sortedHistory = [...userData.playlistHistory].sort((a, b) => {
+    const dateA = a.addedAt?.toDate ? a.addedAt.toDate() : new Date(a.addedAt || 0);
+    const dateB = b.addedAt?.toDate ? b.addedAt.toDate() : new Date(b.addedAt || 0);
+    return dateA - dateB;
+  });
+  
+  // Find current entry (the one without removedAt)
+  const currentIndex = sortedHistory.findIndex(entry => !entry.removedAt);
+  
+  // If no current entry or it's the first entry, there's no previous playlist
+  if (currentIndex === -1 || currentIndex === 0) {
+    return null;
+  }
+  
+  // Get the previous entry
+  const previousEntry = sortedHistory[currentIndex - 1];
+  return previousEntry?.playlistId || null;
+};
+
+const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
+  if (!previousPlaylistId || !user.value || !playlistDoc.value) return;
+  
+  try {
+    spotifyError.value = null;
+    successMessage.value = '';
+    processingAlbum.value = album.id;
+    
+    // Get the current playlist data
+    const currentPlaylistData = playlistDoc.value?.data();
+    
+    // Fetch the previous playlist document by querying for the Spotify playlistId
+    // previousPlaylistId from history is the Spotify playlistId, not the Firestore doc ID
+    const playlistsRef = collection(db, 'playlists');
+    const q = query(
+      playlistsRef, 
+      where('playlistId', '==', previousPlaylistId),
+      where('userId', '==', user.value.uid)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      throw new Error('Previous playlist not found');
+    }
+    
+    // Filter out deleted playlists
+    const activePlaylists = querySnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.deletedAt == null;
+    });
+    
+    if (activePlaylists.length === 0) {
+      throw new Error('Previous playlist not found (deleted)');
+    }
+    
+    const previousPlaylistDoc = activePlaylists[0];
+    const previousPlaylistData = previousPlaylistDoc.data();
+    const previousSpotifyPlaylistId = previousPlaylistData.playlistId;
+    
+    // 1. Remove album from current terminal playlist
+    await removeFromSpotify(id.value, album);
+    await removeAlbumFromPlaylist(album.id, id.value);
+    
+    // 2. Add album to previous Spotify playlist
+    await addAlbumToPlaylist(previousSpotifyPlaylistId, album.id);
+    
+    // 3. Add album to previous playlist in Firebase collection
+    await addAlbumToCollection({
+      album: album,
+      playlistId: previousSpotifyPlaylistId,
+      playlistData: previousPlaylistData,
+      spotifyAddedAt: new Date()
+    });
+    
+    // 4. Update unified track cache - move album from terminal to previous playlist
+    if (user.value) {
+      try {
+        // Ensure cache is loaded
+        await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        
+        // Move album in unified cache
+        await moveAlbumBetweenPlaylists(
+          id.value, // current terminal playlist
+          previousSpotifyPlaylistId, // previous playlist
+          album.id, // album ID
+          user.value.uid,
+          new Date().toISOString() // addedAt
+        );
+        
+        logPlaylist(`Moved album ${album.id} in unified track cache from ${id.value} to ${previousSpotifyPlaylistId}`);
+      } catch (error) {
+        logPlaylist(`Error moving album in unified track cache:`, error);
+        // Don't fail the whole operation if cache update fails
+      }
+    }
+    
+    successMessage.value = `"${album.name}" moved back to previous playlist successfully!`;
+    
+    // Clear album list cache for both playlists so they refetch fresh data
+    await clearCache(`playlist_${id.value}_albumsWithDates`);
+    await clearCache(`playlist_${previousSpotifyPlaylistId}_albumsWithDates`);
+    logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${previousSpotifyPlaylistId}`);
+    
+    // Clear cache and reload the current playlist to reflect the changes
+    await handleClearCache();
+    
+    // Update count of albums in database
+    await countAlbumsInDatabase();
+    
+    // Refresh only the affected playlists in PlaylistView cache (current and previous)
+    if (user.value) {
+      const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
+      
+      // Get current cache state so we can properly update it
+      const currentCacheState = await getCache(playlistViewCacheKey) || {};
+      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`, 
+        Object.keys(currentCacheState).map(g => `${g}: ${currentCacheState[g]?.length || 0}`).join(', '));
+      
+      // Refresh both playlists from Spotify and update cache
+      const updatedState = await refreshSpecificPlaylists(
+        [id.value, previousSpotifyPlaylistId], // Current terminal and previous playlists
+        currentCacheState, // Pass cache state so it can be properly updated
+        playlistViewCacheKey
+      );
+      
+      // Explicitly save the updated state to ensure cache is persisted
+      await setCache(playlistViewCacheKey, updatedState);
+      logPlaylist('Cache updated and saved after undo');
+      
+      // Clear page caches for both playlists (album list changed)
+      const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+      const directions = ['asc', 'desc'];
+      for (let page = 1; page <= 50; page++) {
+        for (const mode of sortModes) {
+          for (const dir of directions) {
+            await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
+            await clearCache(`playlist_${previousSpotifyPlaylistId}_page_${page}_${mode}_${dir}`);
+          }
+        }
+      }
+    }
+    
+    // Dispatch event for previous playlist if it's currently open
+    window.dispatchEvent(new CustomEvent('playlist-albums-updated', {
+      detail: { playlistId: previousSpotifyPlaylistId }
+    }));
+    
+  } catch (err) {
+    logPlaylist('Error undoing album:', err);
+    spotifyError.value = err.message || 'Failed to undo album move';
+  } finally {
+    processingAlbum.value = null;
+  }
+};
+
 const handleProcessAlbum = async ({ album, action }) => {
   if (action !== 'yes' && action !== 'no') return;
   
@@ -1765,6 +1926,11 @@ const handleProcessAlbum = async ({ album, action }) => {
     const actionText = action === 'yes' ? 'moved to next stage' : 'terminated';
     successMessage.value = `"${album.name}" processed and ${actionText} successfully!`;
     
+    // Clear album list cache for both playlists so they refetch fresh data
+    await clearCache(`playlist_${id.value}_albumsWithDates`);
+    await clearCache(`playlist_${targetSpotifyPlaylistId}_albumsWithDates`);
+    logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${targetSpotifyPlaylistId}`);
+    
     // Clear cache and reload the current playlist to reflect the changes
     await handleClearCache();
     
@@ -1824,35 +1990,13 @@ const handleProcessAlbum = async ({ album, action }) => {
         detail: { playlistIds: [id.value, targetSpotifyPlaylistId] }
       }));
       
-      // Update target playlist's album cache
-      const targetAlbumCacheKey = `playlist_${targetSpotifyPlaylistId}_albumsWithDates`;
-      const targetAlbumsCache = await getCache(targetAlbumCacheKey);
-      
-      if (targetAlbumsCache && Array.isArray(targetAlbumsCache)) {
-        // Check if album already exists in cache
-        const albumExists = targetAlbumsCache.some(a => a.id === album.id);
-        if (!albumExists) {
-          // Add album with current date
-          targetAlbumsCache.push({
-            id: album.id,
-            addedAt: new Date().toISOString()
-          });
-          await setCache(targetAlbumCacheKey, targetAlbumsCache);
-          logPlaylist(`Added album ${album.id} to target playlist cache`);
-        }
-      } else {
-        // Cache doesn't exist, fetch fresh data
-        const freshAlbums = await getPlaylistAlbumsWithDates(targetSpotifyPlaylistId);
-        await setCache(targetAlbumCacheKey, freshAlbums);
-        logPlaylist(`Fetched and cached fresh album list for target playlist`);
-      }
-      
-      // Clear page caches for target playlist (album list changed)
+      // Clear page caches for both playlists (album list changed)
       const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
       const directions = ['asc', 'desc'];
       for (let page = 1; page <= 50; page++) {
         for (const mode of sortModes) {
           for (const dir of directions) {
+            await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
             await clearCache(`playlist_${targetSpotifyPlaylistId}_page_${page}_${mode}_${dir}`);
           }
         }
@@ -2799,6 +2943,8 @@ const handleUpdateYear = async (mismatch) => {
           :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
           :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
           :isProcessing="processingAlbum === album.id"
+          :showUndoButton="userData?.spotifyConnected && (playlistDoc?.data()?.pipelineRole === 'terminal' || playlistDoc?.data()?.pipelineRole === 'sink') && !!getPreviousPlaylistId(album.id)"
+          :previousPlaylistId="getPreviousPlaylistId(album.id) || ''"
           :tracks="albumTracksData[album.id] || []"
           :showTracklist="showTracklists"
           :tracksLoading="tracksLoading"
@@ -2811,6 +2957,7 @@ const handleUpdateYear = async (mismatch) => {
           @update-album="handleUpdateAlbumDetails"
           @remove-album="handleRemoveAlbum"
           @process-album="handleProcessAlbum"
+          @undo-album="handleUndoAlbum"
           @track-loved="handleTrackLoved"
           @track-unloved="handleTrackUnloved"
         />

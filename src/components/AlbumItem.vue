@@ -7,14 +7,14 @@ import { useAlbumsData } from '@composables/useAlbumsData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { getLastFmLink } from '@utils/musicServiceLinks';
 import { getRateYourMusicLink } from '@utils/musicServiceLinks';
-import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon, MusicalNoteIcon, TrashIcon } from '@heroicons/vue/24/solid';
+import { TruckIcon, StarIcon, PlusIcon, HandThumbUpIcon, ArchiveBoxArrowDownIcon, MusicalNoteIcon, TrashIcon, ArrowUturnLeftIcon } from '@heroicons/vue/24/solid';
 import { ClockIcon } from '@heroicons/vue/24/outline';
 import RatingBar from '@components/RatingBar.vue';
 import TrackList from '@components/TrackList.vue';
 import { logAlbum } from '@utils/logger';
 
 const router = useRouter();
-const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album', 'track-loved', 'track-unloved']);
+const emit = defineEmits(['added-to-collection', 'update-album', 'remove-album', 'process-album', 'track-loved', 'track-unloved', 'undo-album']);
 
 const props = defineProps({
   album: {
@@ -118,6 +118,14 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
     description: 'Map of albumId -> Object with track IDs as keys (for all albums in playlist)'
+  },
+  showUndoButton: {
+    type: Boolean,
+    default: false
+  },
+  previousPlaylistId: {
+    type: String,
+    default: ''
   }
 });
 
@@ -176,6 +184,10 @@ const handleNoClick = () => {
   handleProcessAlbum('no');
 };
 
+const handleUndoClick = () => {
+  emit('undo-album', { album: props.album, previousPlaylistId: props.previousPlaylistId });
+};
+
 const handleTrackLoved = (track) => {
   emit('track-loved', { album: props.album, track });
 };
@@ -191,7 +203,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
   <li class="album-item" :class="{ 'processing': isProcessing }">
     <div class="album-image-container">
       <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
-                    <div v-if="showProcessingButtons || showRemoveButton" class="hover-buttons">
+                    <div v-if="showProcessingButtons || showRemoveButton || showUndoButton" class="hover-buttons">
                    <button 
             v-if="currentPlaylist?.nextStagePlaylistId"
             @click="handleYesClick"
@@ -208,6 +220,14 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             title="No"
           >
             <ArchiveBoxArrowDownIcon class="h-4 w-4" />
+          </button>
+          <button 
+            v-if="showUndoButton && previousPlaylistId"
+            @click="handleUndoClick"
+            class="hover-btn undo-btn"
+            title="Undo - Move back to previous playlist"
+          >
+            <ArrowUturnLeftIcon class="h-4 w-4" />
           </button>
           <button 
             v-if="showRemoveButton"
@@ -320,13 +340,9 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     </div>
     <!-- Processing overlay -->
     <div v-if="isProcessing" class="processing-overlay">
-      <div class="flex flex-col items-center gap-3">
-        <svg class="animate-spin h-12 w-12 text-delft-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+      <div class="processing-text-box">
         <div class="text-delft-blue font-semibold text-lg">
-          Moving<span class="dots">
+          Moving album<span class="dots">
             <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
           </span>
         </div>
@@ -346,7 +362,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 }
 
 .processing-overlay {
-  @apply absolute inset-0 bg-white/50 rounded-xl flex items-center justify-center z-50 pointer-events-none;
+  @apply absolute inset-0 bg-white/50 rounded-xl flex items-start justify-center z-50 pointer-events-none;
+  padding-top: 50px;
+}
+
+.processing-text-box {
+  @apply bg-white/90 rounded-lg px-4 py-2 shadow-lg;
 }
 
 .dots {
@@ -423,6 +444,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 .remove-btn {
   @apply bottom-2 left-2;
   @apply bg-red-500 hover:bg-red-600;
+  @apply text-white;
+}
+
+.undo-btn {
+  @apply bottom-2 right-2;
+  @apply bg-orange-500 hover:bg-orange-600;
   @apply text-white;
 }
 
