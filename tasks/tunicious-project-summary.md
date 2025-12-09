@@ -241,6 +241,9 @@ No features currently in progress.
 
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
 - [ ] Add Album to Playlist Page - Move "Add Album to Playlist" functionality to dedicated page with query string support for pre-selecting playlist. Spec: `tasks/add-album-to-playlist-page-spec.md`
+- [ ] Onboarding Journey - Comprehensive onboarding flow guiding new users through complete Tunicious workflow from account setup through all core features. Spec: `tasks/onboarding-journey-spec.md`
+- [ ] Onboarding Quick Start - Quick start option for onboarding that generates all playlists for a "New artist" pipeline at once. Spec: `tasks/onboarding-quick-start-spec.md`
+- [ ] Tunicious Playlist Tag - Refactor to rename `[AudioFoodie]` to `[Tunicious]` and make playlist filtering mandatory across entire application. Spec: `tasks/tunicious-playlist-tag-spec.md`
 
 ### Task Details
 
@@ -270,6 +273,27 @@ No features currently in progress.
 - **Spec**: `tasks/add-album-to-playlist-page-spec.md`
 - **Status**: Planning
 
+#### Onboarding Journey
+- **Description**: Comprehensive onboarding flow that guides new users through the complete Tunicious workflow from initial account setup through all core features
+- **Key Tasks**: Implement step-by-step onboarding flow (Spotify integration, Last.fm integration, playlist creation, album management, listening and hearting, album processing, advanced playlist setup), create onboarding components, add progress tracking, implement skip/resume functionality
+- **Benefits**: Educates users through hands-on experience, reduces friction in initial setup, ensures users have working pipeline after onboarding, builds confidence in core workflow
+- **Spec**: `tasks/onboarding-journey-spec.md`
+- **Status**: Planning
+
+#### Onboarding Quick Start
+- **Description**: Quick start option for onboarding that allows users to generate all playlists for a "New artist" pipeline at once, bypassing step-by-step playlist creation
+- **Key Tasks**: Create quick start option in onboarding flow, implement bulk playlist generation, ensure complete pipeline with all necessary connections, integrate with main onboarding journey
+- **Benefits**: Reduces time to value, simplifies setup, provides choice between quick start and step-by-step options, ensures completeness
+- **Spec**: `tasks/onboarding-quick-start-spec.md`
+- **Status**: Planning
+
+#### Tunicious Playlist Tag
+- **Description**: Refactor to rename playlist identification tag from `[AudioFoodie]` to `[Tunicious]` and make playlist filtering mandatory across entire application
+- **Key Tasks**: Update tag format from `[AudioFoodie]` to `[Tunicious]`, rename `isAudioFoodiePlaylist()` function, make filtering mandatory in all playlist retrieval points, update all playlist operations to validate tag, remove optional filtering checkboxes
+- **Benefits**: Rebrands to match current app name, enforces security by preventing operations on non-Tunicious playlists, ensures consistency across application, prevents accidental operations
+- **Spec**: `tasks/tunicious-playlist-tag-spec.md`
+- **Status**: Planning
+
 ---
 
 ## Project Status
@@ -295,7 +319,7 @@ No features currently in progress.
 
 - **Completed Features**: 12
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 4
+- **Outstanding Tasks**: 7
 - **Enhancements**: 6
 - **UI/UX Improvements**: Documented in `tasks/enhancements/ui-ux-improvements.md`
 
@@ -311,9 +335,12 @@ No features currently in progress.
 ### Immediate (Next 1-3 months)
 
 1. Add Album to Playlist Page
-2. Account Sidebar Navigation
-3. Firebase Project Separation
-4. Pipeline Groups Refactoring
+2. Onboarding Journey
+3. Onboarding Quick Start
+4. Tunicious Playlist Tag
+5. Account Sidebar Navigation
+6. Firebase Project Separation
+7. Pipeline Groups Refactoring
 
 ### Short-term (Next 3-6 months)
 
