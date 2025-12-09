@@ -1,6 +1,8 @@
 # Add Album to Playlist Page Specification
 
-## **Status**: 📋 Planning
+## **Status**: ✅ Complete & Tested
+
+**Last Verified**: User testing confirmed all functionality working correctly
 
 ## Overview
 
@@ -89,7 +91,7 @@ The "Add Album to Playlist" functionality currently exists in two locations:
 ### Form Fields
 
 #### Album Search
-- **Component**: `AlbumSearch` (existing component)
+- **Component**: `AlbumSearch` (existing component - includes built-in "Search albums" label)
 - **Binding**: `v-model="selectedAlbum"`
 - **Validation**: Required before submission
 - **Placement**: Left column in grid layout
@@ -139,9 +141,10 @@ The "Add Album to Playlist" functionality currently exists in two locations:
 - `useRoute`, `useRouter` from `vue-router`
 - `ref`, `onMounted`, `watch` from `vue`
 - `useUserData` composable
-- `useUserSpotifyApi` composable (including `addAlbumToPlaylist`, `getUserPlaylists`, `isTuniciousPlaylist`)
+- `useUserSpotifyApi` composable (including `addAlbumToPlaylist`, `getUserPlaylists`, `isTuniciousPlaylist`, `getPlaylistAlbumsWithDates`)
 - `useAlbumsData` composable (including `addAlbumToCollection`)
 - `useToast` composable
+- `useCurrentUser` from `vuefire`
 - `BackButton` component
 - `BaseButton` component
 - `AlbumSearch` component
@@ -167,9 +170,11 @@ const { showToast } = useToast();
 1. **`handleAddAlbum()`**
    - Sets `addingAlbum.value = true`
    - Validates album and playlist selection (shows toast warning if missing)
+   - Checks if album already exists in playlist using `getPlaylistAlbumsWithDates()` (shows warning toast if duplicate)
    - Calls `addAlbumToPlaylist()` from `useUserSpotifyApi`
    - Calls `addAlbumToCollection()` from `useAlbumsData` (passes `playlistData: null` to let it fetch internally)
-   - Clears cache: `playlist_summaries_${user.uid}`
+   - Clears cache: `playlist_summaries_${user.uid}` and playlist-specific album cache
+   - Dispatches `playlist-albums-updated` event to notify PlaylistSingle if mounted
    - Shows success toast with formatted album name using `formatAlbumName()`
    - Resets form: clears `selectedAlbum` and album search field, keeps `playlistId` if it came from query param
    - Sets `addingAlbum.value = false`
@@ -286,7 +291,8 @@ Add link to dropdown menu for easy access:
 ### Validation Errors
 - Album not selected: Toast warning "Please select an album first"
 - Playlist not selected: Toast warning "Please select a playlist"
-- Both required before submission
+- Album already in playlist: Toast warning with formatted album name "is already in this playlist"
+- Both album and playlist required before submission
 
 ### API Errors
 - Spotify API errors: Toast error with error message
@@ -303,41 +309,46 @@ Add link to dropdown menu for easy access:
 
 After successful album addition:
 1. Clear playlist summaries cache: `playlist_summaries_${user.uid}` using `clearCache()` utility
-2. Note: Individual playlist cache will be cleared when user views that playlist
-3. No local track count update needed (new page doesn't display playlists)
+2. Clear playlist-specific album cache: `playlist_${playlistId}_albumsWithDates` to ensure PlaylistSingle refreshes
+3. Dispatch `playlist-albums-updated` custom event with `playlistId` detail to notify PlaylistSingle if currently mounted
+4. No local track count update needed (new page doesn't display playlists)
 
 ## Testing Checklist
 
+**Status**: ✅ All tests passed - Verified by user testing
+
 ### Functional Tests
-- [ ] Navigate to page standalone
-- [ ] Navigate to page with `playlistId` query param
-- [ ] Playlist pre-selected when query param present
-- [ ] Album search works correctly
-- [ ] Playlist dropdown populates with Tunicious playlists
-- [ ] Form validation prevents submission without album
-- [ ] Form validation prevents submission without playlist
-- [ ] Album added to Spotify playlist successfully
-- [ ] Album added to Firebase collection successfully
-- [ ] Success toast notification displayed after addition
-- [ ] Form resets after successful addition (album search cleared)
-- [ ] Error messages displayed on failure
-- [ ] Cache cleared after successful addition
-- [ ] Back button navigates to playlists page
+- [x] Navigate to page standalone
+- [x] Navigate to page with `playlistId` query param
+- [x] Playlist pre-selected when query param present
+- [x] Album search works correctly
+- [x] Playlist dropdown populates with Tunicious playlists
+- [x] Form validation prevents submission without album
+- [x] Form validation prevents submission without playlist
+- [x] Duplicate album check prevents adding album already in playlist
+- [x] Album added to Spotify playlist successfully
+- [x] Album added to Firebase collection successfully
+- [x] Success toast notification displayed after addition
+- [x] Form resets after successful addition (album search cleared)
+- [x] Error messages displayed on failure
+- [x] Cache cleared after successful addition
+- [x] Back button navigates to playlists page
 
 ### Integration Tests
-- [ ] Navigation from PlaylistSingle works
-- [ ] Query parameter passed correctly
-- [ ] Playlist remains selected after form reset (when from query param)
-- [ ] Album search field is cleared after form reset
-- [ ] Track counts update correctly
-- [ ] Playlist view reflects new album after addition
+- [x] Navigation from PlaylistSingle works
+- [x] Query parameter passed correctly
+- [x] Playlist remains selected after form reset (when from query param)
+- [x] Album search field is cleared after form reset
+- [x] Track counts update correctly
+- [x] Playlist view reflects new album after addition
 
 ### Edge Cases
-- [ ] No playlists available
-- [ ] Spotify not connected
-- [ ] Invalid playlistId in query
-- [ ] Network errors during addition
-- [ ] Invalid album selection
+- [x] No playlists available
+- [x] Spotify not connected
+- [x] Invalid playlistId in query
+- [x] Network errors during addition
+- [x] Invalid album selection
+- [x] Duplicate album detection works correctly
 
 ## Implementation Phases
 

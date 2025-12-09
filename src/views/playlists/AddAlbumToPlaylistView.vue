@@ -25,7 +25,6 @@
             <div class="form-group">
               <AlbumSearch v-model="selectedAlbum" />
             </div>
-            
             <div class="form-group">
               <label for="targetPlaylist">Target Playlist</label>
               <select 
@@ -87,7 +86,8 @@ const { showToast } = useToast();
 const { 
   addAlbumToPlaylist, 
   getUserPlaylists, 
-  isTuniciousPlaylist 
+  isTuniciousPlaylist,
+  getPlaylistAlbumsWithDates
 } = useUserSpotifyApi();
 
 const { addAlbumToCollection } = useAlbumsData();
@@ -140,6 +140,21 @@ const handleAddAlbum = async () => {
       return;
     }
     
+    // Check if album already exists in playlist
+    const existingAlbums = await getPlaylistAlbumsWithDates(albumForm.value.playlistId);
+    const albumExists = existingAlbums.some(a => a.id === selectedAlbum.value.id);
+    
+    if (albumExists) {
+      const albumText = formatAlbumName(selectedAlbum.value);
+      showToast({
+        parts: [
+          ...albumText.parts,
+          { text: ' is already in this playlist' }
+        ]
+      }, 'warning');
+      return;
+    }
+    
     // Add album to Spotify playlist
     await addAlbumToPlaylist(albumForm.value.playlistId, selectedAlbum.value.id);
     
@@ -178,6 +193,11 @@ const handleAddAlbum = async () => {
       // Clear the specific playlist's album list cache so PlaylistSingle will refresh
       const playlistAlbumListCacheKey = `playlist_${albumForm.value.playlistId}_albumsWithDates`;
       await clearCache(playlistAlbumListCacheKey);
+      
+      // Dispatch event to notify PlaylistSingle to reload if it's currently mounted
+      window.dispatchEvent(new CustomEvent('playlist-albums-updated', {
+        detail: { playlistId: albumForm.value.playlistId }
+      }));
     }
     
   } catch (err) {
