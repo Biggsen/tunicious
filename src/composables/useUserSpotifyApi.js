@@ -1,15 +1,32 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBackendApi } from '@/composables/useBackendApi';
 import { logSpotify } from '@utils/logger';
 
+// Module-level cache for connection status checks (shared across all instances)
+let connectionStatusCache = null;
+let connectionStatusCacheTime = 0;
+let connectionStatusPromise = null;
+let cachedUserId = null;
+const CONNECTION_STATUS_CACHE_TTL = 30000; // 30 seconds
+
 export function useUserSpotifyApi() {
   const user = useCurrentUser();
   const loading = ref(false);
   const error = ref(null);
   const { refreshSpotifyToken, spotifyApiCall } = useBackendApi();
+
+  // Clear cache when user changes
+  watch(user, (newUser, oldUser) => {
+    if (newUser?.uid !== oldUser?.uid) {
+      logSpotify('User changed, clearing connection status cache');
+      connectionStatusCache = null;
+      connectionStatusCacheTime = 0;
+      cachedUserId = null;
+    }
+  });
 
   /**
    * Gets the user's Spotify tokens from Firestore
@@ -169,67 +186,147 @@ export function useUserSpotifyApi() {
 
   /**
    * Check and recover Spotify connection status
+   * Uses caching and deduplication to prevent redundant API calls
    */
   const checkConnectionStatus = async () => {
-    try {
-      if (!user.value) {
-        return { connected: false, error: 'User not authenticated' };
-      }
+    // Check cache first (only if same user)
+    const now = Date.now();
+    if (connectionStatusCache && 
+        cachedUserId === user.value?.uid &&
+        (now - connectionStatusCacheTime) < CONNECTION_STATUS_CACHE_TTL) {
+      logSpotify('Using cached connection status');
+      return connectionStatusCache;
+    }
 
-      const userDoc = await getDoc(doc(db, 'users', user.value.uid));
-      if (!userDoc.exists()) {
-        return { connected: false, error: 'User profile not found' };
-      }
+    // If a check is already in progress, return the same promise
+    if (connectionStatusPromise) {
+      logSpotify('Connection status check already in progress, waiting...');
+      return connectionStatusPromise;
+    }
 
-      const userData = userDoc.data();
-      if (!userData.spotifyTokens) {
-        return { connected: false, error: 'Spotify not connected' };
-      }
-
-      if (!userData.spotifyTokens.refreshToken) {
-        return { connected: false, error: 'No refresh token available' };
-      }
-
-      // Check if token is expired (handle Firestore timestamp types correctly)
-      const now = Date.now();
-      const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
-        ? userData.spotifyTokens.expiresAt 
-        : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
-      
-      if (expiresAt && expiresAt < now) {
-        logSpotify('Token expired, attempting refresh...');
-        try {
-          await refreshUserToken();
-          return { connected: true, error: null, refreshed: true };
-        } catch (refreshErr) {
-          logSpotify('Token refresh failed:', refreshErr);
-          return { connected: false, error: 'Token refresh failed - please reconnect' };
-        }
-      }
-
-      // Test the connection with a simple API call
+    // Start new check
+    connectionStatusPromise = (async () => {
       try {
-        await makeUserRequest('/me');
-        return { connected: true, error: null, refreshed: false };
-      } catch (apiErr) {
-        logSpotify('API test failed:', apiErr);
+        if (!user.value) {
+          const result = { connected: false, error: 'User not authenticated' };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = now;
+          cachedUserId = null;
+          return result;
+        }
+
+        // If user changed, clear cache
+        if (cachedUserId && cachedUserId !== user.value.uid) {
+          logSpotify('User ID changed, clearing cache');
+          connectionStatusCache = null;
+          connectionStatusCacheTime = 0;
+        }
+
+        const userDoc = await getDoc(doc(db, 'users', user.value.uid));
+        if (!userDoc.exists()) {
+          const result = { connected: false, error: 'User profile not found' };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = now;
+          cachedUserId = user.value.uid;
+          return result;
+        }
+
+        const userData = userDoc.data();
+        if (!userData.spotifyTokens) {
+          const result = { connected: false, error: 'Spotify not connected' };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = now;
+          cachedUserId = user.value.uid;
+          return result;
+        }
+
+        if (!userData.spotifyTokens.refreshToken) {
+          const result = { connected: false, error: 'No refresh token available' };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = now;
+          cachedUserId = user.value.uid;
+          return result;
+        }
+
+        // Check if token is expired (handle Firestore timestamp types correctly)
+        const expiresAt = typeof userData.spotifyTokens.expiresAt === 'number' 
+          ? userData.spotifyTokens.expiresAt 
+          : userData.spotifyTokens.expiresAt?.toMillis?.() || userData.spotifyTokens.expiresAt;
         
-        // If API call fails, try refreshing the token
-        if (apiErr.message.includes('401') || apiErr.message.includes('expired')) {
+        if (expiresAt && expiresAt < now) {
+          logSpotify('Token expired, attempting refresh...');
           try {
             await refreshUserToken();
-            return { connected: true, error: null, refreshed: true };
+            // Clear cache after token refresh since status changed
+            connectionStatusCache = null;
+            connectionStatusCacheTime = 0;
+            const result = { connected: true, error: null, refreshed: true };
+            connectionStatusCache = result;
+            connectionStatusCacheTime = Date.now();
+            cachedUserId = user.value.uid;
+            return result;
           } catch (refreshErr) {
-            return { connected: false, error: 'Connection test failed - please reconnect' };
+            logSpotify('Token refresh failed:', refreshErr);
+            const result = { connected: false, error: 'Token refresh failed - please reconnect' };
+            connectionStatusCache = result;
+            connectionStatusCacheTime = now;
+            cachedUserId = user.value.uid;
+            return result;
           }
         }
-        
-        return { connected: false, error: 'Connection test failed' };
+
+        // Test the connection with a simple API call
+        try {
+          await makeUserRequest('/me');
+          const result = { connected: true, error: null, refreshed: false };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = Date.now();
+          cachedUserId = user.value.uid;
+          return result;
+        } catch (apiErr) {
+          logSpotify('API test failed:', apiErr);
+          
+          // If API call fails, try refreshing the token
+          if (apiErr.message.includes('401') || apiErr.message.includes('expired')) {
+            try {
+              await refreshUserToken();
+              // Clear cache after token refresh since status changed
+              connectionStatusCache = null;
+              connectionStatusCacheTime = 0;
+              const result = { connected: true, error: null, refreshed: true };
+              connectionStatusCache = result;
+              connectionStatusCacheTime = Date.now();
+              cachedUserId = user.value.uid;
+              return result;
+            } catch (refreshErr) {
+              const result = { connected: false, error: 'Connection test failed - please reconnect' };
+              connectionStatusCache = result;
+              connectionStatusCacheTime = now;
+              cachedUserId = user.value.uid;
+              return result;
+            }
+          }
+          
+          const result = { connected: false, error: 'Connection test failed' };
+          connectionStatusCache = result;
+          connectionStatusCacheTime = now;
+          cachedUserId = user.value.uid;
+          return result;
+        }
+      } catch (err) {
+        logSpotify('Error checking connection status:', err);
+        const result = { connected: false, error: 'Failed to check connection status' };
+        connectionStatusCache = result;
+        connectionStatusCacheTime = now;
+        cachedUserId = user.value?.uid || null;
+        return result;
+      } finally {
+        // Clear the promise so future calls can start a new check
+        connectionStatusPromise = null;
       }
-    } catch (err) {
-      logSpotify('Error checking connection status:', err);
-      return { connected: false, error: 'Failed to check connection status' };
-    }
+    })();
+
+    return connectionStatusPromise;
   };
 
   /**
@@ -283,6 +380,7 @@ export function useUserSpotifyApi() {
 
       // Use our secure backend proxy instead of direct API call
       const endpointPath = endpoint.replace('https://api.spotify.com/v1', '');
+      logSpotify(`Making API call: ${options.method || 'GET'} ${endpointPath}`);
       return await spotifyApiCall(endpointPath, options.method || 'GET', options.body, accessToken);
     } catch (err) {
       error.value = err.message || err.toString();

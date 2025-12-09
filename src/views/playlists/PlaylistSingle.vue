@@ -1516,8 +1516,8 @@ const handleLastFmSyncError = (event) => {
 
 onMounted(async () => {
   // Enable logging for debugging
-  enableDebug('app:playlist,app:cache');
-  logPlaylist('PlaylistSingle mounted - logging enabled for playlist and cache');
+  enableDebug('app:playlist,app:cache,app:spotify');
+  logPlaylist('PlaylistSingle mounted - logging enabled for playlist, cache, and spotify');
   
   document.addEventListener('click', handleSortDropdownClickOutside);
   window.addEventListener('playlist-albums-updated', handlePlaylistAlbumsUpdated);
@@ -1562,6 +1562,7 @@ onUnmounted(() => {
 
 // Add album to playlist state
 const selectedAlbum = ref(null);
+const addingAlbum = ref(false);
 
 const formatAlbumName = (album) => {
   const artistName = album?.artists?.[0]?.name || album?.artistName || 'Unknown Artist';
@@ -1577,6 +1578,7 @@ const successMessage = ref('');
 
 const handleAddAlbum = async () => {
   try {
+    addingAlbum.value = true;
     spotifyError.value = null;
     
     if (!selectedAlbum.value) {
@@ -1621,6 +1623,8 @@ const handleAddAlbum = async () => {
   } catch (err) {
     logPlaylist('Error adding album:', err);
     showToast(err.message || 'Failed to add album to playlist', 'error');
+  } finally {
+    addingAlbum.value = false;
   }
 };
 
@@ -3025,10 +3029,10 @@ const handleUpdateYear = async (mismatch) => {
         <div class="flex gap-4">
           <BaseButton 
             type="submit" 
-            :disabled="spotifyLoading || !selectedAlbum"
+            :disabled="addingAlbum || !selectedAlbum"
             customClass="btn-primary"
           >
-            {{ spotifyLoading ? 'Adding...' : 'Add Album to Playlist' }}
+            {{ addingAlbum ? 'Adding...' : 'Add Album to Playlist' }}
           </BaseButton>
         </div>
       </form>
