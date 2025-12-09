@@ -188,7 +188,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 </script>
 
 <template>
-  <li class="album-item">
+  <li class="album-item" :class="{ 'processing': isProcessing }">
     <div class="album-image-container">
       <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
                     <div v-if="showProcessingButtons || showRemoveButton" class="hover-buttons">
@@ -318,6 +318,20 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         >RYM</a
       >
     </div>
+    <!-- Processing overlay -->
+    <div v-if="isProcessing" class="processing-overlay">
+      <div class="flex flex-col items-center gap-3">
+        <svg class="animate-spin h-12 w-12 text-delft-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <div class="text-delft-blue font-semibold text-lg">
+          Moving<span class="dots">
+            <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+          </span>
+        </div>
+      </div>
+    </div>
   </li>
 </template>
 
@@ -325,6 +339,45 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 .album-item {
   @apply bg-mindero border-2 border-delft-blue rounded-xl flex flex-col overflow-hidden relative;
   height: 100%;
+}
+
+.album-item.processing {
+  @apply opacity-70 pointer-events-none;
+}
+
+.processing-overlay {
+  @apply absolute inset-0 bg-white/50 rounded-xl flex items-center justify-center z-50 pointer-events-none;
+}
+
+.dots {
+  display: inline-block;
+}
+
+.dot {
+  display: inline-block;
+  animation: dotPulse 1.4s infinite;
+  animation-fill-mode: both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
 }
 
 
