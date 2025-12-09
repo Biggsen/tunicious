@@ -3,9 +3,129 @@ import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
+import AlbumItem from '@components/AlbumItem.vue';
 
 const togglePrimary = ref(false);
 const toggleOnCeladon = ref(false);
+
+const createPlaceholderImage = (bgColor, textColor, text) => {
+  const svg = `<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="${textColor}" stroke-width="0.5" opacity="0.3"/>
+      </pattern>
+    </defs>
+    <rect width="300" height="300" fill="${bgColor}"/>
+    <rect width="300" height="300" fill="url(#grid)"/>
+    <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="20" fill="${textColor}" text-anchor="middle" dominant-baseline="middle" font-weight="bold">${text}</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
+
+const dummyAlbum1 = {
+  id: 'dummy-album-1',
+  name: 'The Dark Side of the Moon',
+  albumTitle: 'The Dark Side of the Moon',
+  artists: [{ id: 'artist-1', name: 'Pink Floyd' }],
+  artistName: 'Pink Floyd',
+  release_date: '1973-03-01',
+  releaseYear: '1973',
+  images: [
+    { url: createPlaceholderImage('#23395B', '#FFFD98', 'Album Cover') }
+  ],
+  albumCover: createPlaceholderImage('#23395B', '#FFFD98', 'Album Cover')
+};
+
+const dummyAlbum2 = {
+  id: 'dummy-album-2',
+  name: 'Abbey Road',
+  albumTitle: 'Abbey Road',
+  artists: [{ id: 'artist-2', name: 'The Beatles' }],
+  artistName: 'The Beatles',
+  release_date: '1969-09-26',
+  releaseYear: '1969',
+  images: [
+    { url: createPlaceholderImage('#59C9A5', '#23395B', 'Abbey Road') }
+  ],
+  albumCover: createPlaceholderImage('#59C9A5', '#23395B', 'Abbey Road')
+};
+
+const dummyAlbum3 = {
+  id: 'dummy-album-3',
+  name: 'Kind of Blue',
+  albumTitle: 'Kind of Blue',
+  artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+  artistName: 'Miles Davis',
+  release_date: '1959-08-17',
+  releaseYear: '1959',
+  images: [
+    { url: createPlaceholderImage('#D81E5B', '#FFFFFF', 'Kind of Blue') }
+  ],
+  albumCover: createPlaceholderImage('#D81E5B', '#FFFFFF', 'Kind of Blue')
+};
+
+const dummyTracks = [
+  {
+    id: 'track-1',
+    name: 'So What',
+    artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+    album: { id: 'dummy-album-3', name: 'Kind of Blue' },
+    duration_ms: 562000,
+    track_number: 1,
+    uri: 'spotify:track:track-1',
+    external_urls: { spotify: 'https://open.spotify.com/track/track-1' },
+    playcount: 45,
+    loved: false
+  },
+  {
+    id: 'track-2',
+    name: 'Blue in Green',
+    artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+    album: { id: 'dummy-album-3', name: 'Kind of Blue' },
+    duration_ms: 338000,
+    track_number: 2,
+    uri: 'spotify:track:track-2',
+    external_urls: { spotify: 'https://open.spotify.com/track/track-2' },
+    playcount: 32,
+    loved: true
+  },
+  {
+    id: 'track-3',
+    name: 'All Blues',
+    artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+    album: { id: 'dummy-album-3', name: 'Kind of Blue' },
+    duration_ms: 692000,
+    track_number: 3,
+    uri: 'spotify:track:track-3',
+    external_urls: { spotify: 'https://open.spotify.com/track/track-3' },
+    playcount: 28,
+    loved: false
+  },
+  {
+    id: 'track-4',
+    name: 'Flamenco Sketches',
+    artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+    album: { id: 'dummy-album-3', name: 'Kind of Blue' },
+    duration_ms: 566000,
+    track_number: 4,
+    uri: 'spotify:track:track-4',
+    external_urls: { spotify: 'https://open.spotify.com/track/track-4' },
+    playcount: 19,
+    loved: true
+  },
+  {
+    id: 'track-5',
+    name: 'Freddie Freeloader',
+    artists: [{ id: 'artist-3', name: 'Miles Davis' }],
+    album: { id: 'dummy-album-3', name: 'Kind of Blue' },
+    duration_ms: 589000,
+    track_number: 5,
+    uri: 'spotify:track:track-5',
+    external_urls: { spotify: 'https://open.spotify.com/track/track-5' },
+    playcount: 15,
+    loved: false
+  }
+];
 </script>
 
 <template>
@@ -347,6 +467,128 @@ const toggleOnCeladon = ref(false);
         <div class="bg-white border-2 border-delft-blue rounded-xl p-6">
           <p class="text-delft-blue font-semibold mb-2">rounded-xl</p>
           <p class="text-sm text-delft-blue/70">Extra rounded corners</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- AlbumItem Component Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">AlbumItem Component</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Standard Album Items</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem :album="dummyAlbum1" :in-collection="true" />
+          <AlbumItem :album="dummyAlbum2" :in-collection="true" />
+          <AlbumItem :album="dummyAlbum3" :in-collection="true" />
+        </div>
+      </div>
+      <div class="bg-celadon border-2 border-delft-blue rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Album Items on Celadon Background</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem :album="dummyAlbum1" :in-collection="true" />
+          <AlbumItem :album="dummyAlbum2" :in-collection="true" />
+          <AlbumItem :album="dummyAlbum3" :in-collection="true" />
+        </div>
+      </div>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Album Item - Not in Collection</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem 
+            :album="dummyAlbum1" 
+            :in-collection="false"
+            :current-playlist="{ playlistId: 'dummy-playlist' }"
+          />
+        </div>
+      </div>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Album Item - With Processing Buttons (Hover to see)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem 
+            :album="dummyAlbum1" 
+            :in-collection="true"
+            :show-processing-buttons="true"
+            :current-playlist="{ 
+              playlistId: 'dummy-playlist',
+              nextStagePlaylistId: 'next-playlist',
+              pipelineRole: 'source'
+            }"
+            :has-termination-playlist="true"
+          />
+          <AlbumItem 
+            :album="dummyAlbum2" 
+            :in-collection="true"
+            :show-processing-buttons="true"
+            :current-playlist="{ 
+              playlistId: 'dummy-playlist',
+              nextStagePlaylistId: 'next-playlist',
+              pipelineRole: 'transient'
+            }"
+            :has-termination-playlist="true"
+          />
+          <AlbumItem 
+            :album="dummyAlbum3" 
+            :in-collection="true"
+            :show-remove-button="true"
+            :current-playlist="{ playlistId: 'dummy-playlist' }"
+          />
+        </div>
+      </div>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Album Item - With Tracklist</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem 
+            :album="dummyAlbum3" 
+            :in-collection="true"
+            :show-tracklist="true"
+            :tracks="dummyTracks"
+            :loved-tracks="dummyTracks.filter(t => t.loved)"
+            :tracks-loading="false"
+            last-fm-user-name="dummyuser"
+            :allow-track-loving="true"
+            last-fm-session-key="dummysession"
+          />
+          <AlbumItem 
+            :album="dummyAlbum3" 
+            :in-collection="true"
+            :show-tracklist="true"
+            :tracks="dummyTracks"
+            :loved-tracks="dummyTracks.filter(t => t.loved)"
+            :tracks-loading="false"
+            last-fm-user-name="dummyuser"
+            :allow-track-loving="true"
+            last-fm-session-key="dummysession"
+          />
+          <AlbumItem 
+            :album="dummyAlbum3" 
+            :in-collection="true"
+            :show-tracklist="true"
+            :tracks="dummyTracks"
+            :loved-tracks="dummyTracks.filter(t => t.loved)"
+            :tracks-loading="false"
+            last-fm-user-name="dummyuser"
+            :allow-track-loving="true"
+            last-fm-session-key="dummysession"
+          />
+        </div>
+      </div>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-semibold text-delft-blue mb-4">Album Item - Processing</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AlbumItem 
+            :album="dummyAlbum1" 
+            :in-collection="true"
+            :is-processing="true"
+          />
+          <AlbumItem 
+            :album="dummyAlbum2" 
+            :in-collection="true"
+            :is-processing="true"
+          />
+          <AlbumItem 
+            :album="dummyAlbum3" 
+            :in-collection="true"
+            :is-processing="true"
+          />
         </div>
       </div>
     </section>
