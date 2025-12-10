@@ -2,6 +2,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
+const {corsConfig} = require("./cors");
 
 // Define secrets
 const spotifyClientId = defineSecret("SPOTIFY_CLIENT_ID");
@@ -15,7 +16,7 @@ const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
  * Exchange authorization code for access token
  */
 exports.tokenExchange = onRequest({
-  cors: true,
+  cors: corsConfig,
   secrets: [spotifyClientId, spotifyClientSecret],
 }, async (req, res) => {
   try {
@@ -91,7 +92,7 @@ exports.tokenExchange = onRequest({
  * Refresh access token using refresh token
  */
 exports.refreshToken = onRequest({
-  cors: true,
+  cors: corsConfig,
   secrets: [spotifyClientId, spotifyClientSecret],
 }, async (req, res) => {
   try {
@@ -179,7 +180,7 @@ exports.refreshToken = onRequest({
 /**
  * Proxy for Spotify API calls
  */
-exports.apiProxy = onRequest({cors: true}, async (req, res) => {
+exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
   try {
     // Verify authentication
     await verifyAuthToken(req);

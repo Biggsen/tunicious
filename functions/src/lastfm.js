@@ -2,6 +2,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
+const {corsConfig} = require("./cors");
 
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
@@ -24,7 +25,7 @@ function isDevelopmentRequest(req) {
  * Proxy for Last.fm API calls
  */
 exports.apiProxy = onRequest({
-  cors: true,
+  cors: corsConfig,
   secrets: [lastfmApiKeyProd, lastfmApiSecretProd, lastfmApiKeyDev, lastfmApiSecretDev],
 }, async (req, res) => {
   try {

@@ -9,6 +9,7 @@ const logger = require("firebase-functions/logger");
 // Import our API modules
 const spotifyFunctions = require("./src/spotify");
 const lastfmFunctions = require("./src/lastfm");
+const {corsConfig} = require("./src/cors");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -31,7 +32,9 @@ exports.spotifyApiProxy = spotifyFunctions.apiProxy;
 exports.lastfmApiProxy = lastfmFunctions.apiProxy;
 
 // Health check endpoint
-exports.healthCheck = require("firebase-functions/v2/https").onRequest((req, res) => {
+exports.healthCheck = require("firebase-functions/v2/https").onRequest({
+  cors: corsConfig,
+}, (req, res) => {
   logger.info("Health check requested");
   res.json({
     status: "healthy",
