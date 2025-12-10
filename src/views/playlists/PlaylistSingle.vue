@@ -2502,6 +2502,7 @@ const handleUpdateYear = async (mismatch) => {
         </BaseButton>
         <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit">
           <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
+          Reload
         </BaseButton>
         <DropdownMenu aria-label="Playlist options">
           <button
