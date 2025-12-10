@@ -9,6 +9,7 @@ export const ONBOARDING_STEPS = [
   { id: 'welcome', title: 'Welcome', order: 0 },
   { id: 'spotify', title: 'Connect Spotify', order: 1 },
   { id: 'lastfm', title: 'Connect Last.fm', order: 2 },
+  { id: 'choose_setup_method', title: 'Choose Setup Method', order: 2.5 },
   { id: 'create_source', title: 'Create Source Playlist', order: 3 },
   { id: 'add_album', title: 'Add First Album', order: 4 },
   { id: 'create_transient', title: 'Create Transient Playlist', order: 5 },

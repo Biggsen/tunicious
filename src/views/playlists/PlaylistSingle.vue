@@ -2559,7 +2559,7 @@ const handleUpdateYear = async (mismatch) => {
     <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
     <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
     
-    <div class="mb-4 flex gap-4 items-center">
+    <div v-if="albumData.length > 0" class="mb-4 flex gap-4 items-center">
       <div class="flex items-center gap-3">
         <ToggleSwitch v-model="showTracklists" variant="primary-on-celadon" />
         <span class="text-delft-blue font-medium">
@@ -2970,7 +2970,17 @@ const handleUpdateYear = async (mismatch) => {
         </BaseButton>
       </div>
     </template>
-    <p v-else class="no-data-message">No albums found in this playlist.</p>
+    <div v-else class="no-albums-container mt-16">
+      <p class="no-data-message">No albums found in this playlist.</p>
+      <BaseButton
+        v-if="userData?.spotifyConnected && (playlistDoc?.data()?.pipelineRole === 'source' || playlistDoc?.data()?.nextStagePlaylistId)"
+        @click="$router.push({ name: 'addAlbumToPlaylist', query: { playlistId: id } })"
+        variant="primary"
+        class="mt-4"
+      >
+        Add Album to Playlist
+      </BaseButton>
+    </div>
 
     <!-- Spotify Connection Required Message -->
     <div v-if="!userData?.spotifyConnected" class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

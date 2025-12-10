@@ -42,6 +42,12 @@
             v-else-if="currentStep === 'lastfm'"
           />
           
+          <!-- Choose Setup Method Step -->
+          <OnboardingChooseSetupMethodStep
+            v-else-if="currentStep === 'choose_setup_method'"
+            ref="chooseSetupMethodStepRef"
+          />
+          
           <!-- Other steps will be added here -->
           <div v-else class="step-placeholder">
             <p>Step content for: {{ currentStepObjectComputed.title }}</p>
@@ -95,6 +101,7 @@ import OnboardingProgress from '@components/onboarding/OnboardingProgress.vue';
 import OnboardingWelcomeStep from '@components/onboarding/OnboardingWelcomeStep.vue';
 import OnboardingSpotifyStep from '@components/onboarding/OnboardingSpotifyStep.vue';
 import OnboardingLastFmStep from '@components/onboarding/OnboardingLastFmStep.vue';
+import OnboardingChooseSetupMethodStep from '@components/onboarding/OnboardingChooseSetupMethodStep.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 
 const route = useRoute();
@@ -120,6 +127,7 @@ const user = useCurrentUser();
 const { userData, fetchUserData } = useUserData();
 const welcomeDisplayName = ref('');
 const savingDisplayName = ref(false);
+const chooseSetupMethodStepRef = ref(null);
 
 // Removed per-keystroke logging - only log important actions
 
@@ -162,6 +170,10 @@ const canProceed = computed(() => {
   if (currentStep.value === 'lastfm') {
     return !!userData.value?.lastFmAuthenticated;
   }
+  // For choose_setup_method step, check if step-by-step is selected
+  if (currentStep.value === 'choose_setup_method') {
+    return chooseSetupMethodStepRef.value?.canProceed || false;
+  }
   // For other steps, default to true (will be step-specific later)
   return true;
 });
@@ -184,6 +196,7 @@ const getStepDescription = (stepId) => {
     welcome: 'Welcome to Tunicious! Let\'s get you set up.',
     spotify: 'Connect your Spotify account to enable playlist management and music playback.',
     lastfm: 'Connect your Last.fm account to enable track loving functionality.',
+    choose_setup_method: 'Choose how you want to set up your pipelines.',
     create_source: 'Create your source playlist where new albums will be added.',
     add_album: 'Add your first album to the source playlist.',
     create_transient: 'Create a transient playlist for evaluating albums.',
@@ -289,6 +302,12 @@ const handleNext = async () => {
     }
   }
 
+  // For choose_setup_method step, the component handles its own navigation
+  if (currentStep.value === 'choose_setup_method') {
+    console.log('[Onboarding] Choose setup method step - component handles navigation');
+    return;
+  }
+
   await proceedToNextStep();
 };
 
@@ -306,14 +325,30 @@ const proceedToNextStep = async () => {
     await completeOnboarding();
     router.push('/');
   } else {
-    // Go to next step
-    const nextIndex = currentStepIndexComputed.value + 1;
-    const nextStep = steps[nextIndex];
-    console.log('[Onboarding] Moving to next step:', { nextIndex, nextStep: nextStep.id });
+    // Find next step by order (handle decimal orders like 2.5)
+    const currentOrder = currentStepIndexComputed.value;
+    const sortedSteps = [...steps].sort((a, b) => a.order - b.order);
+    const currentStepIndex = sortedSteps.findIndex(s => s.id === currentStep.value);
+    const nextStep = sortedSteps[currentStepIndex + 1];
     
-    // Mark current step as completed
-    console.log('[Onboarding] Marking current step as completed:', currentStep.value);
-    await completeStep(currentStep.value);
+    if (!nextStep) {
+      // No next step, complete onboarding
+      console.log('[Onboarding] No next step - completing onboarding');
+      await completeOnboarding();
+      router.push('/');
+      return;
+    }
+    
+    console.log('[Onboarding] Moving to next step:', { nextStep: nextStep.id });
+    
+    // Mark current step as completed (if not already completed by component)
+    if (currentStep.value === 'choose_setup_method' && chooseSetupMethodStepRef.value?.selectedMethod === 'step_by_step') {
+      // Already completed by component
+      console.log('[Onboarding] Step already completed by component');
+    } else {
+      console.log('[Onboarding] Marking current step as completed:', currentStep.value);
+      await completeStep(currentStep.value);
+    }
     
     // Navigate to next step
     console.log('[Onboarding] Navigating to next step');

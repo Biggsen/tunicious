@@ -10,7 +10,7 @@ This document specifies a quick start option for onboarding that allows users to
 
 1. **Reduce Time to Value**: Get users up and running with a complete pipeline in minutes
 2. **Simplify Setup**: Eliminate the need to understand pipeline structure before creating playlists
-3. **Provide Choice**: Offer both quick start and step-by-step options to accommodate different user preferences
+3. **Provide Choice**: Offer quick start option (step-by-step coming soon) to accommodate different user preferences
 4. **Ensure Completeness**: Generate a fully functional pipeline with all necessary connections
 
 ## Prerequisites
@@ -29,8 +29,8 @@ The quick start option is presented as a new step in the onboarding flow:
 1. Spotify Integration ✅
 2. Last.fm Integration ✅
 2.5. Choose Setup Method
-   ├─> Quick Start: Generate All Playlists → Onboarding Complete
-   └─> Step-by-Step → Continue to Step 3 (Create Source Playlist)
+   ├─> Quick Start: Generate All Playlists → Onboarding Complete (Available)
+   └─> Step-by-Step → Continue to Step 3 (Create Source Playlist) (Coming Soon - Disabled)
 ```
 
 ## Pipeline Structure
@@ -342,10 +342,11 @@ export async function generateCompletePipelines(userId, userSpotifyApi) {
 Create `OnboardingChooseSetupMethodStep.vue`:
 
 - Display two options side-by-side or as cards
-- Quick Start option: "Generate all playlists for New Artist pipeline"
-- Step-by-Step option: "I want to learn each step"
+- Quick Start option: "Generate all playlists for both New and Known artist pipelines" (enabled)
+- Step-by-Step option: "I want to learn each step" (disabled, marked as "Coming Soon")
 - Clear explanations of each option
 - Progress indication
+- Note: Step-by-step option is currently disabled as it's not fully implemented yet
 
 ## User Experience
 
@@ -379,12 +380,13 @@ After completing Last.fm integration, show:
 **Error Handling:**
 - If playlist creation fails, show which one failed
 - "Try Again" button
-- Option to switch to step-by-step if preferred
+- Note: Step-by-step option is currently disabled
 
 ### Step-by-Step Option
 
-- Continue to Step 3 (Create Source Playlist) as normal
-- No changes to existing flow
+- Currently disabled (marked as "Coming Soon")
+- Will continue to Step 3 (Create Source Playlist) when implemented
+- No changes to existing flow when enabled
 
 ## State Management
 
@@ -565,6 +567,7 @@ Each playlist document in Firestore:
 - 20 playlists total are created (10 per group)
 - After quick start completes, onboarding is finished - user proceeds to main app
 - The generated pipelines can be modified after creation (add more playlists, etc.)
-- Quick start is optional - step-by-step remains available for users who want to learn
+- **Current Status**: Quick start is the only available option - step-by-step is disabled and marked as "Coming Soon"
+- Step-by-step option is non-interactive (no click handler) and visually disabled
 - If user already has playlists, they should not be in onboarding (check in Step 4 of main flow)
 
