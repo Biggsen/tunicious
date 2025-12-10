@@ -9,7 +9,7 @@
   "status": "active",
   "domain": "music",
   "type": "webapp",
-  "lastUpdated": "2025-12-09",
+  "lastUpdated": "2025-12-10",
   "links": {
     "prod": null,
     "staging": "https://audiofoodie-d5b2c.web.app/"
@@ -89,7 +89,7 @@
   This helps track immediate priorities and current development state.
 -->
 
-Recent completion of **Core Authentication Pages** provides a complete authentication flow with signup, password reset, and email verification. The **Cache-Driven Playcount System** makes playcounts fully cache-driven with updates only when tracks finish playing (matching Last.fm scrobbling behavior with threshold requirements). The **Unified Track Data Cache** has consolidated all track-related data into a single unified cache structure, eliminating duplication and improving performance. Next focus areas include Account Sidebar Navigation for better UX, Firebase Project Separation for environment isolation, and Pipeline Groups Refactoring to remove redundant data structures.
+Recent completion of **Tunicious Playlist Tag** (December 10, 2025) rebranded playlist identification from `[AudioFoodie]` to `[Tunicious]` and made filtering mandatory across the entire application. The **Add Album to Playlist Page** provides a dedicated interface for adding albums with query string support for pre-selecting playlists. The **Onboarding Quick Start** option allows users to generate all playlists for both "New artist" and "Known artist" pipelines at once. Next focus areas include Account Sidebar Navigation for better UX, Firebase Project Separation for environment isolation, Pipeline Groups Refactoring to remove redundant data structures, and addressing critical security issues identified in the Production Security Review.
 
 ---
 
@@ -116,6 +116,9 @@ Recent completion of **Core Authentication Pages** provides a complete authentic
 - [x] Unified Track Data Cache - Consolidated track data into single unified cache structure
 - [x] Cache-Driven Playcount System - Fully cache-driven playcounts with threshold-based increment logic
 - [x] Core Authentication Pages - Complete authentication flow with signup, password reset, and email verification
+- [x] Add Album to Playlist Page - Dedicated page for adding albums with query string support for pre-selecting playlists
+- [x] Tunicious Playlist Tag - Rebranded from [AudioFoodie] to [Tunicious] and made filtering mandatory (completed December 10, 2025)
+- [x] Onboarding Quick Start - Quick start option that generates all playlists for both "New artist" and "Known artist" pipelines at once
 
 ### Detailed Completed Features
 
@@ -166,6 +169,32 @@ Recent completion of **Core Authentication Pages** provides a complete authentic
 - All pages integrated with Firebase Auth
 - Profile creation redirects to account page for completion
 - Spec: `tasks/enhancements/auth-enhancements.md` (core implementation completed December 6, 2025)
+- Status: Completed
+
+#### Add Album to Playlist Page
+- Dedicated page for adding albums to playlists with improved UX
+- Query string support for pre-selecting playlists when navigating from playlist pages
+- Album search and playlist selector in focused interface
+- Duplicate album detection and validation
+- Cache management and event dispatching for real-time updates
+- Spec: `tasks/completed/add-album-to-playlist-page-spec.md`
+- Status: Completed & Tested
+
+#### Tunicious Playlist Tag
+- Rebranded playlist identification tag from `[AudioFoodie]` to `[Tunicious]`
+- Made playlist filtering mandatory across entire application
+- API-level filtering ensures security by default
+- All UI text updated to reference "Tunicious" instead of "AudioFoodie"
+- Removed optional filtering checkboxes
+- Spec: `tasks/completed/tunicious-playlist-tag-spec.md` (completed December 10, 2025)
+- Status: Completed
+
+#### Onboarding Quick Start
+- Quick start option for onboarding that generates all playlists for both "New artist" and "Known artist" pipelines
+- Creates 20 playlists total (10 per group) with complete pipeline connections
+- Two-phase rollback strategy for error handling
+- Reduces time to value for new users
+- Spec: `tasks/completed/onboarding-quick-start-spec.md`
 - Status: Completed
 
 ---
@@ -240,10 +269,10 @@ No features currently in progress.
 - [ ] Firebase Project Separation - Separate development and production environments into distinct Firebase projects for complete data isolation. Spec: `tasks/firebase-project-separation-spec.md`
 
 - [ ] Pipeline Groups Refactoring - Remove redundant `group` field from playlists and infer groups from pipeline connections using graph traversal. Spec: `tasks/pipeline-groups-refactor-spec.md`
-- [ ] Add Album to Playlist Page - Move "Add Album to Playlist" functionality to dedicated page with query string support for pre-selecting playlist. Spec: `tasks/add-album-to-playlist-page-spec.md`
+
 - [ ] Onboarding Journey - Comprehensive onboarding flow guiding new users through complete Tunicious workflow from account setup through all core features. Spec: `tasks/onboarding-journey-spec.md`
-- [ ] Onboarding Quick Start - Quick start option for onboarding that generates all playlists for a "New artist" pipeline at once. Spec: `tasks/onboarding-quick-start-spec.md`
-- [ ] Tunicious Playlist Tag - Refactor to rename `[AudioFoodie]` to `[Tunicious]` and make playlist filtering mandatory across entire application. Spec: `tasks/tunicious-playlist-tag-spec.md`
+
+- [ ] Production Security Review - Address critical security vulnerabilities before production deployment (5 critical, 4 high priority issues). Spec: `tasks/production-security-review-spec.md`
 
 ### Task Details
 
@@ -266,12 +295,12 @@ No features currently in progress.
 - **Benefits**: Eliminates data redundancy, ensures consistency via graph connections, allows group metadata storage, more maintainable structure
 - **Spec**: `tasks/pipeline-groups-refactor-spec.md`
 
-#### Add Album to Playlist Page
-- **Description**: Create dedicated page for adding albums to playlists, moving functionality from embedded panels in PlaylistManagementView and PlaylistSingle
-- **Key Tasks**: Create AddAlbumToPlaylistView component, add route with query string support, remove panels from existing views, add navigation links
-- **Benefits**: Dedicated interface, improved UX, consistent design, supports both standalone use and navigation from playlist pages
-- **Spec**: `tasks/add-album-to-playlist-page-spec.md`
-- **Status**: Planning
+#### Production Security Review
+- **Description**: Address critical security vulnerabilities identified in comprehensive security review before production deployment
+- **Key Tasks**: Add authentication to Firebase Functions, restrict CORS, move Last.fm API to backend, tighten Firestore rules, strengthen Spotify API proxy validation, implement rate limiting, fix environment detection
+- **Benefits**: Production-ready security, protection against abuse, data isolation, compliance with best practices
+- **Spec**: `tasks/production-security-review-spec.md`
+- **Status**: Critical - Action Required Before Production
 
 #### Onboarding Journey
 - **Description**: Comprehensive onboarding flow that guides new users through the complete Tunicious workflow from initial account setup through all core features
@@ -280,19 +309,6 @@ No features currently in progress.
 - **Spec**: `tasks/onboarding-journey-spec.md`
 - **Status**: Planning
 
-#### Onboarding Quick Start
-- **Description**: Quick start option for onboarding that allows users to generate all playlists for a "New artist" pipeline at once, bypassing step-by-step playlist creation
-- **Key Tasks**: Create quick start option in onboarding flow, implement bulk playlist generation, ensure complete pipeline with all necessary connections, integrate with main onboarding journey
-- **Benefits**: Reduces time to value, simplifies setup, provides choice between quick start and step-by-step options, ensures completeness
-- **Spec**: `tasks/onboarding-quick-start-spec.md`
-- **Status**: Planning
-
-#### Tunicious Playlist Tag
-- **Description**: Refactor to rename playlist identification tag from `[AudioFoodie]` to `[Tunicious]` and make playlist filtering mandatory across entire application
-- **Key Tasks**: Update tag format from `[AudioFoodie]` to `[Tunicious]`, rename `isAudioFoodiePlaylist()` function, make filtering mandatory in all playlist retrieval points, update all playlist operations to validate tag, remove optional filtering checkboxes
-- **Benefits**: Rebrands to match current app name, enforces security by preventing operations on non-Tunicious playlists, ensures consistency across application, prevents accidental operations
-- **Spec**: `tasks/tunicious-playlist-tag-spec.md`
-- **Status**: Planning
 
 ---
 
@@ -304,8 +320,8 @@ No features currently in progress.
 -->
 
 **Overall Status**: Active Development  
-**Completion**: ~80%  
-**Last Major Update**: December 9, 2025
+**Completion**: ~85%  
+**Last Major Update**: December 10, 2025
 
 ### Current State
 
@@ -317,10 +333,11 @@ No features currently in progress.
 
 ### Metrics
 
-- **Completed Features**: 12
+- **Completed Features**: 15
 - **Features In Progress**: 0
-- **Outstanding Tasks**: 7
+- **Outstanding Tasks**: 5
 - **Enhancements**: 6
+- **Active Bugs**: 3 (all medium priority)
 - **UI/UX Improvements**: Documented in `tasks/enhancements/ui-ux-improvements.md`
 
 ---
@@ -334,13 +351,11 @@ No features currently in progress.
 
 ### Immediate (Next 1-3 months)
 
-1. Add Album to Playlist Page
-2. Onboarding Journey
-3. Onboarding Quick Start
-4. Tunicious Playlist Tag
-5. Account Sidebar Navigation
-6. Firebase Project Separation
-7. Pipeline Groups Refactoring
+1. Production Security Review (Critical - must complete before production)
+2. Account Sidebar Navigation
+3. Firebase Project Separation
+4. Pipeline Groups Refactoring
+5. Onboarding Journey
 
 ### Short-term (Next 3-6 months)
 
@@ -381,11 +396,12 @@ No features currently in progress.
 
 - All major tasks have detailed specifications in the `tasks/` directory
 - UI/UX improvements are tracked in `tasks/enhancements/ui-ux-improvements.md` for lightweight tweaks
-- Bugs are tracked in `tasks/buglist.md` with priority levels
+- Bugs are tracked in `tasks/buglist.md` with priority levels (3 medium priority bugs currently active)
 - Commercialization roadmap is a longer-term strategic initiative
 - Enhancement tasks are optional and can be prioritized based on user feedback
 - The project has a solid foundation with the pipeline system successfully implemented
 - Current system is single-user (personal use) with potential for future multi-user expansion
+- **Security Note**: Critical security issues identified in Production Security Review must be addressed before production deployment
 
 ---
 
