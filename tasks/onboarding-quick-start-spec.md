@@ -4,7 +4,7 @@
 
 ## Overview
 
-This document specifies a quick start option for onboarding that allows users to generate all playlists for a "New artist" pipeline at once, bypassing the step-by-step playlist creation process. This provides a faster path to getting started for users who want to jump in quickly.
+This document specifies a quick start option for onboarding that allows users to generate all playlists for both "New artist" and "Known artist" pipelines at once, bypassing the step-by-step playlist creation process. This provides a faster path to getting started for users who want to jump in quickly.
 
 ## Goals
 
@@ -29,55 +29,111 @@ The quick start option is presented as a new step in the onboarding flow:
 1. Spotify Integration ✅
 2. Last.fm Integration ✅
 2.5. Choose Setup Method
-   ├─> Quick Start: Generate All Playlists → Skip to Step 4 (Add Album)
+   ├─> Quick Start: Generate All Playlists → Onboarding Complete
    └─> Step-by-Step → Continue to Step 3 (Create Source Playlist)
 ```
 
 ## Pipeline Structure
 
-### "New Artist" Pipeline - Quick Start
+### Complete Pipeline - Quick Start
 
-The quick start generates a minimal but complete pipeline for discovering new artists:
+The quick start generates complete pipelines for both "New artist" and "Known artist" groups, creating 20 playlists total (10 per group).
 
-#### Playlists Created
+#### New Artists Pipeline (10 playlists)
 
 1. **Source: "Queued"**
    - `pipelineRole`: `source`
    - `group`: `new`
    - `name`: `Queued`
-   - Connections: `nextStagePlaylistId` → "Checking"
+   - Connections: `nextStagePlaylistId` → "Curious"
 
-2. **Transient: "Checking"**
+2. **Transient: "Curious"**
    - `pipelineRole`: `transient`
    - `group`: `new`
-   - `name`: `Checking`
+   - `name`: `Curious`
    - Connections:
-     - `nextStagePlaylistId`: `null` (can be set later)
-     - `terminationPlaylistId` → "Not Checking"
+     - `nextStagePlaylistId` → "Interested"
+     - `terminationPlaylistId` → "1 star"
 
-3. **Sink: "Not Checking"**
+3. **Sink: "1 star"**
    - `pipelineRole`: `sink`
    - `group`: `new`
-   - `name`: `Not Checking`
-   - Connections: None (sink has no outgoing connections)
+   - `name`: `1 star`
+   - Connections: None
+
+4. **Transient: "Interested"**
+   - `pipelineRole`: `transient`
+   - `group`: `new`
+   - `name`: `Interested`
+   - Connections:
+     - `nextStagePlaylistId` → "Good"
+     - `terminationPlaylistId` → "2 stars"
+
+5. **Sink: "2 stars"**
+   - `pipelineRole`: `sink`
+   - `group`: `new`
+   - `name`: `2 stars`
+   - Connections: None
+
+6. **Transient: "Good"**
+   - `pipelineRole`: `transient`
+   - `group`: `new`
+   - `name`: `Good`
+   - Connections:
+     - `nextStagePlaylistId` → "Excellent"
+     - `terminationPlaylistId` → "3 stars"
+
+7. **Sink: "3 stars"**
+   - `pipelineRole`: `sink`
+   - `group`: `new`
+   - `name`: `3 stars`
+   - Connections: None
+
+8. **Transient: "Excellent"**
+   - `pipelineRole`: `transient`
+   - `group`: `new`
+   - `name`: `Excellent`
+   - Connections:
+     - `nextStagePlaylistId` → "Wonderful"
+     - `terminationPlaylistId` → "4 stars"
+
+9. **Sink: "4 stars"**
+   - `pipelineRole`: `sink`
+   - `group`: `new`
+   - `name`: `4 stars`
+   - Connections: None
+
+10. **Terminal: "Wonderful"**
+    - `pipelineRole`: `terminal`
+    - `group`: `new`
+    - `name`: `Wonderful`
+    - Connections: None
+
+#### Known Artists Pipeline (10 playlists)
+
+Same structure as New Artists pipeline, but with `group`: `known`:
+1. Queued (source)
+2. Curious (transient)
+3. 1 star (sink)
+4. Interested (transient)
+5. 2 stars (sink)
+6. Good (transient)
+7. 3 stars (sink)
+8. Excellent (transient)
+9. 4 stars (sink)
+10. Wonderful (terminal)
 
 #### Pipeline Flow
 
 ```
-Source: "Queued"
-  ↓ (nextStagePlaylistId)
-Transient: "Checking"
-  ├─> (nextStagePlaylistId) → (none initially, can be added later)
-  └─> (terminationPlaylistId) → Sink: "Not Checking"
+New Artists:
+Source: "Queued" → Transient: "Curious" → Transient: "Interested" → Transient: "Good" → Transient: "Excellent" → Terminal: "Wonderful"
+                    ↓ (1 star)              ↓ (2 stars)            ↓ (3 stars)            ↓ (4 stars)
+
+Known Artists:
+Source: "Queued" → Transient: "Curious" → Transient: "Interested" → Transient: "Good" → Transient: "Excellent" → Terminal: "Wonderful"
+                    ↓ (1 star)              ↓ (2 stars)            ↓ (3 stars)            ↓ (4 stars)
 ```
-
-### Optional Future Enhancement
-
-In the future, we could offer a more complete quick start with additional playlists:
-- Additional Transient: "Nice"
-- Terminal: "Loving It"
-
-But for now, the minimal setup is sufficient to get users started.
 
 ## Technical Implementation
 
@@ -88,32 +144,151 @@ Create a new composable to handle pipeline generation:
 ```javascript
 // src/composables/usePipelineGeneration.js
 
-export async function generateNewArtistPipeline(userId, userSpotifyApi) {
-  // Define playlist structure
-  const playlists = [
+import { collection, addDoc, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+
+export async function generateCompletePipelines(userId, userSpotifyApi) {
+  // Define playlist structure for both groups
+  const newArtistsPlaylists = [
     { name: 'Queued', role: 'source', group: 'new' },
-    { name: 'Checking', role: 'transient', group: 'new' },
-    { name: 'Not Checking', role: 'sink', group: 'new' }
+    { name: 'Curious', role: 'transient', group: 'new' },
+    { name: '1 star', role: 'sink', group: 'new' },
+    { name: 'Interested', role: 'transient', group: 'new' },
+    { name: '2 stars', role: 'sink', group: 'new' },
+    { name: 'Good', role: 'transient', group: 'new' },
+    { name: '3 stars', role: 'sink', group: 'new' },
+    { name: 'Excellent', role: 'transient', group: 'new' },
+    { name: '4 stars', role: 'sink', group: 'new' },
+    { name: 'Wonderful', role: 'terminal', group: 'new' }
   ];
 
-  const createdPlaylists = [];
+  const knownArtistsPlaylists = [
+    { name: 'Queued', role: 'source', group: 'known' },
+    { name: 'Curious', role: 'transient', group: 'known' },
+    { name: '1 star', role: 'sink', group: 'known' },
+    { name: 'Interested', role: 'transient', group: 'known' },
+    { name: '2 stars', role: 'sink', group: 'known' },
+    { name: 'Good', role: 'transient', group: 'known' },
+    { name: '3 stars', role: 'sink', group: 'known' },
+    { name: 'Excellent', role: 'transient', group: 'known' },
+    { name: '4 stars', role: 'sink', group: 'known' },
+    { name: 'Wonderful', role: 'terminal', group: 'known' }
+  ];
+
+  const allPlaylists = [...newArtistsPlaylists, ...knownArtistsPlaylists];
+  const createdSpotifyPlaylists = [];
   
-  // 1. Create all Spotify playlists
-  for (const playlist of playlists) {
-    const spotifyPlaylist = await userSpotifyApi.createPlaylist(
-      playlist.name,
-      `[AudioFoodie] ${playlist.name} playlist for new artist pipeline`
-    );
-    createdPlaylists.push({ 
-      ...playlist, 
-      spotifyId: spotifyPlaylist.id 
-    });
+  // Phase 1: Create all Spotify playlists (store IDs in memory)
+  for (let i = 0; i < allPlaylists.length; i++) {
+    const playlist = allPlaylists[i];
+    try {
+      const spotifyPlaylist = await userSpotifyApi.createPlaylist(
+        `${playlist.group === 'new' ? 'New' : 'Known'} ${playlist.name}`,
+        `[Tunicious] ${playlist.name} playlist for ${playlist.group} artist pipeline`
+      );
+      createdSpotifyPlaylists.push({ 
+        ...playlist, 
+        spotifyId: spotifyPlaylist.id 
+      });
+    } catch (error) {
+      // Rollback: Delete all created Spotify playlists
+      for (const created of createdSpotifyPlaylists) {
+        await userSpotifyApi.deletePlaylist(created.spotifyId);
+      }
+      throw new Error(`Failed to create playlist: ${playlist.name}. All playlists rolled back.`);
+    }
   }
   
-  // 2. Create Firestore documents with connections
-  // 3. Link playlists
+  // Phase 2: Create all Firestore documents with connections
+  // If any Firestore creation fails, rollback all Spotify playlists
   
-  return createdPlaylists;
+  // Pass 1: Create all Firestore documents without connections
+  // Store Firestore document IDs in a map keyed by "group-name"
+  const firestoreIds = {}; // e.g., { 'new-Queued': 'abc123', 'new-Curious': 'def456', ... }
+  
+  try {
+    for (const playlist of createdSpotifyPlaylists) {
+      const docRef = await addDoc(collection(db, 'playlists'), {
+        playlistId: playlist.spotifyId,
+        name: playlist.name,
+        group: playlist.group,
+        pipelineRole: playlist.role,
+        userId: userId,
+        // Connections will be set in Pass 2
+        nextStagePlaylistId: null,
+        terminationPlaylistId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      // Store Firestore document ID using "group-name" as key
+      const key = `${playlist.group}-${playlist.name}`;
+      firestoreIds[key] = docRef.id;
+    }
+    
+    // Pass 2: Update all playlists with connections using stored Firestore IDs
+    // Use writeBatch for efficiency (up to 500 operations per batch)
+    const batch = writeBatch(db);
+    
+    // Define connection mappings for each group
+    const connections = {
+      'new': {
+        'Queued': { nextStagePlaylistId: 'new-Curious' },
+        'Curious': { nextStagePlaylistId: 'new-Interested', terminationPlaylistId: 'new-1 star' },
+        'Interested': { nextStagePlaylistId: 'new-Good', terminationPlaylistId: 'new-2 stars' },
+        'Good': { nextStagePlaylistId: 'new-Excellent', terminationPlaylistId: 'new-3 stars' },
+        'Excellent': { nextStagePlaylistId: 'new-Wonderful', terminationPlaylistId: 'new-4 stars' }
+      },
+      'known': {
+        'Queued': { nextStagePlaylistId: 'known-Curious' },
+        'Curious': { nextStagePlaylistId: 'known-Interested', terminationPlaylistId: 'known-1 star' },
+        'Interested': { nextStagePlaylistId: 'known-Good', terminationPlaylistId: 'known-2 stars' },
+        'Good': { nextStagePlaylistId: 'known-Excellent', terminationPlaylistId: 'known-3 stars' },
+        'Excellent': { nextStagePlaylistId: 'known-Wonderful', terminationPlaylistId: 'known-4 stars' }
+      }
+    };
+    
+    // Update each playlist with its connections
+    for (const playlist of createdSpotifyPlaylists) {
+      const key = `${playlist.group}-${playlist.name}`;
+      const firestoreId = firestoreIds[key];
+      const playlistConnections = connections[playlist.group]?.[playlist.name];
+      
+      if (playlistConnections) {
+        const updateData = {
+          updatedAt: serverTimestamp()
+        };
+        
+        if (playlistConnections.nextStagePlaylistId) {
+          updateData.nextStagePlaylistId = firestoreIds[playlistConnections.nextStagePlaylistId];
+        }
+        
+        if (playlistConnections.terminationPlaylistId) {
+          updateData.terminationPlaylistId = firestoreIds[playlistConnections.terminationPlaylistId];
+        }
+        
+        const playlistRef = doc(db, 'playlists', firestoreId);
+        batch.update(playlistRef, updateData);
+      }
+    }
+    
+    // Commit all connection updates in a single batch
+    await batch.commit();
+    
+  } catch (error) {
+    // Rollback: Delete all created Spotify playlists
+    for (const created of createdSpotifyPlaylists) {
+      try {
+        await userSpotifyApi.deletePlaylist(created.spotifyId);
+      } catch (rollbackError) {
+        // Log but continue with other rollbacks
+        console.error(`Failed to rollback playlist ${created.spotifyId}:`, rollbackError);
+      }
+    }
+    throw new Error(`Failed to create Firestore documents: ${error.message}. All Spotify playlists rolled back.`);
+  }
+  
+  return createdSpotifyPlaylists;
 }
 ```
 
@@ -124,18 +299,42 @@ export async function generateNewArtistPipeline(userId, userSpotifyApi) {
    - Create all playlists sequentially
    - Store Spotify playlist IDs
 
-2. **Create Firestore Documents**
-   - Create playlist documents in `playlists` collection
-   - Set all required fields: `pipelineRole`, `group`, `name`, `userId`
-   - Set connection fields: `nextStagePlaylistId`, `terminationPlaylistId`
+2. **Create Firestore Documents** (Two-Pass Approach)
+   
+   **Pass 1: Create all documents without connections**
+   - Create all 20 playlist documents sequentially using `addDoc()`
+   - Store Firestore document IDs in a map keyed by `"group-name"` (e.g., `"new-Queued"`, `"known-Curious"`)
+   - Each document gets: `playlistId` (Spotify ID), `name`, `group`, `pipelineRole`, `userId`, `createdAt`, `updatedAt`
+   - Set `nextStagePlaylistId` and `terminationPlaylistId` to `null` initially
+   - Order doesn't matter since connections aren't set yet
+   
+   **Pass 2: Update all playlists with connections**
+   - Use stored Firestore document IDs to build connection updates
+   - Use `writeBatch()` for efficiency (up to 500 operations per batch)
+   - Update each playlist with:
+     - `nextStagePlaylistId`: Firestore document ID of target playlist (for source/transient)
+     - `terminationPlaylistId`: Firestore document ID of sink playlist (for transient only)
+   - Commit all updates in a single batch operation
 
-3. **Link Playlists**
-   - Source → Transient: Set `nextStagePlaylistId` on source
-   - Transient → Sink: Set `terminationPlaylistId` on transient
+3. **Connection Mapping**
+   
+   **New Artists Pipeline:**
+   - `Queued` (source): `nextStagePlaylistId` → `Curious`
+   - `Curious` (transient): `nextStagePlaylistId` → `Interested`, `terminationPlaylistId` → `1 star`
+   - `Interested` (transient): `nextStagePlaylistId` → `Good`, `terminationPlaylistId` → `2 stars`
+   - `Good` (transient): `nextStagePlaylistId` → `Excellent`, `terminationPlaylistId` → `3 stars`
+   - `Excellent` (transient): `nextStagePlaylistId` → `Wonderful`, `terminationPlaylistId` → `4 stars`
+   - `Wonderful` (terminal): No connections
+   - All sinks (`1 star`, `2 stars`, `3 stars`, `4 stars`): No connections
+   
+   **Known Artists Pipeline:**
+   - Same connection structure as New Artists, but with `group: "known"`
 
 4. **Error Handling**
-   - Rollback strategy if any playlist creation fails
-   - Clear error messages
+   - Two-phase rollback strategy:
+     - Phase 1: Create all Spotify playlists, rollback all if any fails
+     - Phase 2: Create all Firestore documents, rollback all Spotify playlists if any fails
+   - Clear error messages indicating which playlist failed
    - Retry mechanism
 
 ### New Onboarding Step Component
@@ -162,19 +361,20 @@ After completing Last.fm integration, show:
 
 **Selection:**
 - User clicks "Quick Start" option
-- Brief confirmation: "This will create 3 playlists for a New Artist pipeline"
+- Brief confirmation: "This will create 20 playlists for both New and Known artist pipelines"
 - "Generate Playlists" button
 
 **During Generation:**
-- Show progress: "Creating Queued playlist...", "Creating Checking playlist...", etc.
+- Show progress: "Creating playlist 1/20...", "Creating playlist 2/20...", etc.
 - Loading state with spinner
 - Disable other interactions
+- Display current playlist being created: "Creating New Queued..."
 
 **Success State:**
-- Show checkmarks for each created playlist
-- Display pipeline structure visually
-- Success message: "Your New Artist pipeline is ready!"
-- "Continue" button to proceed to Step 4 (Add Album)
+- Show checkmarks for all 20 created playlists
+- Display pipeline structure visually (both New and Known)
+- Success message: "Your pipelines are ready! Onboarding complete."
+- "Start Using Tunicious" button (goes to home/playlists)
 
 **Error Handling:**
 - If playlist creation fails, show which one failed
@@ -194,17 +394,16 @@ When quick start is selected:
 
 1. Store choice in `onboarding.stepData.setupMethod = 'quick_start'`
 2. Store created playlist IDs in `onboarding.stepData.quickStartPlaylists`
-3. Mark steps as completed:
-   - `create_source` (skipped)
-   - `create_transient` (skipped)
-   - `create_more_playlists` (skipped - sink already created)
-4. Update `onboarding.currentStep` to `'add_album'` (Step 4)
+3. Mark all steps as completed (all playlist creation steps skipped)
+4. Set `onboarding.completed = true`
+5. Set `onboarding.completedAt = Timestamp.now()`
+6. Set `onboarding.currentStep = null`
 
 ### Skip Logic
 
 In the onboarding flow, check if quick start was used:
-- If `setupMethod === 'quick_start'`, skip steps 3, 5, and 9
-- Proceed directly to Step 4 after quick start completes
+- If `setupMethod === 'quick_start'`, onboarding is complete immediately after playlist generation
+- User proceeds directly to main app (no further onboarding steps)
 
 ## Data Structure
 
@@ -215,11 +414,11 @@ Each playlist document in Firestore:
 ```javascript
 {
   playlistId: "spotify:playlist:...",  // Spotify playlist ID
-  name: "Queued",                       // or "Checking", "Not Checking"
-  group: "new",
-  pipelineRole: "source",               // or "transient", "sink"
-  nextStagePlaylistId: "firebase:doc:id",  // For source/transient
-  terminationPlaylistId: "firebase:doc:id", // For transient only
+  name: "Queued",                       // or "Curious", "1 star", etc.
+  group: "new",                         // or "known"
+  pipelineRole: "source",              // or "transient", "sink", "terminal"
+  nextStagePlaylistId: "firebase:doc:id",  // Firestore document ID (for source/transient)
+  terminationPlaylistId: "firebase:doc:id", // Firestore document ID (for transient only)
   userId: "user123",
   createdAt: Timestamp,
   updatedAt: Timestamp
@@ -228,15 +427,17 @@ Each playlist document in Firestore:
 
 ### Connection Mapping
 
-- Source ("Queued") document:
-  - `nextStagePlaylistId`: Firebase document ID of "Checking" playlist
-  
-- Transient ("Checking") document:
-  - `terminationPlaylistId`: Firebase document ID of "Not Checking" playlist
-  - `nextStagePlaylistId`: `null` (can be set later)
+**New Artists Pipeline:**
+- Source ("Queued"): `nextStagePlaylistId` → "Curious"
+- Transient ("Curious"): `nextStagePlaylistId` → "Interested", `terminationPlaylistId` → "1 star"
+- Transient ("Interested"): `nextStagePlaylistId` → "Good", `terminationPlaylistId` → "2 stars"
+- Transient ("Good"): `nextStagePlaylistId` → "Excellent", `terminationPlaylistId` → "3 stars"
+- Transient ("Excellent"): `nextStagePlaylistId` → "Wonderful", `terminationPlaylistId` → "4 stars"
+- Terminal ("Wonderful"): No connections
+- All sinks: No connections
 
-- Sink ("Not Checking") document:
-  - No connection fields (sinks are terminal)
+**Known Artists Pipeline:**
+- Same connection structure as New Artists, but with `group: "known"`
 
 ## Validation
 
@@ -244,23 +445,43 @@ Each playlist document in Firestore:
 
 - ✅ Verify Spotify is connected (`userData.spotifyConnected === true`)
 - ✅ Verify Last.fm is connected (`userData.lastFmAuthenticated === true`)
-- ✅ Check for existing "new" group playlists (warn if they exist)
+- ✅ Check if user already has any playlists in Firestore
+  - If playlists exist, skip onboarding entirely (user shouldn't be in onboarding if they have playlists)
+  - This check should happen in Step 4 (Create Source Playlist) of the main onboarding flow
 
 ### After Quick Start
 
-- ✅ Verify all 3 playlists created on Spotify
-- ✅ Verify all 3 Firestore documents created
-- ✅ Verify connections are set correctly
-- ✅ Verify playlists have `[AudioFoodie]` tag in description
+- ✅ Verify all 20 playlists created on Spotify (10 for "new", 10 for "known")
+- ✅ Verify all 20 Firestore documents created
+- ✅ Verify connections are set correctly for both pipelines
+- ✅ Verify playlists have `[Tunicious]` tag in description
+- ✅ Verify onboarding is marked as completed
 
 ## Error Scenarios
 
 ### Partial Failure
 
-If one playlist creation fails:
-- **Option 1**: Rollback all created playlists and show error
-- **Option 2**: Continue with successfully created playlists and show warning
-- **Recommendation**: Option 1 (rollback) for cleaner state
+**Two-Phase Rollback Strategy:**
+
+**Phase 1: Spotify Playlist Creation**
+- Create all 20 Spotify playlists sequentially
+- Store all created Spotify playlist IDs in memory
+- If any Spotify playlist creation fails:
+  - Rollback: Delete all Spotify playlists created so far
+  - Show error: "Failed creating [playlist name]. All playlists rolled back."
+  - Provide "Try Again" button
+
+**Phase 2: Firestore Document Creation**
+- After all Spotify playlists are created successfully, create all Firestore documents
+- If any Firestore document creation fails:
+  - Rollback: Delete all 20 Spotify playlists created in Phase 1
+  - Show error: "Failed saving playlist data. All playlists rolled back."
+  - Provide "Try Again" button
+
+**Rationale:**
+- Atomic operation: Either all 20 playlists succeed or none are created
+- Clean state: No partial pipelines left in inconsistent state
+- User-friendly: Clear progress indication and error messages
 
 ### Network Errors
 
@@ -270,9 +491,9 @@ If one playlist creation fails:
 
 ### Existing Playlists
 
-- Check if playlists with same names already exist
-- Warn user before creating
-- Option to skip creation of existing playlists
+- If user already has playlists in Firestore, they should not be in onboarding
+- Check for existing playlists should happen in Step 4 (Create Source Playlist) of main onboarding flow
+- If playlists exist, skip onboarding entirely and redirect to main app
 
 ## Future Enhancements
 
@@ -281,7 +502,6 @@ If one playlist creation fails:
    - Choose between minimal and full pipeline structure
 
 2. **Additional Pipeline Types**
-   - Quick start for "Known Artist" pipeline
    - Quick start for genre-specific pipelines (Rock, Jazz, etc.)
 
 3. **Template System**
@@ -306,42 +526,45 @@ If one playlist creation fails:
 
 ### Modified Files
 
-1. `tasks/onboarding-journey-spec.md`
-   - Add Step 2.5: Choose Setup Method
-   - Update flow diagrams
-   - Document skip logic for quick start
-
-2. `src/composables/useOnboarding.js` (when created)
+1. `src/composables/useOnboarding.js` (when created)
    - Add state management for setup method choice
    - Add skip logic based on quick start
 
-3. `src/views/OnboardingView.vue` (when created)
+2. `src/views/OnboardingView.vue` (when created)
    - Add new step component
    - Handle routing based on setup method choice
+   - Complete onboarding immediately after quick start
 
 ## Testing Considerations
 
 ### Manual Testing
 
-- [ ] Quick start creates all 3 playlists successfully
-- [ ] Playlists are properly connected in Firestore
-- [ ] User can proceed to Step 4 after quick start
+- [ ] Quick start creates all 20 playlists successfully (10 for "new", 10 for "known")
+- [ ] Playlists are properly connected in Firestore for both pipelines
+- [ ] Onboarding completes immediately after quick start (no further steps)
+- [ ] User is redirected to main app after quick start completion
 - [ ] Error handling works for failed playlist creation
-- [ ] Rollback works if creation fails partway through
+- [ ] Phase 1 rollback works (Spotify playlist creation failure)
+- [ ] Phase 2 rollback works (Firestore document creation failure)
 - [ ] Step-by-step option still works normally
 - [ ] Validation prevents quick start without integrations
+- [ ] Existing playlists check prevents onboarding if user already has playlists
 
 ### Edge Cases
 
-- User already has "Queued" playlist
-- Spotify API rate limiting
+- User already has playlists (should skip onboarding)
+- Spotify API rate limiting (20 playlists may hit rate limits)
 - Network disconnection during creation
 - User navigates away during quick start
+- Partial failure during Phase 1 (Spotify creation)
+- Partial failure during Phase 2 (Firestore creation)
 
 ## Notes
 
-- This is a minimal implementation to get users started quickly
-- More advanced customization can be added later
-- The generated pipeline can be modified after creation (add more playlists, etc.)
-- Quick start is optional - step-by-step remains the default for learning
+- This creates complete pipelines for both "new" and "known" artist groups
+- 20 playlists total are created (10 per group)
+- After quick start completes, onboarding is finished - user proceeds to main app
+- The generated pipelines can be modified after creation (add more playlists, etc.)
+- Quick start is optional - step-by-step remains available for users who want to learn
+- If user already has playlists, they should not be in onboarding (check in Step 4 of main flow)
 
