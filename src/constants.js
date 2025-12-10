@@ -4,6 +4,9 @@ export const Client = {
 };
 
 export const LastFmClient = {
+  // API_KEY is only used for OAuth URL construction (getAuthUrl)
+  // This is acceptable as API keys in OAuth URLs are public by design
+  // All actual API calls now go through the backend to protect the key
   API_KEY: import.meta.env.PROD 
     ? import.meta.env.VITE_LASTFM_API_KEY_PROD
     : import.meta.env.VITE_LASTFM_API_KEY_DEV,
@@ -12,7 +15,7 @@ export const LastFmClient = {
 
 export const ApiUrl = {
   playlists: "https://api.spotify.com/v1/playlists",
-  lastfm: "https://ws.audioscrobbler.com/2.0/",
+  // lastfm URL removed - all Last.fm API calls now go through backend
 };
 
 export const SpotifyAuth = {

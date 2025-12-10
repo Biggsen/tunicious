@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { LastFmClient, ApiUrl } from '../constants';
+import { LastFmClient } from '../constants';
 import { useBackendApi } from './useBackendApi';
 import { logLastFm } from '@utils/logger';
 
@@ -10,6 +10,7 @@ export function useLastFmApi() {
 
   /**
    * Makes a request to the Last.fm API
+   * All requests now go through the backend to protect the API key
    * @param {string} method - The Last.fm API method (e.g., 'user.getinfo')
    * @param {Object} params - Additional parameters for the API call
    * @returns {Promise<Object>} The API response
@@ -19,54 +20,9 @@ export function useLastFmApi() {
       loading.value = true;
       error.value = null;
 
-      // Check if this is an authenticated method that requires the backend API
-      const authenticatedMethods = ['track.love', 'track.unlove', 'track.scrobble', 'auth.getSession'];
-      
-      if (authenticatedMethods.includes(method)) {
-        // Use backend API for authenticated methods
-        return await lastfmApiCall(method, params);
-      } else {
-        // Use direct API for read-only methods
-        if (!LastFmClient.API_KEY) {
-          throw new Error('Last.fm API key not configured');
-        }
-
-        const url = new URL(ApiUrl.lastfm);
-        url.searchParams.append('method', method);
-        url.searchParams.append('api_key', LastFmClient.API_KEY);
-        url.searchParams.append('format', 'json');
-
-        // Add additional parameters
-        Object.keys(params).forEach(key => {
-          if (params[key] !== undefined && params[key] !== null) {
-            url.searchParams.append(key, params[key]);
-          }
-        });
-
-        logLastFm('useLastFmApi: Making direct API call to:', url.toString());
-        const response = await fetch(url.toString());
-
-        if (!response.ok) {
-          throw new Error(`Last.fm API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        logLastFm('useLastFmApi: API response data:', data);
-
-        // Check for Last.fm API errors
-        if (data.error) {
-          logLastFm('useLastFmApi: API error:', data.error, data.message);
-          // Include error code in message for better debugging
-          const errorCode = data.error;
-          const errorMsg = data.message || 'Unknown Last.fm error';
-          const error = new Error(`Last.fm API error ${errorCode}: ${errorMsg}`);
-          error.lastFmErrorCode = errorCode;
-          error.lastFmMessage = errorMsg;
-          throw error;
-        }
-
-        return data;
-      }
+      // All Last.fm API calls now go through the backend to protect the API key
+      logLastFm('useLastFmApi: Making API call via backend:', method);
+      return await lastfmApiCall(method, params);
     } catch (err) {
       error.value = err.message;
       throw err;
@@ -287,10 +243,13 @@ export function useLastFmApi() {
 
   /**
    * Get the Last.fm authorization URL
+   * Note: The API key in OAuth URLs is public and acceptable for OAuth flows
    * @param {string} callbackUrl - The callback URL for after authorization
    * @returns {string} The authorization URL
    */
   const getAuthUrl = (callbackUrl) => {
+    // Note: API key in OAuth URLs is public and acceptable
+    // This is different from using it for API calls, which is now done via backend
     if (!LastFmClient.API_KEY) {
       throw new Error('Last.fm API key not configured');
     }
