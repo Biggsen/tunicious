@@ -18,6 +18,7 @@
 - [ ] Playlist name mismatch between database and UI
 - [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 - [ ] Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
+- [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -153,6 +154,39 @@ Need to investigate:
 - The navigation logic/routing configuration
 - Why it's using a playlist ID instead of going back to /playlists
 - Check if there's a route parameter being incorrectly used
+
+---
+
+### App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: Spotify Integration, Last.fm Integration, Current Playing Track Detection
+
+**Description**:  
+When playing music locally through the Spotify desktop/mobile app (not via the web player), the app should still be able to detect and display the currently playing track by polling Last.fm's "now playing" API. Currently, the app only tracks playback when using the Spotify Web Player.
+
+**Steps to Reproduce**:
+1. Play music using Spotify desktop app or mobile app (not web player)
+2. Observe that the app doesn't show the currently playing track
+3. Check if Last.fm is scrobbling the track (if connected)
+
+**Expected Behavior**:  
+The app should periodically poll Last.fm's API to detect the currently playing track, even when music is played through the local Spotify app rather than the web player.
+
+**Actual Behavior**:  
+The app only tracks currently playing tracks when using the Spotify Web Player. Local playback is not detected.
+
+**Workaround**:  
+Use the Spotify Web Player instead of the desktop/mobile app.
+
+**Notes**:  
+Need to investigate:
+- Last.fm API endpoints for "now playing" or recent tracks
+- How to poll Last.fm API periodically to detect current playback
+- Integration with `useCurrentPlayingTrack` composable
+- Whether Last.fm provides real-time "now playing" data or if we need to poll recent scrobbles
+- Rate limiting considerations for polling Last.fm API
+- User experience: how often to poll, how to handle when Last.fm isn't connected
 
 ---
 
