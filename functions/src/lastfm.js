@@ -3,6 +3,7 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
+const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
 
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
@@ -30,7 +31,21 @@ exports.apiProxy = onRequest({
 }, async (req, res) => {
   try {
     // Verify authentication
-    await verifyAuthToken(req);
+    const authResult = await verifyAuthToken(req);
+    
+    // Rate limiting: 500 requests/hour per user
+    const identifier = getRateLimitIdentifier(req, authResult);
+    const rateLimitResult = await rateLimit(req, identifier, 500, 3600000); // 500/hour
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter: retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});

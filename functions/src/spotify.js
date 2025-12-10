@@ -4,6 +4,7 @@ const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
+const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
 
 // Define secrets
 const spotifyClientId = defineSecret("SPOTIFY_CLIENT_ID");
@@ -23,6 +24,20 @@ exports.tokenExchange = onRequest({
   try {
     // Verify authentication
     await verifyAuthToken(req);
+    
+    // Rate limiting: 10 requests/hour per IP
+    const identifier = getRateLimitIdentifier(req);
+    const rateLimitResult = await rateLimit(req, identifier, 10, 3600000); // 10/hour
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter: retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     // Only allow POST requests
     if (req.method !== "POST") {
@@ -98,7 +113,21 @@ exports.refreshToken = onRequest({
 }, async (req, res) => {
   try {
     // Verify authentication
-    await verifyAuthToken(req);
+    const authResult = await verifyAuthToken(req);
+    
+    // Rate limiting: 100 requests/hour per user
+    const identifier = getRateLimitIdentifier(req, authResult);
+    const rateLimitResult = await rateLimit(req, identifier, 100, 3600000); // 100/hour
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter: retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
@@ -184,7 +213,21 @@ exports.refreshToken = onRequest({
 exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
   try {
     // Verify authentication
-    await verifyAuthToken(req);
+    const authResult = await verifyAuthToken(req);
+    
+    // Rate limiting: 1000 requests/hour per user
+    const identifier = getRateLimitIdentifier(req, authResult);
+    const rateLimitResult = await rateLimit(req, identifier, 1000, 3600000); // 1000/hour
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter: retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
