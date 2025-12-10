@@ -23,6 +23,7 @@ This document contains small UI/UX tweaks and improvements for polish and better
 
 ### User Feedback
 - [ ] Would be nice to have a visual indicator as to what album is playing on the album item (on PlaylistSingle view)
+- [ ] Highlight the next playlist to listen to - provide visual indication of which playlist should be listened to next in the pipeline workflow
 
 ### Navigation & Flow
 - [ ] You should be able to play a playlist straight from the Playlists page
