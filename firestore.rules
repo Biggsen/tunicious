@@ -25,6 +25,7 @@ service cloud.firestore {
     }
 
     // Playlists collection rules
+    // Read access for all authenticated users enables social features (viewing others' movements)
     match /playlists/{playlistId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -32,6 +33,8 @@ service cloud.firestore {
     }
 
     // Albums collection rules
+    // Albums are a shared database - read access for all authenticated users enables social features
+    // Users can only write their own userEntries within albums
     match /albums/{albumId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && 
@@ -39,13 +42,14 @@ service cloud.firestore {
     }
 
     // Album Mappings collection rules
+    // Mappings are critical data - only admins can delete to prevent data corruption
     match /albumMappings/{mappingId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated() 
         && request.resource.data.keys().hasAll(['alternateId', 'primaryId', 'createdAt', 'updatedAt'])
         && request.resource.data.alternateId is string
         && request.resource.data.primaryId is string;
-      allow delete: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
     // This rule allows anyone with your Firestore database reference to view, edit,
