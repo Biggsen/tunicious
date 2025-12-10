@@ -17,6 +17,7 @@
 ### Medium Priority
 - [ ] Playlist name mismatch between database and UI
 - [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
+- [ ] Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -119,6 +120,39 @@ Need to investigate:
 - Whether RYM uses dashes or underscores in their URL format
 - The `musicServiceLinks.js` utility function that generates RYM links
 - Compare working RYM URLs vs failing ones to identify the pattern
+
+---
+
+### Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: Navigation, Edit Playlist View
+
+**Description**:  
+When clicking the cancel button on the Edit Playlist page (which can only be accessed from the Playlists page), the user is incorrectly redirected to a PlaylistSingle page with what appears to be the wrong playlist ID. This causes a "Spotify connection lost - please reconnect your account" error. The user should be taken back to the Playlists page instead.
+
+**Steps to Reproduce**:
+1. Navigate to the Playlists page
+2. Access the Edit Playlist page for a playlist
+3. Click the Cancel button
+4. Observe being redirected to PlaylistSingle page with wrong playlist ID
+5. See error message: "Spotify connection lost - please reconnect your account"
+
+**Expected Behavior**:  
+Clicking Cancel on the Edit Playlist page should redirect the user back to the Playlists page.
+
+**Actual Behavior**:  
+User is redirected to a PlaylistSingle page with an incorrect playlist ID, causing an error.
+
+**Workaround**:  
+Manually navigate back to the Playlists page using browser back button or navigation.
+
+**Notes**:  
+Need to investigate:
+- The cancel button handler in EditPlaylistView
+- The navigation logic/routing configuration
+- Why it's using a playlist ID instead of going back to /playlists
+- Check if there's a route parameter being incorrectly used
 
 ---
 
