@@ -248,6 +248,18 @@ No features currently in progress.
 
 - **Pipeline Navigation UI**: Visual indicators showing pipeline connections, pipeline role badges, flow direction indicators. Spec: `tasks/enhancements/pipeline-enhancements.md`
 
+### UI/UX Improvements
+
+Lightweight UI/UX tweaks for polish and better user experience. These are ongoing improvements tracked in `tasks/enhancements/ui-ux-improvements.md`:
+
+- [ ] Improve visibility of currently playing playlist style
+- [ ] Show album count on playlist items
+- [ ] Add visual indicator for currently playing album on PlaylistSingle view
+- [ ] Highlight next playlist to listen to in pipeline workflow
+- [ ] Enable playing playlists directly from Playlists page
+- [ ] Review refresh button necessity on PlaylistSingle page
+- [ ] Add per-group reload button for playlist groups (more efficient than global reload)
+
 ---
 
 ## Outstanding Tasks
@@ -336,9 +348,8 @@ No features currently in progress.
 - **Completed Features**: 15
 - **Features In Progress**: 0
 - **Outstanding Tasks**: 5
-- **Enhancements**: 6
+- **Enhancements**: 13 (6 formal + 7 UI/UX improvements)
 - **Active Bugs**: 3 (all medium priority)
-- **UI/UX Improvements**: Documented in `tasks/enhancements/ui-ux-improvements.md`
 
 ---
 
@@ -395,7 +406,7 @@ No features currently in progress.
 -->
 
 - All major tasks have detailed specifications in the `tasks/` directory
-- UI/UX improvements are tracked in `tasks/enhancements/ui-ux-improvements.md` for lightweight tweaks
+- UI/UX improvements are tracked in `tasks/enhancements/ui-ux-improvements.md` and included in the Enhancements section above
 - Bugs are tracked in `tasks/buglist.md` with priority levels (3 medium priority bugs currently active)
 - Commercialization roadmap is a longer-term strategic initiative
 - Enhancement tasks are optional and can be prioritized based on user feedback
