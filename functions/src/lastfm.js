@@ -1,6 +1,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
+const {verifyAuthToken} = require("./auth");
 
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
@@ -27,6 +28,9 @@ exports.apiProxy = onRequest({
   secrets: [lastfmApiKeyProd, lastfmApiSecretProd, lastfmApiKeyDev, lastfmApiSecretDev],
 }, async (req, res) => {
   try {
+    // Verify authentication
+    await verifyAuthToken(req);
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
@@ -182,6 +186,12 @@ exports.apiProxy = onRequest({
 
     res.json(responseData);
   } catch (error) {
+    // If it's an authentication error, return 401
+    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
+      logger.warn("Last.fm API proxy authentication error", {error: error.message});
+      res.status(401).json({error: error.message});
+      return;
+    }
     logger.error("Last.fm API proxy error", error);
     res.status(500).json({error: "Internal server error"});
   }

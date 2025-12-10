@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { getAuth } from 'firebase/auth';
 
 // Backend API base URL
 const BACKEND_BASE_URL = 'https://us-central1-audiofoodie-d5b2c.cloudfunctions.net';
@@ -8,6 +9,18 @@ export function useBackendApi() {
   const error = ref(null);
 
   /**
+   * Get Firebase ID token for authentication
+   */
+  const getIdToken = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    return await user.getIdToken();
+  };
+
+  /**
    * Make a request to our backend API
    */
   const makeRequest = async (endpoint, options = {}) => {
@@ -15,11 +28,15 @@ export function useBackendApi() {
       loading.value = true;
       error.value = null;
 
+      // Get authentication token
+      const idToken = await getIdToken();
+
       const url = `${BACKEND_BASE_URL}/${endpoint}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
           ...options.headers,
         },
         body: JSON.stringify(options.body || {}),
@@ -60,7 +77,12 @@ export function useBackendApi() {
               errorMessage = 'Spotify refresh token expired - please reconnect your account';
             }
           } else if (response.status === 401) {
-            errorMessage = 'Spotify authentication failed - please reconnect your account';
+            // Check if it's an authentication error from our backend
+            if (errorMessage.includes('Unauthorized') || errorMessage.includes('Invalid token') || errorMessage.includes('not authenticated')) {
+              errorMessage = 'Authentication required - please log in again';
+            } else {
+              errorMessage = 'Spotify authentication failed - please reconnect your account';
+            }
           } else if (response.status === 403) {
             errorMessage = 'Spotify access denied - please reconnect your account';
           } else if (response.status === 429) {
@@ -82,6 +104,11 @@ export function useBackendApi() {
       return await response.json();
     } catch (err) {
       error.value = err.message;
+      
+      // Handle authentication errors
+      if (err.message && err.message.includes('User not authenticated')) {
+        throw new Error('Authentication required - please log in to continue');
+      }
       
       // Distinguish between network errors and API errors
       if (err.name === 'TypeError' && err.message.includes('fetch')) {

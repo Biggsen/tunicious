@@ -1,6 +1,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
+const {verifyAuthToken} = require("./auth");
 
 // Define secrets
 const spotifyClientId = defineSecret("SPOTIFY_CLIENT_ID");
@@ -18,6 +19,9 @@ exports.tokenExchange = onRequest({
   secrets: [spotifyClientId, spotifyClientSecret],
 }, async (req, res) => {
   try {
+    // Verify authentication
+    await verifyAuthToken(req);
+    
     // Only allow POST requests
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
@@ -72,6 +76,12 @@ exports.tokenExchange = onRequest({
       tokenType: tokenData.token_type,
     });
   } catch (error) {
+    // If it's an authentication error, return 401
+    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
+      logger.warn("Token exchange authentication error", {error: error.message});
+      res.status(401).json({error: error.message});
+      return;
+    }
     logger.error("Token exchange error", error);
     res.status(500).json({error: "Internal server error"});
   }
@@ -85,6 +95,9 @@ exports.refreshToken = onRequest({
   secrets: [spotifyClientId, spotifyClientSecret],
 }, async (req, res) => {
   try {
+    // Verify authentication
+    await verifyAuthToken(req);
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
@@ -152,6 +165,12 @@ exports.refreshToken = onRequest({
       tokenType: tokenData.token_type,
     });
   } catch (error) {
+    // If it's an authentication error, return 401
+    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
+      logger.warn("Token refresh authentication error", {error: error.message});
+      res.status(401).json({error: error.message});
+      return;
+    }
     logger.error("Token refresh error", error);
     res.status(500).json({error: "Internal server error"});
   }
@@ -162,6 +181,9 @@ exports.refreshToken = onRequest({
  */
 exports.apiProxy = onRequest({cors: true}, async (req, res) => {
   try {
+    // Verify authentication
+    await verifyAuthToken(req);
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
@@ -201,6 +223,12 @@ exports.apiProxy = onRequest({cors: true}, async (req, res) => {
 
     res.json(responseData);
   } catch (error) {
+    // If it's an authentication error, return 401
+    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
+      logger.warn("Spotify API proxy authentication error", {error: error.message});
+      res.status(401).json({error: error.message});
+      return;
+    }
     logger.error("Spotify API proxy error", error);
     res.status(500).json({error: "Internal server error"});
   }
