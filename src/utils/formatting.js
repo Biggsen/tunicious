@@ -14,3 +14,13 @@ export function formatAlbumName(album) {
   };
 }
 
+/**
+ * Removes the Tunicious tag from a playlist description
+ * @param {string} description - The playlist description
+ * @returns {string} Description with Tunicious tag removed
+ */
+export function removeTuniciousTag(description) {
+  if (!description) return '';
+  return description.replace('[Tunicious]', '').trim();
+}
+

@@ -73,31 +73,18 @@
        <div class="bg-white shadow rounded-lg p-6">
          <div class="flex justify-between items-center mb-4">
            <h2 class="text-lg font-semibold">Your Playlists</h2>
-           <div class="flex items-center gap-4">
-             <label class="flex items-center text-sm">
-               <input 
-                 type="checkbox" 
-                 v-model="showOnlyAudioFoodie"
-                 class="mr-2"
-               />
-               <span>Show only AudioFoodie playlists</span>
-             </label>
-             <BaseButton 
-               @click="loadUserPlaylists"
-               :disabled="spotifyLoading"
-               customClass="btn-secondary"
-             >
-               {{ spotifyLoading ? 'Loading...' : 'Refresh' }}
-             </BaseButton>
-           </div>
+           <BaseButton 
+             @click="loadUserPlaylists"
+             :disabled="spotifyLoading"
+             customClass="btn-secondary"
+           >
+             {{ spotifyLoading ? 'Loading...' : 'Refresh' }}
+           </BaseButton>
          </div>
-        
+         
                  <div v-if="userPlaylists.length === 0" class="text-center py-8 text-gray-500">
-           <p v-if="showOnlyAudioFoodie">
-             No AudioFoodie playlists found. Create your first AudioFoodie playlist above!
-           </p>
-           <p v-else>
-             No playlists found. Create your first playlist above!
+           <p>
+             No Tunicious playlists found. Create your first Tunicious playlist above!
            </p>
          </div>
         
@@ -146,14 +133,14 @@
                   </div>
                  <p class="text-sm text-gray-600">{{ playlist.tracks.total }} tracks</p>
                  <p v-if="playlist.description" class="text-sm text-gray-500 mt-1">
-                   {{ playlist.description.replace(' [AudioFoodie]', '') }}
+                   {{ removeTuniciousTag(playlist.description) }}
                  </p>
                  <div class="flex items-center gap-2 mt-1">
                    <p class="text-xs text-gray-400">
                      {{ playlist.public ? 'Public' : 'Private' }} • ID: {{ playlist.id }}
                    </p>
-                   <span v-if="isAudioFoodiePlaylist(playlist)" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                     AudioFoodie
+                   <span v-if="isTuniciousPlaylist(playlist)" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                     Tunicious
                    </span>
                  </div>
                </div>
@@ -246,6 +233,7 @@ import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import { logPlaylist } from '@utils/logger';
+import { removeTuniciousTag } from '@utils/formatting';
 
 const router = useRouter();
 const { userData } = useUserData();
@@ -257,12 +245,10 @@ const {
   getPlaylistAlbums,
   removeAlbumFromPlaylist,
   updatePlaylist,
-  isAudioFoodiePlaylist
+  isTuniciousPlaylist
 } = useUserSpotifyApi();
 
 const userPlaylists = ref([]);
-const allPlaylists = ref([]);
-const showOnlyAudioFoodie = ref(true);
 const successMessage = ref('');
 const expandedPlaylists = ref(new Set());
 const playlistAlbums = ref(new Map());
@@ -288,7 +274,7 @@ const handleCreatePlaylist = async () => {
       createForm.value.isPublic
     );
     
-         successMessage.value = `AudioFoodie playlist "${playlist.name}" created successfully!`;
+         successMessage.value = `Tunicious playlist "${playlist.name}" created successfully!`;
     
     // Reset form
     createForm.value = {
@@ -338,17 +324,10 @@ const loadUserPlaylists = async () => {
   try {
     spotifyError.value = null;
     const response = await getUserPlaylists(50, 0);
-    allPlaylists.value = response.items;
-    
-    // Filter playlists based on current setting
-    if (showOnlyAudioFoodie.value) {
-      userPlaylists.value = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
-    } else {
-      userPlaylists.value = allPlaylists.value;
-    }
+    // getUserPlaylists already filters to Tunicious playlists at API level
+    userPlaylists.value = response.items;
     
     // Only clear cached album data if we're doing a full refresh
-    // This prevents unnecessary API calls when just filtering
     if (response.items.length > 0) {
       playlistAlbums.value.clear();
     }
@@ -358,15 +337,6 @@ const loadUserPlaylists = async () => {
      spotifyError.value = err.message || 'Failed to load playlists';
    }
 };
-
-// Watch for changes in filter setting
-watch(showOnlyAudioFoodie, () => {
-  if (showOnlyAudioFoodie.value) {
-    userPlaylists.value = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
-  } else {
-    userPlaylists.value = allPlaylists.value;
-  }
-});
 
 const viewPlaylist = (playlistId) => {
   router.push(`/playlist/${playlistId}`);

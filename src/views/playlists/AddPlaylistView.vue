@@ -23,17 +23,17 @@
     <div v-else class="space-y-8">
       <!-- Playlist Selection Section -->
       <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4">Select AudioFoodie Playlist</h2>
+        <h2 class="text-lg font-semibold mb-4">Select Tunicious Playlist</h2>
         
         <div v-if="loadingPlaylists" class="text-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-          <p class="text-gray-500 mt-2">Loading your AudioFoodie playlists...</p>
+          <p class="text-gray-500 mt-2">Loading your Tunicious playlists...</p>
         </div>
         
                  <div v-else-if="availablePlaylists.length === 0" class="text-center py-8">
-           <p class="text-gray-500 mb-4">No AudioFoodie playlists found.</p>
+           <p class="text-gray-500 mb-4">No Tunicious playlists found. Create one first.</p>
            <p class="text-sm text-gray-400 mb-4">
-             Create AudioFoodie playlists in the 
+             Create Tunicious playlists in the 
              <router-link to="/playlist/management" class="text-indigo-600 underline">Playlist Management</router-link> 
              page first.
            </p>
@@ -57,7 +57,7 @@
                <div v-for="playlist in allPlaylists.slice(0, 10)" :key="playlist.id" class="mb-2">
                  <strong>{{ playlist.name }}</strong><br>
                  <span class="text-gray-600">Description: "{{ playlist.description || 'No description' }}"</span><br>
-                 <span class="text-gray-500">AudioFoodie: {{ isAudioFoodiePlaylist(playlist) ? 'Yes' : 'No' }}</span>
+                 <span class="text-gray-500">Tunicious: {{ isTuniciousPlaylist(playlist) ? 'Yes' : 'No' }}</span>
                </div>
                <div v-if="allPlaylists.length > 10" class="text-gray-500">
                  ... and {{ allPlaylists.length - 10 }} more
@@ -233,7 +233,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useUserData } from '@composables/useUserData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
@@ -245,7 +245,7 @@ import ErrorMessage from '@components/common/ErrorMessage.vue';
 import { logPlaylist } from '@utils/logger';
 
 const { user, userData, loading: userLoading, error: userError } = useUserData();
-const { getUserPlaylists, isAudioFoodiePlaylist, getPlaylist } = useUserSpotifyApi();
+const { getUserPlaylists, isTuniciousPlaylist, getPlaylist } = useUserSpotifyApi();
 
 // Initialize form with all required fields
 const initialFormData = {
@@ -294,27 +294,42 @@ const pipelineRoleFields = computed(() => {
 
 
 
-// Load available AudioFoodie playlists
+// Load available Tunicious playlists (excluding those already in Firestore)
 const loadAvailablePlaylists = async () => {
-  if (!userData.value?.spotifyConnected) return;
+  if (!userData.value?.spotifyConnected || !user.value) return;
   
   try {
     loadingPlaylists.value = true;
+    
+    // Fetch existing playlists from Firestore
+    const playlistsRef = collection(db, 'playlists');
+    const q = query(playlistsRef, where('userId', '==', user.value.uid));
+    const querySnapshot = await getDocs(q);
+    
+    // Extract playlistIds that are already added
+    const existingPlaylistIds = new Set();
+    querySnapshot.forEach((docSnap) => {
+      const playlistData = docSnap.data();
+      if (playlistData.playlistId) {
+        existingPlaylistIds.add(playlistData.playlistId);
+      }
+    });
+    
+    logPlaylist('Existing playlists in Firestore:', existingPlaylistIds.size);
+    
+    // Fetch all Tunicious playlists from Spotify
     const response = await getUserPlaylists(50, 0);
-    allPlaylists.value = response.items;
     
-    logPlaylist('All playlists loaded:', allPlaylists.value.length);
-    logPlaylist('Sample playlists:', allPlaylists.value.slice(0, 3).map(p => ({
-      name: p.name,
-      description: p.description,
-      isAudioFoodie: isAudioFoodiePlaylist(p)
-    })));
+    // Filter out playlists that are already in Firestore
+    const filteredPlaylists = response.items.filter(
+      playlist => !existingPlaylistIds.has(playlist.id)
+    );
     
-    // Filter for AudioFoodie playlists only
-    const audioFoodiePlaylists = allPlaylists.value.filter(playlist => isAudioFoodiePlaylist(playlist));
-    logPlaylist('AudioFoodie playlists found:', audioFoodiePlaylists.length);
+    availablePlaylists.value = filteredPlaylists;
+    allPlaylists.value = response.items; // For debug display (shows all, including existing)
     
-    availablePlaylists.value = audioFoodiePlaylists;
+    logPlaylist('Tunicious playlists loaded:', response.items.length);
+    logPlaylist('Available playlists (not yet added):', filteredPlaylists.length);
   } catch (err) {
     logPlaylist('Error loading playlists:', err);
   } finally {

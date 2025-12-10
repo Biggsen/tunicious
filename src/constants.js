@@ -28,3 +28,5 @@ export const SpotifyAuth = {
     'user-modify-playback-state'
   ].join(' ')
 };
+
+export const TUNICIOUS_TAG = '[Tunicious]';

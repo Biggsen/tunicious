@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBackendApi } from '@/composables/useBackendApi';
 import { logSpotify } from '@utils/logger';
+import { TUNICIOUS_TAG } from '@/constants';
 
 // Module-level cache for connection status checks (shared across all instances)
 let connectionStatusCache = null;
@@ -405,20 +406,27 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Formats a description with the Tunicious tag at the beginning
+   */
+  const formatTuniciousDescription = (description) => {
+    return description 
+      ? `${TUNICIOUS_TAG} ${description}`
+      : TUNICIOUS_TAG;
+  };
+
+  /**
    * Creates a new playlist for the user
    */
   const createPlaylist = async (name, description = '', isPublic = false) => {
     // First get the user's Spotify profile to get their user ID
     const profile = await makeUserRequest('https://api.spotify.com/v1/me');
     
-    // Add AudioFoodie identifier to description
-    const audioFoodieDescription = description 
-      ? `${description} [AudioFoodie]`
-      : '[AudioFoodie]';
+    // Add Tunicious identifier to description at the beginning
+    const tuniciousDescription = formatTuniciousDescription(description);
     
     const playlistData = {
       name,
-      description: audioFoodieDescription,
+      description: tuniciousDescription,
       public: isPublic
     };
 
@@ -455,17 +463,64 @@ export function useUserSpotifyApi() {
   };
 
   /**
-   * Gets user's playlists
+   * Checks if a playlist was created by Tunicious
    */
-  const getUserPlaylists = async (limit = 50, offset = 0) => {
-    return makeUserRequest(`https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`);
+  const isTuniciousPlaylist = (playlist) => {
+    return playlist.description && playlist.description.includes(TUNICIOUS_TAG);
   };
 
   /**
-   * Gets a specific playlist
+   * Gets user's playlists (only returns Tunicious playlists)
+   */
+  const getUserPlaylists = async (limit = 50, offset = 0) => {
+    let allTuniciousPlaylists = [];
+    let currentOffset = 0;
+    const pageLimit = 50;
+    let hasMore = true;
+    
+    // Paginate through all playlists to find Tunicious ones
+    while (hasMore) {
+      const response = await makeUserRequest(`https://api.spotify.com/v1/me/playlists?limit=${pageLimit}&offset=${currentOffset}`);
+      
+      // Filter to only return Tunicious playlists
+      const filteredItems = response.items.filter(playlist => isTuniciousPlaylist(playlist));
+      allTuniciousPlaylists = allTuniciousPlaylists.concat(filteredItems);
+      
+      // Check if there are more pages
+      hasMore = response.items.length === pageLimit && (currentOffset + pageLimit < response.total);
+      currentOffset += pageLimit;
+      
+      // If we've found enough playlists for the requested limit and offset is 0, stop
+      if (allTuniciousPlaylists.length >= limit && offset === 0) {
+        break;
+      }
+    }
+    
+    // Apply limit and offset to the filtered results
+    const startIndex = offset;
+    const endIndex = offset + limit;
+    const paginatedItems = allTuniciousPlaylists.slice(startIndex, endIndex);
+    
+    return {
+      items: paginatedItems,
+      total: allTuniciousPlaylists.length,
+      limit: limit,
+      offset: offset
+    };
+  };
+
+  /**
+   * Gets a specific playlist (validates Tunicious tag)
    */
   const getPlaylist = async (playlistId) => {
-    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}`);
+    const playlist = await makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}`);
+    
+    // Validate that playlist has Tunicious tag
+    if (!isTuniciousPlaylist(playlist)) {
+      throw new Error('This playlist is not a Tunicious playlist');
+    }
+    
+    return playlist;
   };
 
   /**
@@ -591,20 +646,6 @@ export function useUserSpotifyApi() {
   const searchAlbums = async (query, limit = 20) => {
     const encodedQuery = encodeURIComponent(query);
     return makeUserRequest(`https://api.spotify.com/v1/search?q=${encodedQuery}&type=album&limit=${limit}`);
-  };
-
-  /**
-   * Checks if a playlist was created by AudioFoodie
-   */
-  const isAudioFoodiePlaylist = (playlist) => {
-    return playlist.description && playlist.description.includes('[AudioFoodie]');
-  };
-
-  /**
-   * Checks if a playlist was created by Tunicious
-   */
-  const isTuniciousPlaylist = (playlist) => {
-    return playlist.description && playlist.description.includes('[Tunicious]');
   };
 
   /**
@@ -743,7 +784,6 @@ export function useUserSpotifyApi() {
     removeTracksFromPlaylist,
     removeAlbumFromPlaylist,
     searchAlbums,
-    isAudioFoodiePlaylist,
     isTuniciousPlaylist,
     getUserTokens,
     refreshUserToken,
