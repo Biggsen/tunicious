@@ -3,6 +3,7 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
+const {isEndpointAllowed} = require("./spotifyEndpoints");
 
 // Define secrets
 const spotifyClientId = defineSecret("SPOTIFY_CLIENT_ID");
@@ -197,9 +198,16 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
       return;
     }
 
-    // Validate endpoint to prevent abuse
+    // Validate endpoint format
     if (!endpoint.startsWith("/")) {
       res.status(400).json({error: "Invalid endpoint format"});
+      return;
+    }
+
+    // Validate endpoint against whitelist to prevent abuse
+    if (!isEndpointAllowed(endpoint)) {
+      logger.warn("Blocked unauthorized endpoint", {endpoint, method});
+      res.status(403).json({error: "Endpoint not allowed"});
       return;
     }
 
