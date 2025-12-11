@@ -5,6 +5,13 @@ const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
 const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
+const {
+  validateRequestSize,
+  validateTokenExchange,
+  validateTokenRefresh,
+  validateSpotifyApiProxy,
+} = require("./validate");
+const {handleError} = require("./errorHandler");
 
 // Define secrets
 const spotifyClientId = defineSecret("SPOTIFY_CLIENT_ID");
@@ -39,13 +46,27 @@ exports.tokenExchange = onRequest({
       return;
     }
     
+    // Validate request size
+    const sizeError = validateRequestSize(req);
+    if (sizeError) {
+      res.status(sizeError.status).json({error: sizeError.error});
+      return;
+    }
+    
     // Only allow POST requests
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
     }
 
-    const {code, redirectUri} = req.body;
+    // Validate and sanitize input
+    const validationResult = validateTokenExchange(req.body);
+    if (validationResult.error) {
+      res.status(validationResult.status).json({error: validationResult.error});
+      return;
+    }
+    
+    const {code, redirectUri} = validationResult.sanitized;
 
     if (!code || !redirectUri) {
       res.status(400).json({error: "Missing required parameters"});
@@ -93,23 +114,7 @@ exports.tokenExchange = onRequest({
       tokenType: tokenData.token_type,
     });
   } catch (error) {
-    // If it's an authentication error, return 401
-    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
-      logger.warn("Token exchange authentication error", {
-        error: error.message,
-        errorStack: error.stack,
-        errorCode: error.code,
-      });
-      res.status(401).json({error: error.message});
-      return;
-    }
-    logger.error("Token exchange error", {
-      error: error.message,
-      errorStack: error.stack,
-      errorCode: error.code,
-      errorName: error.name,
-    });
-    res.status(500).json({error: "Internal server error"});
+    handleError(res, error, "tokenExchange");
   }
 });
 
@@ -138,12 +143,26 @@ exports.refreshToken = onRequest({
       return;
     }
     
+    // Validate request size
+    const sizeError = validateRequestSize(req);
+    if (sizeError) {
+      res.status(sizeError.status).json({error: sizeError.error});
+      return;
+    }
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
     }
 
-    const {refreshToken} = req.body;
+    // Validate and sanitize input
+    const validationResult = validateTokenRefresh(req.body);
+    if (validationResult.error) {
+      res.status(validationResult.status).json({error: validationResult.error});
+      return;
+    }
+    
+    const {refreshToken} = validationResult.sanitized;
 
     if (!refreshToken) {
       res.status(400).json({error: "Missing refresh token"});
@@ -205,14 +224,7 @@ exports.refreshToken = onRequest({
       tokenType: tokenData.token_type,
     });
   } catch (error) {
-    // If it's an authentication error, return 401
-    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
-      logger.warn("Token refresh authentication error", {error: error.message});
-      res.status(401).json({error: error.message});
-      return;
-    }
-    logger.error("Token refresh error", error);
-    res.status(500).json({error: "Internal server error"});
+    handleError(res, error, "refreshToken");
   }
 });
 
@@ -238,23 +250,26 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
       return;
     }
     
+    // Validate request size
+    const sizeError = validateRequestSize(req);
+    if (sizeError) {
+      res.status(sizeError.status).json({error: sizeError.error});
+      return;
+    }
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
     }
 
-    const {endpoint, method = "GET", data, accessToken} = req.body;
-
-    if (!endpoint || !accessToken) {
-      res.status(400).json({error: "Missing required parameters"});
+    // Validate and sanitize input
+    const validationResult = validateSpotifyApiProxy(req.body);
+    if (validationResult.error) {
+      res.status(validationResult.status).json({error: validationResult.error});
       return;
     }
-
-    // Validate endpoint format
-    if (!endpoint.startsWith("/")) {
-      res.status(400).json({error: "Invalid endpoint format"});
-      return;
-    }
+    
+    const {endpoint, method, data, accessToken} = validationResult.sanitized;
 
     // Validate endpoint against whitelist to prevent abuse
     if (!isEndpointAllowed(endpoint)) {
@@ -284,13 +299,6 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
 
     res.json(responseData);
   } catch (error) {
-    // If it's an authentication error, return 401
-    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
-      logger.warn("Spotify API proxy authentication error", {error: error.message});
-      res.status(401).json({error: error.message});
-      return;
-    }
-    logger.error("Spotify API proxy error", error);
-    res.status(500).json({error: "Internal server error"});
+    handleError(res, error, "spotifyApiProxy");
   }
 });

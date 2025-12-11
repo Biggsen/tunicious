@@ -4,6 +4,11 @@ const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
+const {
+  validateRequestSize,
+  validateLastFmApiProxy,
+} = require("./validate");
+const {handleError} = require("./errorHandler");
 
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
@@ -63,17 +68,26 @@ exports.apiProxy = onRequest({
       return;
     }
     
+    // Validate request size
+    const sizeError = validateRequestSize(req);
+    if (sizeError) {
+      res.status(sizeError.status).json({error: sizeError.error});
+      return;
+    }
+    
     if (req.method !== "POST") {
       res.status(405).json({error: "Method not allowed"});
       return;
     }
 
-    const {method, params = {}} = req.body;
-
-    if (!method) {
-      res.status(400).json({error: "Missing method parameter"});
+    // Validate and sanitize input
+    const validationResult = validateLastFmApiProxy(req.body);
+    if (validationResult.error) {
+      res.status(validationResult.status).json({error: validationResult.error});
       return;
     }
+    
+    const {method, params} = validationResult.sanitized;
 
     // Determine environment and get appropriate credentials
     // Uses server-side environment detection (cannot be spoofed)
@@ -219,23 +233,7 @@ exports.apiProxy = onRequest({
 
     res.json(responseData);
   } catch (error) {
-    // If it's an authentication error, return 401
-    if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
-      logger.warn("Last.fm API proxy authentication error", {
-        error: error.message,
-        errorStack: error.stack,
-        errorCode: error.code,
-      });
-      res.status(401).json({error: error.message});
-      return;
-    }
-    logger.error("Last.fm API proxy error", {
-      error: error.message,
-      errorStack: error.stack,
-      errorCode: error.code,
-      errorName: error.name,
-    });
-    res.status(500).json({error: "Internal server error"});
+    handleError(res, error, "lastfmApiProxy");
   }
 });
 
