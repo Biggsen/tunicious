@@ -75,8 +75,8 @@ const emit = defineEmits(['track-loved', 'track-unloved']);
 // Unified track cache for playcount data
 const { getPlaycountForTrack } = useUnifiedTrackCache();
 
-// Current playing track functionality
-const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack(props.lastFmUserName);
+// Current playing track functionality (reads from singleton - doesn't create polling)
+const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack();
 
 // Spotify player functionality
 const { 

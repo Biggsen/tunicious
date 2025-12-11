@@ -54,8 +54,8 @@ const {
   buildProgress: cacheBuildProgress
 } = useUnifiedTrackCache();
 
-// Initialize current playing track tracking
-const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack(userData.value?.lastFmUserName);
+// Initialize current playing track tracking (singleton)
+const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack();
 
 // Initialize toast
 const { showToast } = useToast();
@@ -1536,7 +1536,7 @@ onMounted(async () => {
     
     // Start polling for current playing track if user has Last.fm connected
     if (userData.value?.lastFmUserName) {
-      startCurrentTrackPolling();
+      startCurrentTrackPolling(userData.value.lastFmUserName);
     }
     
     // If tracklists were shown on last visit, fetch them
