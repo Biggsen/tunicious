@@ -15,11 +15,27 @@ const lastfmApiKeyDev = defineSecret("LASTFM_API_KEY_DEV");
 const lastfmApiSecretDev = defineSecret("LASTFM_API_SECRET_DEV");
 
 /**
- * Determine if request is from development environment
+ * Determine if running in development environment
+ * Uses server-side environment variables (cannot be spoofed by clients)
  */
-function isDevelopmentRequest(req) {
-  const origin = req.headers.origin || req.headers.referer || "";
-  return origin.includes("localhost") || origin.includes("127.0.0.1");
+function isDevelopmentEnvironment() {
+  // Check if running in Firebase Functions emulator (local development)
+  if (process.env.FUNCTIONS_EMULATOR === "true") {
+    return true;
+  }
+  
+  // Check if NODE_ENV is set to development
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+  
+  // Check if GCP project name indicates development (e.g., contains 'dev')
+  if (process.env.GCLOUD_PROJECT && process.env.GCLOUD_PROJECT.includes("dev")) {
+    return true;
+  }
+  
+  // Default to production
+  return false;
 }
 
 /**
@@ -60,7 +76,8 @@ exports.apiProxy = onRequest({
     }
 
     // Determine environment and get appropriate credentials
-    const isDev = isDevelopmentRequest(req);
+    // Uses server-side environment detection (cannot be spoofed)
+    const isDev = isDevelopmentEnvironment();
     const apiKey = isDev ? lastfmApiKeyDev.value() : lastfmApiKeyProd.value();
     const apiSecret = isDev ? lastfmApiSecretDev.value() : lastfmApiSecretProd.value();
     

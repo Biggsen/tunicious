@@ -374,36 +374,25 @@ if (!rateLimitResult.allowed) {
 
 ---
 
-### **8. Development Environment Detection Spoofable**
+### **8. Development Environment Detection Spoofable** ✅ RESOLVED
 
 **Severity**: High  
 **Risk**: Dev credentials used in production, security misconfiguration
 
-**Current State**:
-```javascript
-function isDevelopmentRequest(req) {
-  const origin = req.headers.origin || req.headers.referer || "";
-  return origin.includes("localhost") || origin.includes("127.0.0.1");
-}
-```
+**Status**: ✅ **RESOLVED** - Environment detection now uses server-side variables
 
-**Impact**:
-- Origin header can be spoofed
-- Dev credentials could be used in production
-- Security misconfiguration
+**Resolution**:
+- ✅ Replaced origin-based detection with server-side environment variables
+- ✅ Uses `process.env.FUNCTIONS_EMULATOR` to detect local emulator
+- ✅ Uses `process.env.NODE_ENV` as fallback
+- ✅ Uses `process.env.GCLOUD_PROJECT` to detect dev projects
+- ✅ Environment detection can no longer be spoofed by client headers
+- ✅ Dev credentials are now only used when actually running in development environment
 
-**Recommended Fix**:
-```javascript
-// Use environment variable instead
-const isDevelopment = process.env.FUNCTIONS_EMULATOR === 'true' || 
-                     process.env.NODE_ENV === 'development';
-
-// Or use separate function deployments for dev/prod
-const isDev = process.env.GCLOUD_PROJECT?.includes('dev');
-```
-
-**Files to Modify**:
-- `functions/src/lastfm.js` (isDevelopmentRequest function)
+**Implementation**:
+- Changed `isDevelopmentRequest(req)` to `isDevelopmentEnvironment()`
+- Removed dependency on client-controlled `origin` and `referer` headers
+- Environment detection is now server-side only and secure
 
 ---
 
