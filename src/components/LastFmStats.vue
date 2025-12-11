@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useLastFmApi } from '@/composables/useLastFmApi';
 import LoadingMessage from '@/components/common/LoadingMessage.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
+import Card from '@/components/common/Card.vue';
 import { MusicalNoteIcon, UserIcon, CalendarIcon } from '@heroicons/vue/24/outline';
 import { logLastFm } from '@utils/logger';
 
@@ -145,7 +146,7 @@ onMounted(() => {
     
     <div v-else class="space-y-6">
       <!-- User Info Section -->
-      <div v-if="showUserInfo && userInfo" class="bg-white rounded-lg shadow p-4">
+      <Card v-if="showUserInfo && userInfo">
         <div class="flex items-center space-x-4">
           <img 
             :src="getImageUrl(userInfo.image, 'large')" 
@@ -166,10 +167,10 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       <!-- Recent Tracks Section -->
-      <div v-if="showRecentTracks && recentTracks.length > 0" class="bg-white rounded-lg shadow p-4">
+      <Card v-if="showRecentTracks && recentTracks.length > 0">
         <h3 class="text-lg font-semibold text-delft-blue mb-4 flex items-center">
           <MusicalNoteIcon class="w-5 h-5 mr-2" />
           Recent Tracks
@@ -200,10 +201,10 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       <!-- Top Albums Section -->
-      <div v-if="showTopAlbums && topAlbums.length > 0" class="bg-white rounded-lg shadow p-4">
+      <Card v-if="showTopAlbums && topAlbums.length > 0">
         <h3 class="text-lg font-semibold text-delft-blue mb-4">
           Top Albums (Past Month)
         </h3>
@@ -223,7 +224,7 @@ onMounted(() => {
             <p class="text-xs text-gray-400">{{ formatPlaycount(album.playcount) }} plays</p>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   </div>
 </template>

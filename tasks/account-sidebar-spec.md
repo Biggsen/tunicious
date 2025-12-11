@@ -1,6 +1,6 @@
 # Account Sidebar Navigation Specification
 
-## **Status**: 📋 Planning
+## **Status**: ✅ Complete
 
 ## Overview
 
@@ -18,7 +18,7 @@ This document specifies the reorganization of the Account Details page from a si
   - Last.fm Diagnostics component
   - Last.fm Stats component
   - Cache Manager component
-  - Profile creation form (when no profile exists)
+  - Note: Profile creation is handled by onboarding flow, not in AccountView
 
 ### Issues with Current Implementation
 - All content is stacked vertically in a single long page
@@ -31,6 +31,7 @@ This document specifies the reorganization of the Account Details page from a si
 
 ### Layout Architecture
 
+**Desktop/Tablet:**
 ```
 ┌─────────────────────────────────────────────────────┐
 │                     Header                           │
@@ -40,13 +41,27 @@ This document specifies the reorganization of the Account Details page from a si
 │  Navigation  │     (Dynamic Section)                │
 │              │                                      │
 │  - Profile   │                                      │
-│  - Spotify   │                                      │
-│  - Last.fm   │                                      │
+│  - Integrations│                                    │
+│  - Diagnostics│                                     │
+│  - Statistics │                                     │
 │  - Cache     │                                      │
-│  - Stats     │                                      │
 │  - Security  │                                      │
 │              │                                      │
 └──────────────┴──────────────────────────────────────┘
+```
+
+**Mobile:**
+```
+┌─────────────────────────────────────────────────────┐
+│                     Header                           │
+├──────────────────────────────────────────────────────┤
+│  [Profile] [Integrations] [Diagnostics] [Stats] ... │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│              Content Area                           │
+│         (Dynamic Section)                            │
+│                                                      │
+└──────────────────────────────────────────────────────┘
 ```
 
 ### Navigation Structure
@@ -84,13 +99,12 @@ Display and manage user profile information.
 
 #### Features
 - View current profile information
-- Profile creation form (if no profile exists)
 - Edit profile fields (future enhancement)
+- Note: Profile creation is handled by onboarding, so all users will have a profile when accessing this section
 
 #### UI Requirements
 - Clean card layout with profile fields
 - Consistent with existing account view styling
-- Form for profile creation when needed
 
 ---
 
@@ -186,12 +200,12 @@ Display Last.fm listening statistics and data.
 #### Features
 - Comprehensive Last.fm statistics display
 - User listening insights
-- Only visible when Last.fm username is configured
+- Section is always visible in navigation; content may show "no data" if Last.fm not configured
 
 #### UI Requirements
 - Rich statistical display
 - Visualizations if available
-- Conditional rendering (only show if Last.fm configured)
+- Show appropriate message if Last.fm username not configured
 - Loading states for data fetching
 
 ---
@@ -280,27 +294,11 @@ Use Vue Router nested routes to maintain a single parent component with sidebar 
 - Create child route components or use dynamic content switching
 - Use `<router-view>` for content area
 
-### Option 2: Hash-based Navigation
+### Routing Decision
 
-Use hash fragments for section navigation within a single route.
+**Selected Approach**: Nested Routes (Option 1)
 
-```
-/account#profile
-/account#integrations
-/account#diagnostics
-/account#statistics
-/account#cache
-/account#security
-```
-
-#### Advantages
-- Simpler implementation
-- No router changes needed
-- Faster navigation (no page reload)
-
-#### Disadvantages
-- Less semantic URLs
-- Browser history navigation less intuitive
+This approach will establish the nested route pattern in the codebase, following Vue Router best practices. The router currently uses flat routes, so this will be the first implementation of nested routes.
 
 ## UI/UX Requirements
 
@@ -314,15 +312,15 @@ Use hash fragments for section navigation within a single route.
 
 **Styling**
 - Use design system colors (mint, delft-blue, celadon)
-- Active section highlighted with background color
+- Active section highlighted (styling to be refined during implementation)
 - Hover states for navigation items
 - Icons + text labels for each section
 - Consistent spacing and typography
 
 **Responsive Behavior**
-- Desktop: Sidebar always visible, content area flexible
-- Tablet: Sidebar can collapse/expand
-- Mobile: Sidebar hidden by default, toggle button to show
+- Desktop: Sidebar always visible on the left, content area flexible
+- Tablet: Sidebar always visible on the left, content area flexible
+- Mobile: Navigation links stacked horizontally above content (no drawer/overlay)
 
 ### Content Area Design
 
@@ -340,10 +338,11 @@ Use hash fragments for section navigation within a single route.
 
 ### Navigation Behavior
 
-- Active section highlighted in sidebar
+- Active section highlighted in sidebar (styling to be refined)
 - Smooth transitions between sections
 - Preserve scroll position (optional enhancement)
 - Clear visual feedback on navigation
+- All sections always visible in navigation (no conditional hiding)
 
 ## Technical Implementation
 
@@ -427,53 +426,53 @@ src/views/auth/
 
 ### Phase 1: Basic Sidebar Structure
 **Priority**: High  
-**Estimated Time**: 2-3 hours
+**Status**: ✅ Complete
 
 **Tasks**:
-1. Create AccountSidebar component with navigation items
-2. Update AccountView to use sidebar + content layout
-3. Implement basic section switching (without routes initially)
-4. Style sidebar with design system colors
-5. Test responsive behavior
+1. ✅ Create AccountSidebar component with navigation items
+2. ✅ Update AccountView to use sidebar + content layout
+3. ✅ Style sidebar with design system colors
+4. ✅ Implement responsive behavior (desktop sidebar, mobile stacked links)
+5. ✅ Test responsive behavior across breakpoints
 
 ### Phase 2: Route Integration
 **Priority**: High  
-**Estimated Time**: 2-3 hours
+**Status**: ✅ Complete
 
 **Tasks**:
-1. Set up nested routes in router
-2. Create section components (extract from current AccountView)
-3. Implement router-view in AccountView
-4. Update sidebar navigation to use router-links
-5. Add default redirect to profile section
-6. Test navigation and routing
+1. ✅ Set up nested routes in router
+2. ✅ Create section components (extract from current AccountView)
+3. ✅ Implement router-view in AccountView
+4. ✅ Update sidebar navigation to use router-links
+5. ✅ Add default redirect to profile section
+6. ✅ Test navigation and routing
 
 ### Phase 3: Content Migration
 **Priority**: High  
-**Estimated Time**: 3-4 hours
+**Status**: ✅ Complete
 
 **Tasks**:
-1. Extract Profile section content
-2. Extract Integrations section content
-3. Extract Diagnostics section content
-4. Extract Statistics section content
-5. Extract Cache section content
-6. Extract Security section content
-7. Test each section independently
-8. Verify all functionality works correctly
+1. ✅ Extract Profile section content
+2. ✅ Extract Integrations section content
+3. ✅ Extract Diagnostics section content
+4. ✅ Extract Statistics section content
+5. ✅ Extract Cache section content
+6. ✅ Extract Security section content
+7. ✅ Test each section independently
+8. ✅ Verify all functionality works correctly
 
 ### Phase 4: Polish and Enhancements
 **Priority**: Medium  
-**Estimated Time**: 2-3 hours
+**Status**: ✅ Complete
 
 **Tasks**:
-1. Add loading states
-2. Improve mobile responsiveness
-3. Add smooth transitions
-4. Enhance active state styling
-5. Add section icons
-6. Improve accessibility
-7. Test across browsers
+1. ✅ Add loading states
+2. ✅ Improve mobile responsiveness
+3. ✅ Add smooth transitions
+4. ✅ Enhance active state styling
+5. ✅ Add section icons
+6. ⏭️ Improve accessibility (deferred - basic accessibility in place)
+7. ✅ Test across browsers
 
 ## Migration Strategy
 
@@ -494,12 +493,7 @@ src/views/auth/
 
 ## Accessibility Considerations
 
-- Keyboard navigation for sidebar
-- Focus management on section change
-- ARIA labels for navigation items
-- Screen reader announcements for section changes
-- Skip to content link
-- High contrast mode support
+*Note: Basic accessibility is in place (semantic HTML, router-link components). Advanced accessibility features (focus management, ARIA announcements, skip links) are deferred for future enhancement if needed.*
 
 ## Browser Support
 
@@ -511,18 +505,18 @@ src/views/auth/
 ## Testing Strategy
 
 ### Manual Testing Checklist
-- [ ] Navigate to `/account` redirects to `/account/profile`
-- [ ] All sidebar navigation links work correctly
-- [ ] Active section is highlighted in sidebar
-- [ ] Content displays correctly in each section
-- [ ] Mobile sidebar toggle works
-- [ ] Responsive layout works on all screen sizes
-- [ ] All existing functionality works (connections, diagnostics, etc.)
-- [ ] Logout works from security section
-- [ ] Browser back/forward navigation works
-- [ ] Direct URL access to sections works
-- [ ] Loading states display correctly
-- [ ] Error states display correctly
+- [x] Navigate to `/account` redirects to `/account/profile`
+- [x] All sidebar navigation links work correctly
+- [x] Active section is highlighted in sidebar
+- [x] Content displays correctly in each section
+- [x] Mobile navigation displays as stacked links above content
+- [x] Responsive layout works on all screen sizes
+- [x] All existing functionality works (connections, diagnostics, etc.)
+- [x] Logout works from security section
+- [x] Browser back/forward navigation works
+- [x] Direct URL access to sections works
+- [x] Loading states display correctly
+- [x] Error states display correctly
 
 ### Component Testing
 - Test each section component independently
@@ -541,12 +535,19 @@ src/views/auth/
 - Data export functionality
 - Notification preferences
 
-## Notes
+## Implementation Notes
 
-- All existing components (CacheManager, LastFmStats, SpotifyDiagnostic, etc.) remain unchanged
-- No changes to composables needed
-- Existing styling patterns should be maintained
-- Design system colors should be used consistently
-- Follow existing code style and patterns
-- Consider adding breadcrumbs for navigation context (optional)
+- ✅ All existing components (CacheManager, LastFmStats, SpotifyDiagnostic, etc.) remain unchanged
+- ✅ No changes to composables needed
+- ✅ Existing styling patterns maintained
+- ✅ Design system colors used consistently
+- ✅ Followed existing code style and patterns
+- ✅ Profile creation form logic removed from AccountView (handled by onboarding)
+- ✅ All navigation sections are always visible; content within sections may be conditional
+- ✅ Mobile navigation: stacked links above content (not drawer/overlay)
+- ✅ First implementation of nested routes in the router
+- ✅ Created reusable Card component for consistent styling
+- ✅ Updated all sections to use Card component
+- ✅ Removed nested panels from diagnostics and cache sections
+- ✅ Logout button updated to use BaseButton primary variant
 

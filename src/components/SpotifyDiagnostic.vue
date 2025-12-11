@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
 import BaseButton from '@/components/common/BaseButton.vue';
+import Card from '@/components/common/Card.vue';
 import { logSpotify } from '@utils/logger';
 
 const user = useCurrentUser();
@@ -135,7 +136,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="bg-white shadow rounded-lg p-6">
+  <Card>
     <h3 class="text-lg font-semibold text-delft-blue mb-4">Spotify Connection Diagnostic</h3>
     
     <div class="space-y-3 mb-6">
@@ -207,5 +208,5 @@ onMounted(() => {
         Clear Tokens & Reconnect
       </BaseButton>
     </div>
-  </div>
+  </Card>
 </template>

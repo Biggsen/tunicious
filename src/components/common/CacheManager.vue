@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+  <Card>
     <h3 class="text-lg font-semibold mb-3 text-delft-blue">Cache Management</h3>
     
     <!-- General Cache Info -->
@@ -148,13 +148,14 @@
     <div v-if="message" class="mt-3 p-2 rounded text-sm" :class="messageClass">
       {{ message }}
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { getCacheInfo, clearCache } from '@/utils/cache';
 import BaseButton from '@/components/common/BaseButton.vue';
+import Card from '@/components/common/Card.vue';
 import { ArrowPathIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { logCache } from '@utils/logger';
 import { useUnifiedTrackCache } from '@/composables/useUnifiedTrackCache';

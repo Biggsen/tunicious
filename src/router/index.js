@@ -6,6 +6,12 @@ import HomeView from '@views/HomeView.vue';
 import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
 import AccountView from '@views/auth/AccountView.vue';
+import ProfileSection from '@views/auth/account/ProfileSection.vue';
+import IntegrationsSection from '@views/auth/account/IntegrationsSection.vue';
+import DiagnosticsSection from '@views/auth/account/DiagnosticsSection.vue';
+import StatisticsSection from '@views/auth/account/StatisticsSection.vue';
+import CacheSection from '@views/auth/account/CacheSection.vue';
+import SecuritySection from '@views/auth/account/SecuritySection.vue';
 import LoginView from '@views/auth/LoginView.vue';
 import SignupView from '@views/auth/SignupView.vue';
 import VerifyEmailView from '@views/auth/VerifyEmailView.vue';
@@ -85,9 +91,44 @@ const routes = [
   },
   {
     path: '/account',
-    name: 'account',
     component: AccountView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        redirect: { name: 'account-profile' }
+      },
+      {
+        path: 'profile',
+        component: ProfileSection,
+        name: 'account-profile'
+      },
+      {
+        path: 'integrations',
+        component: IntegrationsSection,
+        name: 'account-integrations'
+      },
+      {
+        path: 'diagnostics',
+        component: DiagnosticsSection,
+        name: 'account-diagnostics'
+      },
+      {
+        path: 'statistics',
+        component: StatisticsSection,
+        name: 'account-statistics'
+      },
+      {
+        path: 'cache',
+        component: CacheSection,
+        name: 'account-cache'
+      },
+      {
+        path: 'security',
+        component: SecuritySection,
+        name: 'account-security'
+      }
+    ]
   },
   {
     path: '/onboarding',
@@ -189,6 +230,12 @@ function getCurrentUser() {
 const allowedOnboardingRoutes = [
   '/onboarding',
   '/account',
+  '/account/profile',
+  '/account/integrations',
+  '/account/diagnostics',
+  '/account/statistics',
+  '/account/cache',
+  '/account/security',
   '/login',
   '/signup',
   '/spotify-callback',
@@ -238,6 +285,7 @@ router.beforeEach(async (to, from, next) => {
       // Check if current route is allowed during onboarding
       const currentPath = to.path;
       const isAllowedRoute = allowedOnboardingRoutes.includes(currentPath) ||
+        currentPath.startsWith('/account/') ||
         currentPath.startsWith('/spotify-callback') ||
         currentPath.startsWith('/lastfm-callback');
 
