@@ -230,7 +230,6 @@ async function trackUsage(req, identifier, method, authResult = null) {
       methods: admin.firestore.FieldValue.arrayUnion(method),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    
   } catch (error) {
     // Log but don't fail the request
     logger.error("Usage tracking error", {
