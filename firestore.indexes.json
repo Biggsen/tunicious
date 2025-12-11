@@ -1,5 +1,29 @@
 {
   "indexes": [
+    {
+      "collectionGroup": "lastfmUsageHourly",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "hour", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lastfmUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lastfmUsageDaily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "day", "order": "ASCENDING" }
+      ]
+    }
   ],
   "fieldOverrides": [
     {
