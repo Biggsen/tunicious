@@ -3,7 +3,7 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
-const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
+const {trackUsage, getRateLimitIdentifier} = require("./rateLimit");
 const {
   validateRequestSize,
   validateLastFmApiProxy,
@@ -67,19 +67,8 @@ exports.apiProxy = onRequest({
     // Verify authentication
     const authResult = await verifyAuthToken(req);
     
-    // Rate limiting: 500 requests/hour per user
+    // Get identifier for tracking
     const identifier = getRateLimitIdentifier(req, authResult);
-    const rateLimitResult = await rateLimit(req, identifier, 500, 3600000); // 500/hour
-    
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
-      res.status(429).json({
-        error: "Rate limit exceeded",
-        retryAfter: retryAfter,
-        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
-      });
-      return;
-    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -101,6 +90,11 @@ exports.apiProxy = onRequest({
     }
     
     const {method, params} = validationResult.sanitized;
+
+    // Track usage (non-blocking, fire and forget)
+    trackUsage(req, identifier, method, authResult).catch(err => {
+      logger.error("Failed to track usage", { error: err.message });
+    });
 
     // Determine environment and get appropriate credentials
     // Uses server-side environment detection (cannot be spoofed)
