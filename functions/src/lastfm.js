@@ -22,8 +22,10 @@ const lastfmApiSecretDev = defineSecret("LASTFM_API_SECRET_DEV");
 /**
  * Determine if running in development environment
  * Uses server-side environment variables (cannot be spoofed by clients)
+ * TEMPORARY: Also checks origin for localhost requests until emulator is set up
+ * TODO: Remove origin check once Firebase Functions emulator is configured (see firebase-project-separation-spec.md)
  */
-function isDevelopmentEnvironment() {
+function isDevelopmentEnvironment(req = null) {
   // Check if running in Firebase Functions emulator (local development)
   if (process.env.FUNCTIONS_EMULATOR === "true") {
     return true;
@@ -37,6 +39,17 @@ function isDevelopmentEnvironment() {
   // Check if GCP project name indicates development (e.g., contains 'dev')
   if (process.env.GCLOUD_PROJECT && process.env.GCLOUD_PROJECT.includes("dev")) {
     return true;
+  }
+  
+  // TEMPORARY: Check origin for localhost (already validated by CORS)
+  // This is a workaround until Firebase Functions emulator is set up
+  // Origin is safe to check here because it's already validated against allowedOrigins in CORS
+  if (req) {
+    const origin = req.headers.origin || req.headers.referer || "";
+    if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+      logger.info("Using DEV Last.fm credentials based on localhost origin");
+      return true;
+    }
   }
   
   // Default to production
@@ -91,7 +104,8 @@ exports.apiProxy = onRequest({
 
     // Determine environment and get appropriate credentials
     // Uses server-side environment detection (cannot be spoofed)
-    const isDev = isDevelopmentEnvironment();
+    // TEMPORARY: Also checks origin for localhost until emulator is set up
+    const isDev = isDevelopmentEnvironment(req);
     const apiKey = isDev ? lastfmApiKeyDev.value() : lastfmApiKeyProd.value();
     const apiSecret = isDev ? lastfmApiSecretDev.value() : lastfmApiSecretProd.value();
     

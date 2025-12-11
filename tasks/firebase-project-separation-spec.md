@@ -89,6 +89,7 @@ Separate development and production environments into distinct Firebase projects
 
 1. **Simplify Environment Detection**
    - Remove environment detection from `functions/src/lastfm.js`
+   - **TODO: Remove origin-based detection workaround** - Currently `isDevelopmentEnvironment()` checks request origin for localhost as a temporary workaround. Once Firebase Functions emulator is set up and working, remove the origin check (lines checking `req.headers.origin` for localhost) and rely solely on server-side environment variables.
    - Use single set of secrets per deployment
    - Deploy dev functions with dev secrets
    - Deploy prod functions with prod secrets
