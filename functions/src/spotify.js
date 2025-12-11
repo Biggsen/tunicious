@@ -95,11 +95,20 @@ exports.tokenExchange = onRequest({
   } catch (error) {
     // If it's an authentication error, return 401
     if (error.message && (error.message.includes("Unauthorized") || error.message.includes("authentication"))) {
-      logger.warn("Token exchange authentication error", {error: error.message});
+      logger.warn("Token exchange authentication error", {
+        error: error.message,
+        errorStack: error.stack,
+        errorCode: error.code,
+      });
       res.status(401).json({error: error.message});
       return;
     }
-    logger.error("Token exchange error", error);
+    logger.error("Token exchange error", {
+      error: error.message,
+      errorStack: error.stack,
+      errorCode: error.code,
+      errorName: error.name,
+    });
     res.status(500).json({error: "Internal server error"});
   }
 });

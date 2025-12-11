@@ -17,9 +17,7 @@ if (!admin.apps.length) {
  */
 async function rateLimit(req, identifier, limit, windowMs) {
   const now = Date.now();
-  const key = `ratelimit:${identifier}`;
-  
-  const docRef = admin.firestore().doc(key);
+  const docRef = admin.firestore().collection("rateLimits").doc(identifier);
   
   try {
     const doc = await docRef.get();
@@ -83,7 +81,14 @@ async function rateLimit(req, identifier, limit, windowMs) {
     };
   } catch (error) {
     // If rate limiting fails, log but allow the request (fail open)
-    logger.error("Rate limiting error", {error: error.message, identifier});
+    logger.error("Rate limiting error", {
+      error: error.message,
+      errorStack: error.stack,
+      errorCode: error.code,
+      identifier,
+      limit,
+      windowMs,
+    });
     return {
       allowed: true,
       remaining: limit,
