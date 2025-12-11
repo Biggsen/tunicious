@@ -48,6 +48,10 @@ export function useBackendApi() {
         // Check if this is a Last.fm API error (has both error code and message)
         const isLastFmError = typeof errorData.error === 'number' && errorData.message;
         
+        // Determine which service this request is for based on endpoint
+        const isLastFmEndpoint = endpoint === 'lastfmApiProxy';
+        const isSpotifyEndpoint = endpoint.includes('spotify');
+        
         let errorMessage;
         if (isLastFmError) {
           // Last.fm errors: include both code and message for better debugging
@@ -80,15 +84,34 @@ export function useBackendApi() {
             // Check if it's an authentication error from our backend
             if (errorMessage.includes('Unauthorized') || errorMessage.includes('Invalid token') || errorMessage.includes('not authenticated')) {
               errorMessage = 'Authentication required - please log in again';
-            } else {
+            } else if (isSpotifyEndpoint) {
               errorMessage = 'Spotify authentication failed - please reconnect your account';
+            } else if (isLastFmEndpoint) {
+              errorMessage = 'Last.fm authentication failed - please reconnect your account';
             }
           } else if (response.status === 403) {
-            errorMessage = 'Spotify access denied - please reconnect your account';
+            if (isSpotifyEndpoint) {
+              errorMessage = 'Spotify access denied - please reconnect your account';
+            } else if (isLastFmEndpoint) {
+              errorMessage = 'Last.fm access denied - please reconnect your account';
+            }
           } else if (response.status === 429) {
-            errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
+            // Rate limit - determine which service based on endpoint
+            if (isLastFmEndpoint) {
+              errorMessage = 'Last.fm rate limit exceeded - please try again in a moment';
+            } else if (isSpotifyEndpoint) {
+              errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
+            } else {
+              errorMessage = 'Rate limit exceeded - please try again in a moment';
+            }
           } else if (response.status >= 500) {
-            errorMessage = 'Spotify service temporarily unavailable - please try again later';
+            if (isSpotifyEndpoint) {
+              errorMessage = 'Spotify service temporarily unavailable - please try again later';
+            } else if (isLastFmEndpoint) {
+              errorMessage = 'Last.fm service temporarily unavailable - please try again later';
+            } else {
+              errorMessage = 'Service temporarily unavailable - please try again later';
+            }
           }
         }
         
