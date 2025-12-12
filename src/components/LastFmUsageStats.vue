@@ -35,21 +35,29 @@
           <h4 class="text-lg font-semibold text-delft-blue mb-3">
             Last 24 Hours
           </h4>
-          <div class="flex items-end justify-between gap-1 h-48 pb-8">
+          <div v-if="stats.hourly && stats.hourly.length > 0" class="flex items-end justify-between gap-1" style="height: 192px; padding-bottom: 2rem;">
             <div
               v-for="(item, index) in stats.hourly"
               :key="index"
-              class="flex-1 flex flex-col items-center group relative"
+              class="flex-1 flex flex-col items-center justify-end group relative"
+              style="height: 100%;"
             >
               <div
-                class="w-full bg-mint rounded-t transition-all hover:bg-celadon cursor-pointer"
-                :style="{ height: `${Math.max((item.count / maxHourlyCount) * 100, 5)}%` }"
+                class="w-full bg-mint rounded-t transition-all hover:bg-celadon cursor-pointer border border-mint/30"
+                :style="{ 
+                  height: item.count > 0 && maxHourlyCount > 0
+                    ? `${(Number(item.count) / maxHourlyCount) * 100}%` 
+                    : '3px'
+                }"
                 :title="`${item.label}: ${item.count} calls`"
               ></div>
               <div class="text-xs text-gray-600 mt-1 absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
                 {{ index % 4 === 0 ? item.label : '' }}
               </div>
             </div>
+          </div>
+          <div v-else class="h-48 flex items-center justify-center text-gray-500">
+            <p>No hourly data available yet. Data will appear here as API calls are made.</p>
           </div>
         </div>
 
@@ -99,7 +107,14 @@ import BaseButton from '@/components/common/BaseButton.vue';
 const { loading, error, stats, fetchStats } = useLastFmUsageStats();
 
 const maxHourlyCount = computed(() => {
-  return Math.max(...stats.value.hourly.map(h => h.count), 1);
+  if (!stats.value.hourly || stats.value.hourly.length === 0) {
+    return 1;
+  }
+  const counts = stats.value.hourly.map(h => Number(h.count) || 0);
+  const max = Math.max(...counts);
+  // Use the actual max value for proportional scaling
+  // If max is 0, return 1 to avoid division by zero
+  return max > 0 ? max : 1;
 });
 
 onMounted(() => {

@@ -106,9 +106,10 @@ export function useLastFmUsageStats() {
       const hourly = [];
       for (let i = 23; i >= 0; i--) {
         const h = hour - i;
+        const count = hourlyData[h] || 0;
         hourly.push({
           hour: h,
-          count: hourlyData[h] || 0,
+          count: count,
           label: new Date(h * 1000 * 60 * 60).toLocaleTimeString('en-US', { 
             hour: 'numeric',
             hour12: true 
