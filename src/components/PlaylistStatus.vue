@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, defineEmits, ref, watch, onMounted } from 'vue';
+import { defineProps, defineEmits, ref, watch } from 'vue';
 import { useCurrentUser } from 'vuefire';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { resolvePlaylistName } from '@utils/playlistNameResolver';
@@ -49,8 +49,12 @@ const resolveName = async () => {
   }
 };
 
-watch(() => props.currentPlaylistInfo, resolveName, { immediate: true });
-onMounted(resolveName);
+// Watch both dependencies that resolveName needs
+watch(
+  () => [props.currentPlaylistInfo, user.value],
+  resolveName,
+  { immediate: true }
+);
 </script>
 
 <template>
