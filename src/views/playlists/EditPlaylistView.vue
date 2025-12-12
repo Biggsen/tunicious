@@ -6,7 +6,7 @@ import { db } from '@/firebase';
 import { useUserData } from '@composables/useUserData';
 import { usePlaylistData } from '@composables/usePlaylistData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
-import { resolvePlaylistNames } from '@utils/playlistNameResolver';
+import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameResolver';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -26,6 +26,7 @@ const error = ref(null);
 const successMessage = ref('');
 
 const playlist = ref(null);
+const playlistName = ref('');
 const availablePlaylists = ref([]);
 
 // Form data
@@ -106,6 +107,11 @@ async function loadPlaylist() {
       id: playlistDoc.id,
       ...playlistData
     };
+    
+    // Fetch playlist name
+    if (playlistData.playlistId && user.value) {
+      playlistName.value = await resolvePlaylistName(playlistData.playlistId, user.value.uid, getPlaylist);
+    }
     
     // Populate form with existing data
     form.value = {
@@ -262,7 +268,7 @@ onMounted(async () => {
       <BackButton :to="`/playlists`" text="Back to Playlists" />
     </div>
     
-    <h1 class="h2 pb-6">Edit Playlist</h1>
+    <h1 class="h2 pb-6">Edit {{ playlistName || 'Playlist' }} playlist</h1>
     
     <!-- Success Message -->
     <div v-if="successMessage" class="mb-6 p-4 bg-green-50 text-green-700 rounded-md border border-green-200">
@@ -385,7 +391,7 @@ onMounted(async () => {
         </BaseButton>
         
         <BaseButton 
-          @click="router.push(`/playlist/${playlistId}`)"
+          @click="router.push('/playlists')"
           customClass="btn-secondary"
         >
           Cancel

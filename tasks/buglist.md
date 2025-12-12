@@ -19,6 +19,7 @@
 - [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 - [ ] Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
+- [ ] PlaylistSingle shows flickering 'Spotify connection issue' banner before loading albums
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -187,6 +188,38 @@ Need to investigate:
 - Whether Last.fm provides real-time "now playing" data or if we need to poll recent scrobbles
 - Rate limiting considerations for polling Last.fm API
 - User experience: how often to poll, how to handle when Last.fm isn't connected
+
+---
+
+### PlaylistSingle shows flickering 'Spotify connection issue' banner before loading albums
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: PlaylistSingle View, Spotify Connection Status, UI/UX
+
+**Description**:  
+The PlaylistSingle view displays a flickering "Spotify connection issue" banner briefly before albums finish loading. This creates a poor user experience as the banner appears and disappears quickly, suggesting a connection problem when one may not exist.
+
+**Steps to Reproduce**:
+1. Navigate to a PlaylistSingle page
+2. Observe the page loading
+3. Notice the "Spotify connection issue" banner briefly appearing before albums load
+
+**Expected Behavior**:  
+The connection status banner should only appear if there's an actual connection issue, not during normal loading states.
+
+**Actual Behavior**:  
+The "Spotify connection issue" banner flickers/appears briefly during the initial load before albums are displayed.
+
+**Workaround**:  
+None identified at this time.
+
+**Notes**:  
+Need to investigate:
+- The loading state logic in PlaylistSingle view
+- How the Spotify connection status is determined
+- Whether the banner is shown based on a loading state rather than actual connection status
+- Timing of when albums data is fetched vs when connection status is checked
+- Consider adding a loading state check before showing connection error banners
 
 ---
 
