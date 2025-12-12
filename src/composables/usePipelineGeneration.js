@@ -45,30 +45,32 @@ export async function generateCompletePipelines(userId) {
   const { createPlaylist, makeUserRequest } = useUserSpotifyApi();
 
   // Define playlist structure for both groups
+  // name: plain key for connection lookups (must match connections object)
+  // displayName: emoji version for Spotify playlist creation
   const newArtistsPlaylists = [
-    { name: 'Queued', role: 'source', group: 'new' },
-    { name: 'Curious', role: 'transient', group: 'new' },
-    { name: '1 star', role: 'sink', group: 'new' },
-    { name: 'Interested', role: 'transient', group: 'new' },
-    { name: '2 stars', role: 'sink', group: 'new' },
-    { name: 'Good', role: 'transient', group: 'new' },
-    { name: '3 stars', role: 'sink', group: 'new' },
-    { name: 'Excellent', role: 'transient', group: 'new' },
-    { name: '4 stars', role: 'sink', group: 'new' },
-    { name: 'Wonderful', role: 'terminal', group: 'new' }
+    { name: 'Queued', displayName: 'Queued ⏳', role: 'source', group: 'new' },
+    { name: 'Curious', displayName: 'Curious 🎧', role: 'transient', group: 'new' },
+    { name: '1 star', displayName: '⭐️', role: 'sink', group: 'new' },
+    { name: 'Interested', displayName: 'Interested 🎧', role: 'transient', group: 'new' },
+    { name: '2 stars', displayName: '⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Good', displayName: 'Good 🎧', role: 'transient', group: 'new' },
+    { name: '3 stars', displayName: '⭐️⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Excellent', displayName: 'Excellent 🎧', role: 'transient', group: 'new' },
+    { name: '4 stars', displayName: '⭐️⭐️⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Wonderful', displayName: 'Wonderful ☀️', role: 'terminal', group: 'new' }
   ];
 
   const knownArtistsPlaylists = [
-    { name: 'Queued', role: 'source', group: 'known' },
-    { name: 'Curious', role: 'transient', group: 'known' },
-    { name: '1 star', role: 'sink', group: 'known' },
-    { name: 'Interested', role: 'transient', group: 'known' },
-    { name: '2 stars', role: 'sink', group: 'known' },
-    { name: 'Good', role: 'transient', group: 'known' },
-    { name: '3 stars', role: 'sink', group: 'known' },
-    { name: 'Excellent', role: 'transient', group: 'known' },
-    { name: '4 stars', role: 'sink', group: 'known' },
-    { name: 'Wonderful', role: 'terminal', group: 'known' }
+    { name: 'Queued', displayName: 'Queued ⏳', role: 'source', group: 'known' },
+    { name: 'Curious', displayName: 'Curious 🎧', role: 'transient', group: 'known' },
+    { name: '1 star', displayName: '⭐️', role: 'sink', group: 'known' },
+    { name: 'Interested', displayName: 'Interested 🎧', role: 'transient', group: 'known' },
+    { name: '2 stars', displayName: '⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Good', displayName: 'Good 🎧', role: 'transient', group: 'known' },
+    { name: '3 stars', displayName: '⭐️⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Excellent', displayName: 'Excellent 🎧', role: 'transient', group: 'known' },
+    { name: '4 stars', displayName: '⭐️⭐️⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Wonderful', displayName: 'Wonderful ☀️', role: 'terminal', group: 'known' }
   ];
 
   const allPlaylists = [...newArtistsPlaylists, ...knownArtistsPlaylists];
@@ -78,10 +80,10 @@ export async function generateCompletePipelines(userId) {
   for (let i = 0; i < allPlaylists.length; i++) {
     const playlist = allPlaylists[i];
     try {
-      const displayName = `${playlist.group === 'new' ? 'New' : 'Known'} ${playlist.name}`;
-      const description = `${playlist.name} playlist for ${playlist.group} artist pipeline`;
+      const spotifyDisplayName = `${playlist.group === 'new' ? 'New' : 'Known'} ${playlist.displayName}`;
+      const description = `${playlist.displayName} playlist for ${playlist.group} artist pipeline`;
       
-      const spotifyPlaylist = await createPlaylist(displayName, description);
+      const spotifyPlaylist = await createPlaylist(spotifyDisplayName, description);
       createdSpotifyPlaylists.push({ 
         ...playlist, 
         spotifyId: spotifyPlaylist.id 
