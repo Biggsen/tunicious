@@ -240,10 +240,76 @@ async function trackUsage(req, identifier, method, authResult = null) {
   }
 }
 
+/**
+ * Track Spotify API usage without enforcing limits (for data collection)
+ * @param {Object} req - Express request object
+ * @param {string} identifier - Unique identifier (user ID or IP)
+ * @param {string} method - API method/endpoint being called
+ * @param {Object} authResult - Authentication result (optional)
+ * @returns {Promise<void>}
+ */
+async function trackSpotifyUsage(req, identifier, method, authResult = null) {
+  const now = Date.now();
+  const timestamp = admin.firestore.Timestamp.fromMillis(now);
+  
+  try {
+    // Store detailed usage record
+    const usageData = {
+      identifier,
+      method,
+      timestamp,
+      userId: authResult?.uid || null,
+      userEmail: authResult?.email || null,
+      hour: Math.floor(now / (1000 * 60 * 60)), // Hour bucket for aggregation
+      day: Math.floor(now / (1000 * 60 * 60 * 24)), // Day bucket for aggregation
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    
+    // Store individual usage record
+    await admin.firestore()
+      .collection("spotifyUsage")
+      .add(usageData);
+    
+    // Also update hourly counter for quick queries
+    const hourDocRef = admin.firestore()
+      .collection("spotifyUsageHourly")
+      .doc(`${identifier}_${usageData.hour}`);
+    
+    await hourDocRef.set({
+      identifier,
+      hour: usageData.hour,
+      count: admin.firestore.FieldValue.increment(1),
+      methods: admin.firestore.FieldValue.arrayUnion(method),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
+    // Update daily counter
+    const dayDocRef = admin.firestore()
+      .collection("spotifyUsageDaily")
+      .doc(`${identifier}_${usageData.day}`);
+    
+    await dayDocRef.set({
+      identifier,
+      day: usageData.day,
+      count: admin.firestore.FieldValue.increment(1),
+      methods: admin.firestore.FieldValue.arrayUnion(method),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    // Log but don't fail the request
+    logger.error("Spotify usage tracking error", {
+      error: error.message,
+      identifier,
+      method,
+    });
+  }
+}
+
 module.exports = {
   rateLimit,
   getRateLimitIdentifier,
   createRateLimiter,
   trackUsage,
+  trackSpotifyUsage,
 };
 

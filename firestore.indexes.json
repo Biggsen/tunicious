@@ -23,6 +23,30 @@
         { "fieldPath": "identifier", "order": "ASCENDING" },
         { "fieldPath": "day", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "spotifyUsageHourly",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "hour", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "spotifyUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "spotifyUsageDaily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "day", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

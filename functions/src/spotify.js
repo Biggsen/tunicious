@@ -4,7 +4,7 @@ const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
-const {rateLimit, getRateLimitIdentifier} = require("./rateLimit");
+const {getRateLimitIdentifier, trackSpotifyUsage} = require("./rateLimit");
 const {
   validateRequestSize,
   validateTokenExchange,
@@ -30,21 +30,15 @@ exports.tokenExchange = onRequest({
 }, async (req, res) => {
   try {
     // Verify authentication
-    await verifyAuthToken(req);
+    const authResult = await verifyAuthToken(req);
     
-    // Rate limiting: 10 requests/hour per IP
-    const identifier = getRateLimitIdentifier(req);
-    const rateLimitResult = await rateLimit(req, identifier, 10, 3600000); // 10/hour
+    // Get identifier for tracking
+    const identifier = getRateLimitIdentifier(req, authResult);
     
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
-      res.status(429).json({
-        error: "Rate limit exceeded",
-        retryAfter: retryAfter,
-        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
-      });
-      return;
-    }
+    // Track usage (non-blocking, fire and forget)
+    trackSpotifyUsage(req, identifier, "tokenExchange", authResult).catch(err => {
+      logger.error("Failed to track Spotify usage", { error: err.message });
+    });
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -129,19 +123,13 @@ exports.refreshToken = onRequest({
     // Verify authentication
     const authResult = await verifyAuthToken(req);
     
-    // Rate limiting: 100 requests/hour per user
+    // Get identifier for tracking
     const identifier = getRateLimitIdentifier(req, authResult);
-    const rateLimitResult = await rateLimit(req, identifier, 100, 3600000); // 100/hour
     
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
-      res.status(429).json({
-        error: "Rate limit exceeded",
-        retryAfter: retryAfter,
-        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
-      });
-      return;
-    }
+    // Track usage (non-blocking, fire and forget)
+    trackSpotifyUsage(req, identifier, "refreshToken", authResult).catch(err => {
+      logger.error("Failed to track Spotify usage", { error: err.message });
+    });
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -236,19 +224,8 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
     
-    // Rate limiting: 1000 requests/hour per user
+    // Get identifier for tracking
     const identifier = getRateLimitIdentifier(req, authResult);
-    const rateLimitResult = await rateLimit(req, identifier, 1000, 3600000); // 1000/hour
-    
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
-      res.status(429).json({
-        error: "Rate limit exceeded",
-        retryAfter: retryAfter,
-        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
-      });
-      return;
-    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -277,6 +254,11 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
       res.status(403).json({error: "Endpoint not allowed"});
       return;
     }
+
+    // Track usage (non-blocking, fire and forget)
+    trackSpotifyUsage(req, identifier, endpoint, authResult).catch(err => {
+      logger.error("Failed to track Spotify usage", { error: err.message });
+    });
 
     const url = `${SPOTIFY_API_BASE}${endpoint}`;
     

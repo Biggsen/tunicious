@@ -2,6 +2,7 @@
 import { useUserData } from "@composables/useUserData";
 import LastFmStats from '@components/LastFmStats.vue';
 import LastFmUsageStats from '@components/LastFmUsageStats.vue';
+import SpotifyUsageStats from '@components/SpotifyUsageStats.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import Card from '@components/common/Card.vue';
@@ -18,6 +19,9 @@ const { userData, loading: userLoading, error: userError } = useUserData();
     <ErrorMessage v-else-if="userError" :message="userError" />
     
     <div v-else-if="userData && userData.displayName" class="space-y-6">
+      <!-- Spotify API Usage Stats -->
+      <SpotifyUsageStats />
+
       <!-- Last.fm API Usage Stats -->
       <LastFmUsageStats />
 

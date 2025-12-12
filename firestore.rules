@@ -69,6 +69,23 @@ service cloud.firestore {
       allow write: if false; // Only backend functions can write
     }
 
+    // Spotify Usage Statistics collections
+    // Users can only read their own usage data (identifier format: "user:{uid}")
+    match /spotifyUsage/{usageId} {
+      allow read: if isAuthenticated() && resource.data.identifier == "user:" + request.auth.uid;
+      allow write: if false; // Only backend functions can write
+    }
+
+    match /spotifyUsageHourly/{hourlyId} {
+      allow read: if isAuthenticated() && resource.data.identifier == "user:" + request.auth.uid;
+      allow write: if false; // Only backend functions can write
+    }
+
+    match /spotifyUsageDaily/{dailyId} {
+      allow read: if isAuthenticated() && resource.data.identifier == "user:" + request.auth.uid;
+      allow write: if false; // Only backend functions can write
+    }
+
     // This rule allows anyone with your Firestore database reference to view, edit,
     // and delete all data in your Firestore database. It is useful for getting
     // started, but it is configured to expire after 30 days because it
