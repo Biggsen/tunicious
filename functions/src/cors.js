@@ -6,6 +6,8 @@
 const allowedOrigins = [
   "https://audiofoodie-d5b2c.web.app",
   "https://audiofoodie-d5b2c.firebaseapp.com",
+  "https://tunicious.com",
+  "https://www.tunicious.com",
   "http://localhost:5173", // Development only
 ];
 
