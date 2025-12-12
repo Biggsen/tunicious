@@ -3,9 +3,12 @@ import { collection, query, where, orderBy, limit, getDocs } from 'firebase/fire
 import { db } from '@/firebase';
 import { useCurrentUser } from 'vuefire';
 import { logAlbum } from '@utils/logger';
+import { resolvePlaylistNames } from '@utils/playlistNameResolver';
+import { useUserSpotifyApi } from './useUserSpotifyApi';
 
 export function useLatestMovements() {
   const user = useCurrentUser();
+  const { getPlaylist } = useUserSpotifyApi();
   
   const loading = ref(false);
   const error = ref(null);
@@ -84,7 +87,7 @@ export function useLatestMovements() {
           createdAt,
           addedAt,
           updatedAt,
-          toPlaylist: latestEntry.playlistName
+          toPlaylistId: latestEntry.playlistId
         });
         
         albumMovements.push({
@@ -95,9 +98,7 @@ export function useLatestMovements() {
           releaseYear: data.releaseYear,
           artistId: data.artistId,
           movementType: isNewAddition ? 'added' : 'moved',
-          fromPlaylist: sortedHistory[1]?.playlistName || null,
           fromPlaylistId: sortedHistory[1]?.playlistId || null,
-          toPlaylist: latestEntry.playlistName,
           toPlaylistId: latestEntry.playlistId,
           pipelineRole: latestEntry.pipelineRole || 'transient',
           fromPipelineRole: sortedHistory[1]?.pipelineRole || null,
@@ -108,6 +109,26 @@ export function useLatestMovements() {
       }
 
       logAlbum('Total movements found:', albumMovements.length);
+
+      // Collect unique playlist IDs for name resolution
+      const playlistIds = new Set();
+      albumMovements.forEach(m => {
+        if (m.toPlaylistId) playlistIds.add(m.toPlaylistId);
+        if (m.fromPlaylistId) playlistIds.add(m.fromPlaylistId);
+      });
+
+      // Resolve all playlist names at once
+      const playlistNames = await resolvePlaylistNames(
+        Array.from(playlistIds),
+        user.value.uid,
+        getPlaylist
+      );
+
+      // Map resolved names back to movements
+      albumMovements.forEach(m => {
+        m.toPlaylist = playlistNames[m.toPlaylistId] || 'Unknown Playlist';
+        m.fromPlaylist = m.fromPlaylistId ? (playlistNames[m.fromPlaylistId] || 'Unknown Playlist') : null;
+      });
 
       // Sort by updatedAt (most recent first) and limit
       const sortedMovements = albumMovements

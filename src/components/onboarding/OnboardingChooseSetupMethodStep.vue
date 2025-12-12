@@ -46,7 +46,7 @@
     </div>
 
     <!-- Quick Start Generation UI -->
-    <div v-if="selectedMethod === 'quick_start' && !generating" class="quick-start-confirm">
+    <div v-if="selectedMethod === 'quick_start' && !generating && !generationComplete" class="quick-start-confirm">
       <div class="confirm-message">
         <p>This will create 20 playlists for both New and Known artist pipelines.</p>
       </div>
@@ -54,7 +54,6 @@
         @click="handleQuickStart"
         variant="primary"
         :disabled="checkingExisting"
-        class="generate-button"
       >
         {{ checkingExisting ? 'Checking...' : 'Generate Playlists' }}
       </BaseButton>
@@ -343,10 +342,6 @@ const handleContinue = () => {
   margin-bottom: 1rem;
 }
 
-.generate-button {
-  min-width: 200px;
-}
-
 .generation-progress {
   text-align: center;
   padding: 2rem;
@@ -416,13 +411,13 @@ const handleContinue = () => {
 
 .success-details {
   margin-top: 1rem;
-  text-align: left;
-  display: inline-block;
+  text-align: center;
+  display: block;
+  margin-bottom: 1rem;
 }
 
 .continue-button {
   margin-top: 1.5rem;
-  min-width: 200px;
 }
 
 .generation-error {

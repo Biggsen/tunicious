@@ -115,25 +115,13 @@
                    id="playlistId" 
                    v-model="form.playlistId"
                    placeholder="Enter Spotify playlist ID"
-                   :class="{ 'error': formError?.playlistId }"
+                   :class="{ 'error': formErrors.playlistId }"
                  />
                  <p class="text-sm text-gray-500 mt-1">
                    Selected playlist: <span v-if="selectedPlaylist" class="font-medium text-indigo-600">{{ selectedPlaylist.name }}</span>
                    <span v-else class="text-gray-400">None selected</span>
                  </p>
-                 <span v-if="formError?.playlistId" class="error-text">{{ formError.playlistId }}</span>
-               </div>
-
-               <div class="form-group">
-                 <label for="name">Playlist Name</label>
-                 <input 
-                   type="text" 
-                   id="name" 
-                   v-model="form.name"
-                   placeholder="Enter playlist name"
-                   :class="{ 'error': formError?.name }"
-                 />
-                 <span v-if="formError?.name" class="error-text">{{ formError.name }}</span>
+                 <span v-if="formErrors.playlistId" class="error-text">{{ formErrors.playlistId }}</span>
                </div>
              </div>
 
@@ -151,9 +139,9 @@
                    id="group" 
                    v-model="form.group"
                    placeholder="e.g., rock, jazz, 90s"
-                   :class="{ 'error': formError?.group }"
+                   :class="{ 'error': formErrors.group }"
                  />
-                 <span v-if="formError?.group" class="error-text">{{ formError.group }}</span>
+                 <span v-if="formErrors.group" class="error-text">{{ formErrors.group }}</span>
                </div>
              </div>
              
@@ -162,13 +150,13 @@
                <select 
                  id="pipelineRole" 
                  v-model="form.pipelineRole"
-                 :class="{ 'error': formError?.pipelineRole }"
+                 :class="{ 'error': formErrors.pipelineRole }"
                >
                  <option v-for="role in pipelineRoles" :key="role.value" :value="role.value">
                    {{ role.label }}
                  </option>
                </select>
-               <span v-if="formError?.pipelineRole" class="error-text">{{ formError.pipelineRole }}</span>
+               <span v-if="formErrors.pipelineRole" class="error-text">{{ formErrors.pipelineRole }}</span>
              </div>
            </div>
 
@@ -250,7 +238,6 @@ const { getUserPlaylists, isTuniciousPlaylist, getPlaylist } = useUserSpotifyApi
 // Initialize form with all required fields
 const initialFormData = {
   playlistId: '',
-  name: '',
   group: '',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
@@ -258,6 +245,9 @@ const initialFormData = {
 };
 
 const { form, isSubmitting, error: formError, success, handleSubmit, validateForm } = useForm(initialFormData);
+
+// Field-level validation errors
+const formErrors = ref({});
 
 // Playlist selection state
 const loadingPlaylists = ref(false);
@@ -341,10 +331,6 @@ const loadAvailablePlaylists = async () => {
 const selectPlaylist = (playlist) => {
   selectedPlaylist.value = playlist;
   form.playlistId = playlist.id;
-  // Auto-populate name if not already set
-  if (!form.name) {
-    form.name = playlist.name;
-  }
 };
 
 // Enhanced form validation
@@ -353,15 +339,12 @@ const enhancedValidateForm = () => {
   
   // Safety check to ensure form exists
   if (!form) {
+    formErrors.value = {};
     return false;
   }
   
   if (!form.playlistId?.trim()) {
     errors.playlistId = 'Please select a playlist or enter a playlist ID';
-  }
-  
-  if (!form.name?.trim()) {
-    errors.name = 'Please enter a playlist name';
   }
   
   if (!form.group?.trim()) {
@@ -372,6 +355,8 @@ const enhancedValidateForm = () => {
     errors.pipelineRole = 'Please select a pipeline role';
   }
   
+  // Assign errors to formErrors ref so template can display them
+  formErrors.value = errors;
   return Object.keys(errors).length === 0;
 };
 
@@ -439,7 +424,6 @@ const onSubmit = async (formData) => {
 
   // Reset form after successful submission
   form.playlistId = '';
-  form.name = '';
   form.group = '';
   form.pipelineRole = 'source';
   form.nextStagePlaylistId = '';

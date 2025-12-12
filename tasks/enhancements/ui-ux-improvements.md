@@ -35,6 +35,9 @@ This document contains small UI/UX tweaks and improvements for polish and better
 ### Performance Perception
 - [ ] Add reload button for each playlist group on the tab - currently only have a global reload button that loads every single playlist again, which is inefficient. Per-group reload would limit the amount of playlists reloaded.
 
+### Data Management
+- [ ] Ability to remove/clean out a playlist history record
+
 ---
 
 ## Interaction Improvements

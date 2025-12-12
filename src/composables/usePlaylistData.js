@@ -191,7 +191,6 @@ export function usePlaylistData() {
         const playlistInfo = {
           id: docSnap.id,
           playlistId: playlist.playlistId,
-          name: playlist.name,
           deletedAt: playlist.deletedAt,
           hasDeletedAt: 'deletedAt' in playlist
         };
@@ -200,7 +199,7 @@ export function usePlaylistData() {
         // Skip if deleted (deletedAt exists and is not null)
         // Existing playlists without deletedAt field are considered active
         if (playlist.deletedAt != null) {
-          logPlaylist('Skipping deleted playlist:', playlist.name, 'deletedAt:', playlist.deletedAt);
+          logPlaylist('Skipping deleted playlist:', playlist.playlistId, 'deletedAt:', playlist.deletedAt);
           skippedCount++;
           return;
         }
@@ -220,7 +219,6 @@ export function usePlaylistData() {
           pipelineRole: playlist.pipelineRole || 'transient', // Include pipeline role
           nextStagePlaylistId: playlist.nextStagePlaylistId || null,
           terminationPlaylistId: playlist.terminationPlaylistId || null,
-          name: playlist.name,
           group: playlist.group,
           createdAt: playlist.createdAt // Include createdAt for sorting groups
         });

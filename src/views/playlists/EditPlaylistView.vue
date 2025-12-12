@@ -5,6 +5,8 @@ import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getD
 import { db } from '@/firebase';
 import { useUserData } from '@composables/useUserData';
 import { usePlaylistData } from '@composables/usePlaylistData';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
+import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameResolver';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -15,6 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const { user } = useUserData();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
+const { getPlaylist } = useUserSpotifyApi();
 
 const playlistId = computed(() => route.params.id);
 const loading = ref(true);
@@ -23,11 +26,11 @@ const error = ref(null);
 const successMessage = ref('');
 
 const playlist = ref(null);
+const playlistName = ref('');
 const availablePlaylists = ref([]);
 
 // Form data
 const form = ref({
-  name: '',
   group: 'known',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
@@ -105,9 +108,13 @@ async function loadPlaylist() {
       ...playlistData
     };
     
+    // Fetch playlist name
+    if (playlistData.playlistId && user.value) {
+      playlistName.value = await resolvePlaylistName(playlistData.playlistId, user.value.uid, getPlaylist);
+    }
+    
     // Populate form with existing data
     form.value = {
-      name: playlistData.name || '',
       group: playlistData.group || 'unknown',
       pipelineRole: playlistData.pipelineRole || 'source',
       nextStagePlaylistId: playlistData.nextStagePlaylistId || '',
@@ -149,10 +156,18 @@ async function loadAvailablePlaylists() {
       allPlaylists.push({
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID
-        name: playlistData.name || `${playlistData.group || 'unknown'} ${playlistData.pipelineRole}`, // Use Firebase name, fallback to generated
         group: playlistData.group || 'unknown',
         pipelineRole: playlistData.pipelineRole || 'transient'
       });
+    });
+    
+    // Resolve playlist names from cache/API
+    const playlistIds = allPlaylists.map(p => p.id);
+    const resolvedNames = await resolvePlaylistNames(playlistIds, user.value.uid, getPlaylist);
+    
+    // Add resolved names to playlist objects
+    allPlaylists.forEach(p => {
+      p.name = resolvedNames[p.id] || `${p.group} ${p.pipelineRole}`;
     });
     
     availablePlaylists.value = allPlaylists;
@@ -163,10 +178,6 @@ async function loadAvailablePlaylists() {
 
 function validateForm() {
   const errors = {};
-  
-  if (!form.value.name.trim()) {
-    errors.name = 'Playlist name is required';
-  }
   
   if (!form.value.group.trim()) {
     errors.group = 'Group is required';
@@ -200,7 +211,6 @@ async function savePlaylist() {
     const playlistRef = doc(db, 'playlists', playlist.value.id);
     
     const updateData = {
-      name: form.value.name.trim(),
       group: form.value.group,
       pipelineRole: form.value.pipelineRole,
       updatedAt: serverTimestamp()
@@ -258,7 +268,7 @@ onMounted(async () => {
       <BackButton :to="`/playlists`" text="Back to Playlists" />
     </div>
     
-    <h1 class="h2 pb-6">Edit Playlist</h1>
+    <h1 class="h2 pb-6">Edit {{ playlistName || 'Playlist' }} playlist</h1>
     
     <!-- Success Message -->
     <div v-if="successMessage" class="mb-6 p-4 bg-green-50 text-green-700 rounded-md border border-green-200">
@@ -269,32 +279,6 @@ onMounted(async () => {
     <ErrorMessage v-else-if="error" :message="error" />
     
     <div v-else-if="playlist" class="space-y-8">
-      <!-- Basic Information -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4">Basic Information</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-group">
-            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
-              Playlist Name
-            </label>
-            <input 
-              type="text" 
-              id="name" 
-              v-model="form.name"
-              :class="[
-                'form-input w-full',
-                formErrors.name ? 'border-red-500' : 'border-gray-300'
-              ]"
-              placeholder="Enter playlist name"
-            />
-            <p v-if="formErrors.name" class="text-red-500 text-sm mt-1">
-              {{ formErrors.name }}
-            </p>
-          </div>
-        </div>
-      </div>
-      
       <!-- Pipeline Configuration -->
       <div class="bg-white shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Pipeline Configuration</h2>
@@ -407,7 +391,7 @@ onMounted(async () => {
         </BaseButton>
         
         <BaseButton 
-          @click="router.push(`/playlist/${playlistId}`)"
+          @click="router.push('/playlists')"
           customClass="btn-secondary"
         >
           Cancel

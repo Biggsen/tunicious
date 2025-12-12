@@ -14,7 +14,7 @@ import DropdownMenu from '@components/common/DropdownMenu.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
-import { ArrowPathIcon, PencilIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon, PlusIcon } from '@heroicons/vue/24/solid'
+import { ArrowPathIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon, PlusIcon } from '@heroicons/vue/24/solid'
 import { MusicalNoteIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
@@ -93,7 +93,6 @@ const id = computed(() => route.params.id);
 const loading = ref(false);
 const error = ref(null);
 const cacheCleared = ref(false);
-const updating = ref(false);
 
 const albumData = ref([]);
 const playlistName = ref('');
@@ -1124,38 +1123,6 @@ async function getPlaylistDocument() {
   return activePlaylists[0];
 }
 
-async function updatePlaylistName() {
-  if (!user.value || !playlistName.value) return;
-  
-  try {
-    updating.value = true;
-    error.value = null;
-    
-    // Get the playlist document if we don't have it
-    if (!playlistDoc.value) {
-      playlistDoc.value = await getPlaylistDocument();
-    }
-    
-    if (!playlistDoc.value) {
-      throw new Error('Playlist document not found');
-    }
-    
-    // Update the playlist document with the name
-    await updateDoc(doc(db, 'playlists', playlistDoc.value.id), {
-      name: playlistName.value,
-      updatedAt: serverTimestamp()
-    });
-    
-    // Update the local document data to reflect the change
-    playlistDoc.value = await getPlaylistDocument();
-    
-  } catch (err) {
-    logPlaylist('Error updating playlist:', err);
-    error.value = err.message || 'Failed to update playlist';
-  } finally {
-    updating.value = false;
-  }
-}
 
 // Update pagination logic to load data per page
 const nextPage = async () => {
@@ -2567,13 +2534,6 @@ const handleUpdateYear = async (mismatch) => {
           Tracklist
         </span>
       </div>
-      <BaseButton v-if="playlistDoc && !playlistDoc.data().name"
-        @click="updatePlaylistName"
-        :disabled="updating"
-      >
-        <template #icon-left><PencilIcon class="h-5 w-5" /></template>
-        {{ updating ? 'Updating...' : 'Update Playlist Name' }}
-      </BaseButton>
       <div class="flex items-center gap-2 ml-auto">
         <span class="text-delft-blue font-medium uppercase text-xs tracking-wide">Sort by:</span>
         <div class="relative" ref="sortDropdownRef">
@@ -2924,6 +2884,7 @@ const handleUpdateYear = async (mismatch) => {
           :album="album" 
           :lastFmUserName="userData?.lastFmUserName"
           :currentPlaylist="playlistDoc?.data() || { playlistId: id }"
+          :playlistName="playlistName"
           :ratingData="album.ratingData"
           :pipelinePosition="currentPlaylistPosition?.pipelinePosition ?? null"
           :totalPositions="currentPlaylistPosition?.totalPositions ?? null"

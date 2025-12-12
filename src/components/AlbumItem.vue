@@ -102,6 +102,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  playlistName: {
+    type: String,
+    default: ''
+  },
   pipelinePosition: {
     type: Number,
     default: null
@@ -305,7 +309,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
           :lastFmUserName="lastFmUserName"
           :albumId="album.id"
           :playlistId="playlistId"
-          :playlistName="currentPlaylist?.name || ''"
+          :playlistName="playlistName || ''"
           :albumsList="albumsList"
           :playlistTrackIds="playlistTrackIds"
           @track-loved="handleTrackLoved"

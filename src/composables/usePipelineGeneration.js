@@ -45,30 +45,32 @@ export async function generateCompletePipelines(userId) {
   const { createPlaylist, makeUserRequest } = useUserSpotifyApi();
 
   // Define playlist structure for both groups
+  // name: plain key for connection lookups (must match connections object)
+  // displayName: emoji version for Spotify playlist creation
   const newArtistsPlaylists = [
-    { name: 'Queued', role: 'source', group: 'new' },
-    { name: 'Curious', role: 'transient', group: 'new' },
-    { name: '1 star', role: 'sink', group: 'new' },
-    { name: 'Interested', role: 'transient', group: 'new' },
-    { name: '2 stars', role: 'sink', group: 'new' },
-    { name: 'Good', role: 'transient', group: 'new' },
-    { name: '3 stars', role: 'sink', group: 'new' },
-    { name: 'Excellent', role: 'transient', group: 'new' },
-    { name: '4 stars', role: 'sink', group: 'new' },
-    { name: 'Wonderful', role: 'terminal', group: 'new' }
+    { name: 'Queued', displayName: 'Queued ⏳', role: 'source', group: 'new' },
+    { name: 'Curious', displayName: 'Curious 🎧', role: 'transient', group: 'new' },
+    { name: '1 star', displayName: '⭐️', role: 'sink', group: 'new' },
+    { name: 'Interested', displayName: 'Interested 🎧', role: 'transient', group: 'new' },
+    { name: '2 stars', displayName: '⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Good', displayName: 'Good 🎧', role: 'transient', group: 'new' },
+    { name: '3 stars', displayName: '⭐️⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Excellent', displayName: 'Excellent 🎧', role: 'transient', group: 'new' },
+    { name: '4 stars', displayName: '⭐️⭐️⭐️⭐️', role: 'sink', group: 'new' },
+    { name: 'Wonderful', displayName: 'Wonderful ☀️', role: 'terminal', group: 'new' }
   ];
 
   const knownArtistsPlaylists = [
-    { name: 'Queued', role: 'source', group: 'known' },
-    { name: 'Curious', role: 'transient', group: 'known' },
-    { name: '1 star', role: 'sink', group: 'known' },
-    { name: 'Interested', role: 'transient', group: 'known' },
-    { name: '2 stars', role: 'sink', group: 'known' },
-    { name: 'Good', role: 'transient', group: 'known' },
-    { name: '3 stars', role: 'sink', group: 'known' },
-    { name: 'Excellent', role: 'transient', group: 'known' },
-    { name: '4 stars', role: 'sink', group: 'known' },
-    { name: 'Wonderful', role: 'terminal', group: 'known' }
+    { name: 'Queued', displayName: 'Queued ⏳', role: 'source', group: 'known' },
+    { name: 'Curious', displayName: 'Curious 🎧', role: 'transient', group: 'known' },
+    { name: '1 star', displayName: '⭐️', role: 'sink', group: 'known' },
+    { name: 'Interested', displayName: 'Interested 🎧', role: 'transient', group: 'known' },
+    { name: '2 stars', displayName: '⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Good', displayName: 'Good 🎧', role: 'transient', group: 'known' },
+    { name: '3 stars', displayName: '⭐️⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Excellent', displayName: 'Excellent 🎧', role: 'transient', group: 'known' },
+    { name: '4 stars', displayName: '⭐️⭐️⭐️⭐️', role: 'sink', group: 'known' },
+    { name: 'Wonderful', displayName: 'Wonderful ☀️', role: 'terminal', group: 'known' }
   ];
 
   const allPlaylists = [...newArtistsPlaylists, ...knownArtistsPlaylists];
@@ -78,10 +80,10 @@ export async function generateCompletePipelines(userId) {
   for (let i = 0; i < allPlaylists.length; i++) {
     const playlist = allPlaylists[i];
     try {
-      const displayName = `${playlist.group === 'new' ? 'New' : 'Known'} ${playlist.name}`;
-      const description = `${playlist.name} playlist for ${playlist.group} artist pipeline`;
+      const spotifyDisplayName = `${playlist.group === 'new' ? 'New' : 'Known'} ${playlist.displayName}`;
+      const description = `${playlist.displayName} playlist for ${playlist.group} artist pipeline`;
       
-      const spotifyPlaylist = await createPlaylist(displayName, description);
+      const spotifyPlaylist = await createPlaylist(spotifyDisplayName, description);
       createdSpotifyPlaylists.push({ 
         ...playlist, 
         spotifyId: spotifyPlaylist.id 
@@ -111,7 +113,6 @@ export async function generateCompletePipelines(userId) {
     for (const playlist of createdSpotifyPlaylists) {
       const docRef = await addDoc(collection(db, 'playlists'), {
         playlistId: playlist.spotifyId,
-        name: playlist.name,
         group: playlist.group,
         pipelineRole: playlist.role,
         userId: userId,
@@ -122,16 +123,22 @@ export async function generateCompletePipelines(userId) {
         updatedAt: serverTimestamp()
       });
       
-      // Store Firestore document ID using "group-name" as key
-      const key = `${playlist.group}-${playlist.name}`;
-      firestoreIds[key] = docRef.id;
+      // Store Firestore document ID using playlistId as key
+      firestoreIds[playlist.spotifyId] = docRef.id;
     }
     
     // Pass 2: Update all playlists with connections using stored Firestore IDs
     // Use writeBatch for efficiency (up to 500 operations per batch)
     const batch = writeBatch(db);
     
-    // Define connection mappings for each group
+    // Create a map of playlist name to spotifyId for connection lookups
+    const nameToSpotifyId = {};
+    createdSpotifyPlaylists.forEach(p => {
+      const key = `${p.group}-${p.name}`;
+      nameToSpotifyId[key] = p.spotifyId;
+    });
+    
+    // Define connection mappings for each group (using name keys, will map to spotifyId)
     const connections = {
       'new': {
         'Queued': { nextStagePlaylistId: 'new-Curious' },
@@ -151,8 +158,7 @@ export async function generateCompletePipelines(userId) {
     
     // Update each playlist with its connections
     for (const playlist of createdSpotifyPlaylists) {
-      const key = `${playlist.group}-${playlist.name}`;
-      const firestoreId = firestoreIds[key];
+      const firestoreId = firestoreIds[playlist.spotifyId];
       const playlistConnections = connections[playlist.group]?.[playlist.name];
       
       if (playlistConnections) {
@@ -161,11 +167,19 @@ export async function generateCompletePipelines(userId) {
         };
         
         if (playlistConnections.nextStagePlaylistId) {
-          updateData.nextStagePlaylistId = firestoreIds[playlistConnections.nextStagePlaylistId];
+          // Map connection name key to spotifyId, then to firestoreId
+          const nextSpotifyId = nameToSpotifyId[playlistConnections.nextStagePlaylistId];
+          if (nextSpotifyId) {
+            updateData.nextStagePlaylistId = firestoreIds[nextSpotifyId];
+          }
         }
         
         if (playlistConnections.terminationPlaylistId) {
-          updateData.terminationPlaylistId = firestoreIds[playlistConnections.terminationPlaylistId];
+          // Map connection name key to spotifyId, then to firestoreId
+          const terminationSpotifyId = nameToSpotifyId[playlistConnections.terminationPlaylistId];
+          if (terminationSpotifyId) {
+            updateData.terminationPlaylistId = firestoreIds[terminationSpotifyId];
+          }
         }
         
         const playlistRef = doc(db, 'playlists', firestoreId);
