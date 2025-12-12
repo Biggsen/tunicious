@@ -123,18 +123,6 @@
                  </p>
                  <span v-if="formError?.playlistId" class="error-text">{{ formError.playlistId }}</span>
                </div>
-
-               <div class="form-group">
-                 <label for="name">Playlist Name</label>
-                 <input 
-                   type="text" 
-                   id="name" 
-                   v-model="form.name"
-                   placeholder="Enter playlist name"
-                   :class="{ 'error': formError?.name }"
-                 />
-                 <span v-if="formError?.name" class="error-text">{{ formError.name }}</span>
-               </div>
              </div>
 
            </div>
@@ -250,7 +238,6 @@ const { getUserPlaylists, isTuniciousPlaylist, getPlaylist } = useUserSpotifyApi
 // Initialize form with all required fields
 const initialFormData = {
   playlistId: '',
-  name: '',
   group: '',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
@@ -341,10 +328,6 @@ const loadAvailablePlaylists = async () => {
 const selectPlaylist = (playlist) => {
   selectedPlaylist.value = playlist;
   form.playlistId = playlist.id;
-  // Auto-populate name if not already set
-  if (!form.name) {
-    form.name = playlist.name;
-  }
 };
 
 // Enhanced form validation
@@ -358,10 +341,6 @@ const enhancedValidateForm = () => {
   
   if (!form.playlistId?.trim()) {
     errors.playlistId = 'Please select a playlist or enter a playlist ID';
-  }
-  
-  if (!form.name?.trim()) {
-    errors.name = 'Please enter a playlist name';
   }
   
   if (!form.group?.trim()) {

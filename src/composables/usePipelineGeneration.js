@@ -111,7 +111,6 @@ export async function generateCompletePipelines(userId) {
     for (const playlist of createdSpotifyPlaylists) {
       const docRef = await addDoc(collection(db, 'playlists'), {
         playlistId: playlist.spotifyId,
-        name: playlist.name,
         group: playlist.group,
         pipelineRole: playlist.role,
         userId: userId,
@@ -122,16 +121,22 @@ export async function generateCompletePipelines(userId) {
         updatedAt: serverTimestamp()
       });
       
-      // Store Firestore document ID using "group-name" as key
-      const key = `${playlist.group}-${playlist.name}`;
-      firestoreIds[key] = docRef.id;
+      // Store Firestore document ID using playlistId as key
+      firestoreIds[playlist.spotifyId] = docRef.id;
     }
     
     // Pass 2: Update all playlists with connections using stored Firestore IDs
     // Use writeBatch for efficiency (up to 500 operations per batch)
     const batch = writeBatch(db);
     
-    // Define connection mappings for each group
+    // Create a map of playlist name to spotifyId for connection lookups
+    const nameToSpotifyId = {};
+    createdSpotifyPlaylists.forEach(p => {
+      const key = `${p.group}-${p.name}`;
+      nameToSpotifyId[key] = p.spotifyId;
+    });
+    
+    // Define connection mappings for each group (using name keys, will map to spotifyId)
     const connections = {
       'new': {
         'Queued': { nextStagePlaylistId: 'new-Curious' },
@@ -151,8 +156,7 @@ export async function generateCompletePipelines(userId) {
     
     // Update each playlist with its connections
     for (const playlist of createdSpotifyPlaylists) {
-      const key = `${playlist.group}-${playlist.name}`;
-      const firestoreId = firestoreIds[key];
+      const firestoreId = firestoreIds[playlist.spotifyId];
       const playlistConnections = connections[playlist.group]?.[playlist.name];
       
       if (playlistConnections) {
@@ -161,11 +165,19 @@ export async function generateCompletePipelines(userId) {
         };
         
         if (playlistConnections.nextStagePlaylistId) {
-          updateData.nextStagePlaylistId = firestoreIds[playlistConnections.nextStagePlaylistId];
+          // Map connection name key to spotifyId, then to firestoreId
+          const nextSpotifyId = nameToSpotifyId[playlistConnections.nextStagePlaylistId];
+          if (nextSpotifyId) {
+            updateData.nextStagePlaylistId = firestoreIds[nextSpotifyId];
+          }
         }
         
         if (playlistConnections.terminationPlaylistId) {
-          updateData.terminationPlaylistId = firestoreIds[playlistConnections.terminationPlaylistId];
+          // Map connection name key to spotifyId, then to firestoreId
+          const terminationSpotifyId = nameToSpotifyId[playlistConnections.terminationPlaylistId];
+          if (terminationSpotifyId) {
+            updateData.terminationPlaylistId = firestoreIds[terminationSpotifyId];
+          }
         }
         
         const playlistRef = doc(db, 'playlists', firestoreId);

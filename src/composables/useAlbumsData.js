@@ -102,7 +102,7 @@ export function useAlbumsData() {
   /**
    * Gets the current playlist information for an album
    * @param {string} albumId - The Spotify album ID
-   * @returns {Promise<{type: PlaylistType, playlistId: string, playlistName: string} | null>}
+   * @returns {Promise<{type: PlaylistType, playlistId: string} | null>}
    */
   const getCurrentPlaylistInfo = async (albumId) => {
     logAlbum('Getting current playlist info for album:', albumId);
@@ -374,7 +374,6 @@ export function useAlbumsData() {
       
       const newEntry = {
         playlistId: _playlistData.playlistId,
-        playlistName: _playlistData.name,
         pipelineRole: _playlistData.pipelineRole || 'transient',
         type: entryType,
         addedAt: _spotifyAddedAt,

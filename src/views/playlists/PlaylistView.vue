@@ -177,7 +177,7 @@ async function loadPlaylists() {
           allPlaylistsForGroup.push({
             id: playlistData.playlistId, // Use the playlistId as fallback
             firebaseId: playlistData.firebaseId,
-            name: playlistData.name || `${group} playlist`, // Fallback name
+            name: `${group} playlist`, // Fallback name when Spotify API fails
             images: [],
             tracks: { total: 0 }, // Assume empty if we can't get data
             pipelinePosition: playlistData.pipelinePosition,
