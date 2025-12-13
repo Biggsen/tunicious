@@ -18,7 +18,7 @@ const user = useCurrentUser();
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div style="min-width: 520px;">
+      <div>
         <LatestMovements :limit="8" />
       </div>
       <div>
