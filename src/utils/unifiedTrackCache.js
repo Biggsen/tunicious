@@ -230,6 +230,9 @@ function createTrackObject(track, trackId, now, albumId = null, albumData = null
     lastPlaycountUpdate: null,
     lastLovedUpdate: null,
     lastAccessed: now,
+    lastPlayedFromPlaylistId: null,
+    lastPlayedFromPlaylistName: null,
+    lastPlayedFromTimestamp: null,
     albumIds: [],
     playlistIds: []
   };
@@ -642,6 +645,94 @@ export async function updateTrackPlaycount(trackId, playcount, userId, trackName
   
   // Return the actual track ID that was updated (for UI updates)
   return actualTrackId;
+}
+
+/**
+ * Update the last played playlist for a track
+ * @param {string} trackId - Spotify track ID
+ * @param {string} playlistId - Spotify playlist ID
+ * @param {string} playlistName - Playlist name
+ * @param {string} userId - User ID
+ * @param {string} trackName - Optional track name for fallback lookup
+ * @param {string} artistName - Optional artist name for fallback lookup
+ * @returns {string|null} - The actual track ID that was updated
+ */
+export async function updateLastPlayedFromPlaylist(trackId, playlistId, playlistName, userId, trackName = null, artistName = null) {
+  const cache = getInMemoryCache(userId);
+  
+  let actualTrackId = trackId;
+  
+  // If track not found by ID, try to find by name + artist
+  if (!cache.tracks[trackId] && trackName && artistName) {
+    const foundTrackId = findTrackIdByNameAndArtist(trackName, artistName, userId);
+    if (foundTrackId) {
+      logCache(`Track ${trackId} not found by ID, but found by name+artist as ${foundTrackId}`);
+      actualTrackId = foundTrackId;
+    }
+  }
+  
+  if (!cache.tracks[actualTrackId]) {
+    logCache(`Track ${trackId} not found in cache, cannot update last played playlist`);
+    return null;
+  }
+  
+  cache.tracks[actualTrackId].lastPlayedFromPlaylistId = playlistId;
+  cache.tracks[actualTrackId].lastPlayedFromPlaylistName = playlistName;
+  cache.tracks[actualTrackId].lastPlayedFromTimestamp = Date.now();
+  updateTrackAccess(cache, actualTrackId);
+  
+  await saveUnifiedTrackCache(userId);
+  
+  return actualTrackId;
+}
+
+/**
+ * Get the most recently played track and playlist
+ * @param {string} userId - User ID
+ * @returns {Object|null} - Track and playlist info or null
+ */
+export function getLastPlayed(userId) {
+  const cache = getInMemoryCache(userId);
+  if (!cache || !cache.tracks) return null;
+  
+  let mostRecent = null;
+  let mostRecentTimestamp = 0;
+  let mostRecentTrackId = null;
+  
+  // Iterate through all tracks to find the most recently played one
+  for (const trackId in cache.tracks) {
+    const track = cache.tracks[trackId];
+    
+    // Only consider tracks that have been played from a playlist
+    if (track.lastPlayedFromPlaylistId && track.lastPlayedFromTimestamp) {
+      if (track.lastPlayedFromTimestamp > mostRecentTimestamp) {
+        mostRecentTimestamp = track.lastPlayedFromTimestamp;
+        mostRecentTrackId = trackId;
+        mostRecent = {
+          // Track info
+          trackId: trackId,
+          trackName: track.name,
+          trackUri: track.uri,
+          artistName: track.artists?.[0]?.name || 'Unknown Artist',
+          artists: track.artists || [],
+          albumName: track.album?.name || '',
+          albumId: track.album?.id || '',
+          duration_ms: track.duration_ms,
+          
+          // Playlist info
+          playlistId: track.lastPlayedFromPlaylistId,
+          playlistName: track.lastPlayedFromPlaylistName,
+          timestamp: track.lastPlayedFromTimestamp,
+          
+          // Additional track metadata
+          playcount: track.playcount || 0,
+          loved: track.loved || false
+        };
+      }
+    }
+  }
+  
+  return mostRecent;
 }
 
 /**

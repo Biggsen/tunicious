@@ -1,6 +1,7 @@
 <script setup>
 import { useCurrentUser } from 'vuefire';
 import LatestMovements from '@components/LatestMovements.vue';
+import LastPlayed from '@components/LastPlayed.vue';
 
 const user = useCurrentUser();
 </script>
@@ -19,6 +20,9 @@ const user = useCurrentUser();
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div style="min-width: 520px;">
         <LatestMovements :limit="8" />
+      </div>
+      <div>
+        <LastPlayed />
       </div>
     </div>
   </main>

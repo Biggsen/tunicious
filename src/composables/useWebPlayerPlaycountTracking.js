@@ -13,8 +13,8 @@ const trackedPlaycountSessions = new Set();
  * Detects when tracks finish and increments playcount in cache
  */
 export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
-  const { currentTrack, position, duration, isPlaying } = useSpotifyPlayer();
-  const { getPlaycountForTrack, updatePlaycountForTrack } = useUnifiedTrackCache();
+  const { currentTrack, position, duration, isPlaying, playingFrom } = useSpotifyPlayer();
+  const { getPlaycountForTrack, updatePlaycountForTrack, updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
   const { user } = useUserData();
   
   // Track the current track being monitored
@@ -22,6 +22,7 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   const trackedTrackStartTime = ref(null);
   const trackedTrackDuration = ref(0);
   const trackedPosition = ref(0); // Track position when track changes
+  const trackedPlaylistContext = ref(null); // Store playlist context when track starts
   const playcountIncremented = ref(false);
 
   // Threshold constants (similar to Last.fm scrobbling)
@@ -104,6 +105,23 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       
       logPlayer(`[PLAYCOUNT] Incremented playcount for "${track.name}" from ${currentPlaycount} to ${newPlaycount} (track ID: ${finalTrackId})`);
       
+      // Update last played playlist if we have playlist context
+      const playlistContext = track.playlistContext;
+      if (playlistContext && playlistContext.type === 'playlist' && playlistContext.id) {
+        try {
+          await updateLastPlayedFromPlaylist(
+            finalTrackId,
+            playlistContext.id,
+            playlistContext.name || 'Unknown Playlist',
+            track.name,
+            artistName
+          );
+          logPlayer(`[PLAYCOUNT] Updated last played playlist for "${track.name}": ${playlistContext.name}`);
+        } catch (error) {
+          logPlayer(`[PLAYCOUNT] Error updating last played playlist for "${track.name}":`, error);
+        }
+      }
+      
       // Notify listener for UI updates (use actual track ID if found)
       if (onPlaycountUpdate) {
         onPlaycountUpdate(finalTrackId, newPlaycount);
@@ -121,12 +139,14 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
    * @param {number} startTime - Optional track start time (captured before track changes)
    * @param {number} currentPosition - Current playback position (ms)
    * @param {boolean} isNaturalFinish - Whether track finished naturally (reached end)
+   * @param {Object} playlistContext - Optional playlist context (captured when track started)
    */
-  const handleTrackFinished = async (trackInfo = null, startTime = null, currentPosition = 0, isNaturalFinish = false) => {
+  const handleTrackFinished = async (trackInfo = null, startTime = null, currentPosition = 0, isNaturalFinish = false, playlistContext = null) => {
     // Use provided track info, or fall back to trackedTrack
     const trackToProcess = trackInfo || trackedTrack.value;
     const trackStartTime = startTime !== null ? startTime : trackedTrackStartTime.value;
     const trackDuration = trackedTrackDuration.value || 0;
+    const contextToUse = playlistContext || trackedPlaylistContext.value;
     
     if (!trackToProcess || !trackStartTime) {
       return;
@@ -154,7 +174,12 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
 
     // Only increment if we haven't already for this instance
     if (!playcountIncremented.value || trackInfo) {
-      await incrementPlaycount(trackToProcess, trackStartTime);
+      // Attach playlist context to track info
+      const trackWithContext = {
+        ...trackToProcess,
+        playlistContext: contextToUse
+      };
+      await incrementPlaycount(trackWithContext, trackStartTime);
       playcountIncremented.value = true;
     }
   };
@@ -171,9 +196,11 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
     trackedTrackStartTime.value = Date.now();
     trackedTrackDuration.value = duration.value || 0;
     trackedPosition.value = 0;
+    // Capture playlist context when track starts
+    trackedPlaylistContext.value = playingFrom.value ? { ...playingFrom.value } : null;
     playcountIncremented.value = false;
     
-    logPlayer(`[PLAYCOUNT] Started tracking: ${trackedTrack.value.name}`);
+    logPlayer(`[PLAYCOUNT] Started tracking: ${trackedTrack.value.name}${trackedPlaylistContext.value ? ` from playlist: ${trackedPlaylistContext.value.name}` : ''}`);
   };
   
   /**
@@ -206,7 +233,8 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
         // Track finished naturally - capture current track info before any potential change
         const currentTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
         const currentStartTime = trackedTrackStartTime.value;
-        handleTrackFinished(currentTrackInfo, currentStartTime, position.value, true);
+        const currentPlaylistContext = trackedPlaylistContext.value;
+        handleTrackFinished(currentTrackInfo, currentStartTime, position.value, true, currentPlaylistContext);
       }
     }
   };
@@ -218,9 +246,10 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       const oldTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
       const oldStartTime = trackedTrackStartTime.value;
       const oldPosition = trackedPosition.value;
+      const oldPlaylistContext = trackedPlaylistContext.value;
       
       // Handle previous track (not a natural finish, so will check threshold)
-      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, false);
+      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, false, oldPlaylistContext);
       // Then initialize tracking for new track
       initializeTrackTracking();
     } else if (newTrackId && !oldTrackId) {
@@ -231,12 +260,14 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       const oldTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
       const oldStartTime = trackedTrackStartTime.value;
       const oldPosition = trackedPosition.value;
+      const oldPlaylistContext = trackedPlaylistContext.value;
       
       // Treat as natural finish if position was near end, otherwise check threshold
       const wasNearEnd = trackedTrackDuration.value > 0 && oldPosition > 0 && 
                          (trackedTrackDuration.value - oldPosition) <= 500;
-      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, wasNearEnd);
+      handleTrackFinished(oldTrackInfo, oldStartTime, oldPosition, wasNearEnd, oldPlaylistContext);
       trackedTrack.value = null;
+      trackedPlaylistContext.value = null;
     }
   });
   
