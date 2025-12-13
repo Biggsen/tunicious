@@ -20,7 +20,7 @@ export const ApiUrl = {
 
 export const SpotifyAuth = {
   REDIRECT_URI: import.meta.env.PROD 
-    ? 'https://tunicious.com/spotify-callback'
+    ? 'https://www.tunicious.com/spotify-callback'
     : 'http://127.0.0.1:5173/spotify-callback',
   SCOPES: [
     'playlist-modify-public',
