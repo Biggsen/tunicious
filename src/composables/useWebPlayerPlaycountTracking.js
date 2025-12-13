@@ -126,6 +126,11 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       if (onPlaycountUpdate) {
         onPlaycountUpdate(finalTrackId, newPlaycount);
       }
+      
+      // Emit global event for components that want to update UI
+      window.dispatchEvent(new CustomEvent('track-playcount-updated', {
+        detail: { trackId: finalTrackId, playcount: newPlaycount }
+      }));
     } catch (error) {
       logPlayer(`[PLAYCOUNT] Error incrementing playcount for "${track.name}":`, error);
       // Remove from set on error so it can be retried

@@ -26,7 +26,6 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
-import { useWebPlayerPlaycountTracking } from '@composables/useWebPlayerPlaycountTracking';
 import { useToast } from '@composables/useToast';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
@@ -61,7 +60,7 @@ const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPol
 const { showToast } = useToast();
 
 /**
- * Update track playcount in UI when playcount changes
+ * Update track playcount in UI when playcount changes (called via global event)
  */
 const updateTrackPlaycountInUI = (trackId, newPlaycount) => {
   // Find the track in albumTracksData and update its playcount
@@ -82,9 +81,6 @@ const updateTrackPlaycountInUI = (trackId, newPlaycount) => {
     }
   });
 };
-
-// Initialize playcount tracking
-useWebPlayerPlaycountTracking(updateTrackPlaycountInUI);
 
 // Processing state
 const processingAlbum = ref(null);
@@ -1391,6 +1387,14 @@ const handleTrackUnlovedFromPlayer = async (event) => {
 };
 
 // Listen for Last.fm sync errors
+const handleTrackPlaycountUpdated = (event) => {
+  const { trackId, playcount } = event.detail;
+  if (!trackId) return;
+  
+  // Update UI if track is currently displayed
+  updateTrackPlaycountInUI(trackId, playcount);
+};
+
 const handleLastFmSyncError = (event) => {
   const { trackName, artistName, message, isSessionError, trackId, attemptedLoved } = event.detail;
   
@@ -1490,6 +1494,7 @@ onMounted(async () => {
   window.addEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
+  window.addEventListener('track-playcount-updated', handleTrackPlaycountUpdated);
   
   try {
     // Fetch user playlists to get position data
@@ -1522,6 +1527,7 @@ onUnmounted(() => {
   window.removeEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.removeEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
+  window.removeEventListener('track-playcount-updated', handleTrackPlaycountUpdated);
   // Stop polling for current playing track when component is unmounted
   stopCurrentTrackPolling();
 });

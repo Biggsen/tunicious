@@ -4,8 +4,12 @@ import TheHeader from "./components/TheHeader.vue";
 import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
+import { useWebPlayerPlaycountTracking } from "@composables/useWebPlayerPlaycountTracking";
 
 useSpotifyPlayer();
+
+// Initialize global playcount tracking (active on all pages)
+useWebPlayerPlaycountTracking();
 </script>
 
 <template>
