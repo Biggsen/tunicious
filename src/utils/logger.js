@@ -24,6 +24,10 @@ export const logDebug = debug('app:debug');
 
 // Helper to enable/disable all debug logs
 export function enableDebug(namespace = 'app:*') {
+  // Don't enable debug logs in production
+  if (import.meta.env.PROD) {
+    return;
+  }
   debug.enable(namespace);
 }
 
