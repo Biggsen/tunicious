@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useUserData } from '@composables/useUserData';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
@@ -8,6 +8,7 @@ import { MusicalNoteIcon } from '@heroicons/vue/24/outline';
 import { logCache } from '@utils/logger';
 
 const router = useRouter();
+const route = useRoute();
 const { getLastPlayed, cacheLoaded } = useUnifiedTrackCache();
 const { user } = useUserData();
 
@@ -93,6 +94,14 @@ watch(cacheLoaded, (loaded) => {
   }
 });
 
+// Watch for route changes to refetch when navigating to home
+watch(() => route.name, (newRouteName) => {
+  if (newRouteName === 'home' && user.value && cacheLoaded.value) {
+    logCache('[LastPlayed] Navigated to home page, refreshing last played');
+    fetchLastPlayed();
+  }
+});
+
 const handleLastPlayedUpdated = () => {
   logCache('[LastPlayed] Received last-played-updated event, refreshing...');
   fetchLastPlayed();
@@ -121,7 +130,7 @@ onUnmounted(() => {
       No playback history yet
     </div>
 
-    <div v-else class="bg-white border-2 border-delft-blue rounded-xl p-6">
+    <div v-else class="bg-mindero border-2 border-delft-blue rounded-xl p-4">
       <div class="flex gap-4 mb-4 items-start">
         <!-- Album Cover -->
         <div v-if="lastPlayed.albumCover" class="flex-shrink-0">
@@ -143,10 +152,10 @@ onUnmounted(() => {
 
           <!-- Album Year, Name, and Artist -->
           <div class="mb-4">
-            <p v-if="lastPlayed.albumYear" class="text-xs lg:text-sm xl:text-base text-delft-blue/70">
+            <p v-if="lastPlayed.albumYear" class="text-xs lg:text-sm xl:text-base text-delft-blue">
               {{ lastPlayed.albumYear }}
             </p>
-            <p class="text-sm lg:text-base xl:text-lg text-delft-blue/70 font-semibold">
+            <p class="text-sm lg:text-base xl:text-lg text-delft-blue font-semibold">
               <button
                 v-if="lastPlayed.albumId"
                 @click="navigateToAlbum(lastPlayed.albumId)"
@@ -158,7 +167,7 @@ onUnmounted(() => {
                 {{ lastPlayed.albumName || 'Unknown Album' }}
               </span>
             </p>
-            <p class="text-sm lg:text-base xl:text-lg text-delft-blue/70">
+            <p class="text-sm lg:text-base xl:text-lg text-delft-blue">
               <button
                 v-if="lastPlayed.artists?.[0]?.id"
                 @click="navigateToArtist(lastPlayed.artists[0].id)"
