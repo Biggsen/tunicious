@@ -4,9 +4,13 @@ import { RouterLink } from 'vue-router';
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import AlbumItem from '@components/AlbumItem.vue';
+import BaseModal from '@components/common/BaseModal.vue';
 
 const togglePrimary = ref(false);
 const toggleOnCeladon = ref(false);
+const showExampleModal = ref(false);
+const showConfirmModal = ref(false);
+const showCustomModal = ref(false);
 
 const createPlaceholderImage = (bgColor, textColor, text) => {
   const svg = `<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
@@ -606,6 +610,88 @@ const dummyTracks = [
         </div>
       </div>
     </section>
+
+    <!-- Modal Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-delft-blue mb-6">Modal</h2>
+      <div class="bg-white border-2 border-delft-blue rounded-lg p-6 space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold text-delft-blue mb-4">Modal Examples</h3>
+          <div class="flex flex-wrap gap-4">
+            <BaseButton @click="showExampleModal = true">Basic Modal</BaseButton>
+            <BaseButton @click="showConfirmModal = true">Confirm Modal</BaseButton>
+            <BaseButton @click="showCustomModal = true">Custom Actions Modal</BaseButton>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Basic Modal -->
+    <BaseModal
+      :visible="showExampleModal"
+      title="Example Modal"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Close"
+      confirm-text="OK"
+      @cancel="showExampleModal = false"
+      @confirm="showExampleModal = false"
+      @close="showExampleModal = false"
+    >
+      <p class="text-delft-blue">
+        This is an example of a basic modal dialog. It can be used to display information, 
+        confirm actions, or gather user input.
+      </p>
+    </BaseModal>
+
+    <!-- Confirm Modal -->
+    <BaseModal
+      :visible="showConfirmModal"
+      title="Confirm Action"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Cancel"
+      confirm-text="Confirm"
+      confirm-variant="primary"
+      @cancel="showConfirmModal = false"
+      @confirm="showConfirmModal = false"
+      @close="showConfirmModal = false"
+    >
+      <p class="text-delft-blue">
+        Are you sure you want to proceed with this action? This cannot be undone.
+      </p>
+    </BaseModal>
+
+    <!-- Custom Actions Modal -->
+    <BaseModal
+      :visible="showCustomModal"
+      title="Custom Actions"
+      @close="showCustomModal = false"
+    >
+      <p class="text-delft-blue mb-4">
+        This modal uses custom action buttons via the actions slot.
+      </p>
+      <template #actions>
+        <BaseButton
+          @click="showCustomModal = false"
+          customClass="bg-gray-500 hover:bg-gray-600"
+        >
+          Cancel
+        </BaseButton>
+        <BaseButton
+          @click="showCustomModal = false"
+          variant="secondary"
+        >
+          Secondary Action
+        </BaseButton>
+        <BaseButton
+          @click="showCustomModal = false"
+          variant="primary"
+        >
+          Primary Action
+        </BaseButton>
+      </template>
+    </BaseModal>
   </main>
 </template>
 
