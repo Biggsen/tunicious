@@ -131,7 +131,7 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="bg-mindero border-2 border-delft-blue rounded-xl p-4">
-      <div class="flex gap-4 mb-4 items-start">
+      <div class="flex gap-4 mb-3 items-start">
         <!-- Album Cover -->
         <div v-if="lastPlayed.albumCover" class="flex-shrink-0">
           <img
@@ -151,7 +151,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Album Year, Name, and Artist -->
-          <div class="mb-4">
+          <div>
             <p v-if="lastPlayed.albumYear" class="text-xs lg:text-sm xl:text-base text-delft-blue">
               {{ lastPlayed.albumYear }}
             </p>

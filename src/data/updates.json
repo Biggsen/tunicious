@@ -8,7 +8,8 @@
     "changes": [
       "Added updates page to inform users of changes",
       "New last played panel added to homepage",
-      "Playcount iteration made global, so it accurately updates playcount on whatever page you're on"
+      "Playcount iteration made global, so it accurately updates playcount on whatever page you're on",
+      "Redesigned movements card with improved layout, clickable playlist links, and pill-style type tags"
     ]
   }
 ]

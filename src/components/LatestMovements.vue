@@ -5,8 +5,7 @@ import { useRouter } from 'vue-router';
 import { useCurrentUser } from 'vuefire';
 import LoadingMessage from '@/components/common/LoadingMessage.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
-import { ClockIcon, ArrowRightIcon } from '@heroicons/vue/24/outline';
-import { HeartIcon, SparklesIcon } from '@heroicons/vue/24/solid';
+import { ClockIcon, ArrowUpRightIcon, ArrowDownRightIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const user = useCurrentUser();
@@ -80,8 +79,6 @@ const getMovementTypeStyles = (type) => {
       background: 'bg-mindero',
       border: 'border-delft-blue',
       hoverBorder: 'hover:border-delft-blue',
-      icon: HeartIcon,
-      iconColor: 'text-delft-blue',
       label: 'Known Artist',
       labelColor: 'text-delft-blue'
     };
@@ -90,8 +87,6 @@ const getMovementTypeStyles = (type) => {
       background: 'bg-mindero',
       border: 'border-delft-blue',
       hoverBorder: 'hover:border-delft-blue',
-      icon: SparklesIcon,
-      iconColor: 'text-delft-blue',
       label: 'New Artist',
       labelColor: 'text-delft-blue'
     };
@@ -137,122 +132,126 @@ const fallbackImage = '/placeholder.png';
           <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between gap-2">
               <div class="flex-1 min-w-0">
-                <div class="mb-1">
-                  <h3 
-                    class="font-semibold text-delft-blue truncate cursor-pointer hover:underline"
-                    @click="navigateToAlbum(movement)"
-                  >
-                    {{ movement.albumTitle }}
-                  </h3>
+                <div class="mb-4">
+                  <p v-if="movement.releaseYear" class="text-xs lg:text-sm xl:text-base text-delft-blue">
+                    {{ movement.releaseYear }}
+                  </p>
+                  <p class="text-sm lg:text-base xl:text-lg text-delft-blue font-semibold">
+                    <button
+                      v-if="movement.albumId"
+                      @click="navigateToAlbum(movement)"
+                      class="hover:underline cursor-pointer"
+                    >
+                      {{ movement.albumTitle }}
+                    </button>
+                    <span v-else>
+                      {{ movement.albumTitle }}
+                    </span>
+                  </p>
+                  <p class="text-sm lg:text-base xl:text-lg text-delft-blue">
+                    <button
+                      v-if="movement.artistId"
+                      @click="navigateToArtist(movement)"
+                      class="hover:underline cursor-pointer"
+                    >
+                      {{ movement.artistName }}
+                    </button>
+                    <span v-else>{{ movement.artistName }}</span>
+                  </p>
                 </div>
-                <p class="text-sm text-delft-blue truncate">
-                  by 
-                  <span 
-                    class="cursor-pointer hover:underline"
-                    @click="navigateToArtist(movement)"
-                  >
-                    {{ movement.artistName }}
-                  </span>
-                </p>
               </div>
               
-              <!-- Type Icon -->
-              <component 
-                :is="getMovementTypeStyles(movement.type).icon"
-                :class="['h-5 w-5 flex-shrink-0', getMovementTypeStyles(movement.type).iconColor]"
+              <!-- Type Tag -->
+              <span
+                class="px-3 py-1 rounded-full text-xs font-semibold bg-delft-blue/10 text-delft-blue border border-delft-blue/20 flex-shrink-0"
                 :title="getMovementTypeStyles(movement.type).label"
-              />
-            </div>
-            
-            <!-- Movement Description -->
-            <div class="mt-2 flex items-center gap-2 text-sm">
-              <!-- Show badges for moved albums, text for added albums -->
-              <div v-if="movement.movementType === 'moved' && movement.fromPlaylist" class="flex items-center gap-2">
-                <button
-                  v-if="movement.fromPlaylistId"
-                  @click.stop="navigateToPlaylist(movement.fromPlaylistId)"
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
-                    movement.fromPipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.fromPipelineRole)
-                  ]"
-                >
-                  {{ movement.fromPlaylist }}
-                </button>
-                <span
-                  v-else
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.fromPipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.fromPipelineRole)
-                  ]"
-                >
-                  {{ movement.fromPlaylist }}
-                </span>
-                <ArrowRightIcon class="h-3 w-3 text-delft-blue/50" />
-                <button
-                  v-if="movement.toPlaylistId"
-                  @click.stop="navigateToPlaylist(movement.toPlaylistId)"
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
-                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.pipelineRole)
-                  ]"
-                >
-                  {{ movement.toPlaylist }}
-                </button>
-                <span
-                  v-else
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.pipelineRole)
-                  ]"
-                >
-                  {{ movement.toPlaylist }}
-                </span>
-              </div>
-              <div v-else-if="movement.movementType === 'moved'" class="flex items-center gap-2">
-                <button
-                  v-if="movement.toPlaylistId"
-                  @click.stop="navigateToPlaylist(movement.toPlaylistId)"
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity',
-                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.pipelineRole)
-                  ]"
-                >
-                  {{ movement.toPlaylist }}
-                </button>
-                <span
-                  v-else
-                  :class="[
-                    'inline-flex items-center px-2 py-1 text-xs font-medium',
-                    movement.pipelineRole === 'sink' ? 'rounded' : 'rounded-full',
-                    getRoleColor(movement.pipelineRole)
-                  ]"
-                >
-                  {{ movement.toPlaylist }}
-                </span>
-              </div>
-              <span v-else class="text-delft-blue font-medium">{{ movement.actionText }}</span>
-              
-              <span class="text-delft-blue/50">•</span>
-              <span class="text-delft-blue/70">{{ movement.timeAgo }}</span>
+              >
+                {{ getMovementTypeStyles(movement.type).label }}
+              </span>
             </div>
           </div>
         </div>
+        
+        <!-- Movement Description -->
+        <div class="pt-3 border-t border-delft-blue/20 space-y-2">
+          <!-- Playlist Info -->
+          <div class="flex items-center gap-2 text-sm">
+            <!-- Show badges for moved albums, text for added albums -->
+            <div v-if="movement.movementType === 'moved' && movement.fromPlaylist" class="flex items-center gap-2">
+              <button
+                v-if="movement.fromPlaylistId"
+                @click.stop="navigateToPlaylist(movement.fromPlaylistId)"
+                class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
+              >
+                {{ movement.fromPlaylist }}
+              </button>
+              <span
+                v-else
+                class="text-base font-semibold text-delft-blue"
+              >
+                {{ movement.fromPlaylist }}
+              </span>
+              <ArrowDownRightIcon 
+                v-if="movement.fromPipelineRole === 'transient' && movement.pipelineRole === 'sink'"
+                class="h-4 w-4 text-delft-blue" 
+              />
+              <ArrowUpRightIcon 
+                v-else
+                class="h-4 w-4 text-delft-blue" 
+              />
+              <button
+                v-if="movement.toPlaylistId"
+                @click.stop="navigateToPlaylist(movement.toPlaylistId)"
+                class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
+              >
+                {{ movement.toPlaylist }}
+              </button>
+              <span
+                v-else
+                class="text-base font-semibold text-delft-blue"
+              >
+                {{ movement.toPlaylist }}
+              </span>
+            </div>
+            <div v-else-if="movement.movementType === 'moved'" class="flex items-center gap-2">
+              <button
+                v-if="movement.toPlaylistId"
+                @click.stop="navigateToPlaylist(movement.toPlaylistId)"
+                class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
+              >
+                {{ movement.toPlaylist }}
+              </button>
+              <span
+                v-else
+                class="text-base font-semibold text-delft-blue"
+              >
+                {{ movement.toPlaylist }}
+              </span>
+            </div>
+            <div v-else class="flex items-center gap-2">
+              <span class="text-base text-delft-blue">Added to</span>
+              <button
+                v-if="movement.toPlaylistId"
+                @click.stop="navigateToPlaylist(movement.toPlaylistId)"
+                class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
+              >
+                {{ movement.toPlaylist }}
+              </button>
+              <span
+                v-else
+                class="text-base font-semibold text-delft-blue"
+              >
+                {{ movement.toPlaylist }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- Timestamp -->
+          <div class="text-sm text-delft-blue/50">
+            {{ movement.timeAgo }}
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- View All Link -->
-    <div v-if="formattedMovements.length > 0" class="mt-4 text-center">
-      <RouterLink
-        to="/playlists"
-        class="text-sm text-mint hover:text-delft-blue hover:underline font-medium"
-      >
-        View playlists →
-      </RouterLink>
     </div>
   </div>
 </template>
