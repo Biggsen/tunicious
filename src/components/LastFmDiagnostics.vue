@@ -253,6 +253,25 @@
         Disconnect Last.fm
       </BaseButton>
     </div>
+
+    <!-- Disconnect Confirmation Modal -->
+    <BaseModal
+      :visible="showDisconnectModal"
+      title="Disconnect Last.fm"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Cancel"
+      confirm-text="Disconnect"
+      cancel-variant="tertiary"
+      confirm-variant="primary"
+      @cancel="showDisconnectModal = false"
+      @confirm="handleDisconnectConfirm"
+      @close="showDisconnectModal = false"
+    >
+      <p class="text-delft-blue">
+        Are you sure you want to disconnect from Last.fm? This will clear your session and you'll need to reconnect.
+      </p>
+    </BaseModal>
   </div>
 </template>
 
@@ -261,6 +280,7 @@ import { ref, computed } from 'vue'
 import { useUserData } from '@/composables/useUserData'
 import { useLastFmApi } from '@/composables/useLastFmApi'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { logLastFm } from '@utils/logger'
 
 const { userData, refreshUserData: refreshUserDataComposable, clearLastFmAuth } = useUserData()
@@ -276,6 +296,7 @@ const tests = ref({
 
 const isRefreshing = ref(false)
 const isDisconnecting = ref(false)
+const showDisconnectModal = ref(false)
 
 const hasTestResults = computed(() => {
   return Object.values(tests.value).some(test => test.result !== null)
@@ -488,11 +509,13 @@ const reconnectLastFm = () => {
   }
 };
 
-const disconnectLastFm = async () => {
-  if (!confirm('Are you sure you want to disconnect from Last.fm? This will clear your session and you\'ll need to reconnect.')) {
-    return
-  }
+const disconnectLastFm = () => {
+  showDisconnectModal.value = true
+}
 
+const handleDisconnectConfirm = async () => {
+  showDisconnectModal.value = false
+  
   isDisconnecting.value = true
   try {
     await clearLastFmAuth()

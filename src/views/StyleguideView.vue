@@ -282,12 +282,21 @@ const dummyTracks = [
             </div>
           </div>
           
-          <div>
+          <div class="mb-6">
             <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
             <div class="flex flex-wrap gap-4">
               <BaseButton variant="secondary">Secondary</BaseButton>
               <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
               <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-md font-medium text-delft-blue mb-3">Tertiary Variant</h4>
+            <div class="flex flex-wrap gap-4">
+              <BaseButton variant="tertiary">Tertiary</BaseButton>
+              <BaseButton variant="tertiary" :disabled="true">Disabled</BaseButton>
+              <BaseButton variant="tertiary" :loading="true">Loading</BaseButton>
             </div>
           </div>
         </div>
@@ -341,12 +350,21 @@ const dummyTracks = [
               </div>
             </div>
             
-            <div>
+            <div class="mb-6">
               <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
               <div class="flex flex-wrap gap-4">
                 <BaseButton variant="secondary">Secondary</BaseButton>
                 <BaseButton variant="secondary" :disabled="true">Disabled</BaseButton>
                 <BaseButton variant="secondary" :loading="true">Loading</BaseButton>
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="text-md font-medium text-delft-blue mb-3">Tertiary Variant</h4>
+              <div class="flex flex-wrap gap-4">
+                <BaseButton variant="tertiary">Tertiary</BaseButton>
+                <BaseButton variant="tertiary" :disabled="true">Disabled</BaseButton>
+                <BaseButton variant="tertiary" :loading="true">Loading</BaseButton>
               </div>
             </div>
           </div>
@@ -634,6 +652,7 @@ const dummyTracks = [
       :show-confirm="true"
       cancel-text="Close"
       confirm-text="OK"
+      cancel-variant="tertiary"
       @cancel="showExampleModal = false"
       @confirm="showExampleModal = false"
       @close="showExampleModal = false"
@@ -652,6 +671,7 @@ const dummyTracks = [
       :show-confirm="true"
       cancel-text="Cancel"
       confirm-text="Confirm"
+      cancel-variant="tertiary"
       confirm-variant="primary"
       @cancel="showConfirmModal = false"
       @confirm="showConfirmModal = false"

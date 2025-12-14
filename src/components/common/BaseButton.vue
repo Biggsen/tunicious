@@ -11,7 +11,13 @@
     ]"
     @click="$emit('click', $event)"
   >
-    <span v-if="loading" class="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+    <span 
+      v-if="loading" 
+      :class="[
+        'animate-spin mr-2 h-5 w-5 border-2 border-t-transparent rounded-full',
+        spinnerColor
+      ]"
+    ></span>
     <slot name="icon-left"></slot>
     <slot />
     <slot name="icon-right"></slot>
@@ -32,7 +38,10 @@ const props = defineProps({
 defineEmits(['click']);
 
 const variantPadding = computed(() => {
-  // No longer need special padding since border is removed
+  // Tertiary variant has border-2, so reduce padding to maintain same height
+  if (props.variant === 'tertiary') {
+    return 'py-[6px]';
+  }
   return 'py-2';
 });
 
@@ -42,9 +51,18 @@ const variantClasses = computed(() => {
       return 'bg-delft-blue text-mindero hover:bg-raspberry';
     case 'secondary':
       return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white';
+    case 'tertiary':
+      return 'bg-white text-delft-blue border-2 border-delft-blue hover:bg-mint hover:text-delft-blue';
     case 'default':
     default:
       return 'bg-blue-500 text-white hover:bg-blue-600';
   }
+});
+
+const spinnerColor = computed(() => {
+  if (props.variant === 'secondary' || props.variant === 'tertiary') {
+    return 'border-delft-blue';
+  }
+  return 'border-white';
 });
 </script> 

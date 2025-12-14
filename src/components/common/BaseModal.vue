@@ -11,12 +11,12 @@
         <slot />
       </div>
 
-      <div class="flex gap-3">
+      <div class="flex gap-3 justify-end">
         <slot name="actions">
           <BaseButton
             v-if="showCancel"
             @click="handleCancel"
-            customClass="bg-gray-500 hover:bg-gray-600"
+            :variant="cancelVariant"
           >
             {{ cancelText }}
           </BaseButton>
@@ -62,6 +62,10 @@ const props = defineProps({
     default: 'OK'
   },
   confirmVariant: {
+    type: String,
+    default: 'default'
+  },
+  cancelVariant: {
     type: String,
     default: 'default'
   },
