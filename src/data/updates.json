@@ -1,5 +1,20 @@
 [
   {
+    "id": 2,
+    "title": "Last.fm Session Management Improvements",
+    "date": "2025-12-14",
+    "types": ["IMPROVEMENT"],
+    "hidden": false,
+    "changes": [
+      "Replaced Last.fm session expiration alert with a modal dialog",
+      "Added reconnect button to session expired modal for easy re-authentication",
+      "Users are now redirected back to their originating page after successful Last.fm reconnection",
+      "Created BaseModal component for consistent modal dialogs across the application",
+      "Added tertiary button variant (outline style) to design system",
+      "Updated disconnect confirmation modal to use new BaseModal component"
+    ]
+  },
+  {
     "id": 1,
     "title": "Updates Page & Homepage Improvements",
     "date": "2025-12-14",
