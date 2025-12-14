@@ -27,6 +27,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useToast } from '@composables/useToast';
+import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
@@ -58,6 +59,9 @@ const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPol
 
 // Initialize toast
 const { showToast } = useToast();
+
+// Initialize Last.fm session modal
+const { showModal: showLastFmSessionModal } = useLastFmSessionModal();
 
 /**
  * Update track playcount in UI when playcount changes (called via global event)
@@ -1400,8 +1404,12 @@ const handleLastFmSyncError = (event) => {
   
   logPlaylist('Last.fm sync error received:', { trackId, trackName, artistName, attemptedLoved, message });
   
-  // Show alert notification
-  alert(message);
+  // Show modal for session errors, toast for other errors
+  if (isSessionError) {
+    showLastFmSessionModal(message);
+  } else {
+    showToast(message, 'error');
+  }
   
   // Revert the UI update for all errors (cache already reverted, just need to update UI)
   // The attemptedLoved tells us what we tried to set it to, so we revert to the opposite

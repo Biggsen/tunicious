@@ -94,8 +94,15 @@ onMounted(async () => {
       loading.value = false;
       sessionStorage.removeItem('lastfm_onboarding');
     } else {
-      // Redirect to account page
-      router.push('/account');
+      // Redirect to originating page if stored, otherwise to account page
+      const returnPath = sessionStorage.getItem('lastfm_return_path');
+      sessionStorage.removeItem('lastfm_return_path');
+      
+      if (returnPath && returnPath !== '/lastfm-callback') {
+        router.push(returnPath);
+      } else {
+        router.push('/account');
+      }
     }
   } catch (err) {
     logLastFm('Last.fm callback error:', err);
