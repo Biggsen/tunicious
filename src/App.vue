@@ -5,6 +5,10 @@ import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
 import { useWebPlayerPlaycountTracking } from "@composables/useWebPlayerPlaycountTracking";
+import { enableDebug } from "@utils/logger";
+
+// Enable debug logging for playcount tracking and cache operations
+enableDebug('app:player,app:cache');
 
 useSpotifyPlayer();
 

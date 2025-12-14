@@ -691,7 +691,7 @@ export async function updateLastPlayedFromPlaylist(trackId, playlistId, playlist
  * @param {string} userId - User ID
  * @returns {Object|null} - Track and playlist info or null
  */
-export function getLastPlayed(userId) {
+export async function getLastPlayed(userId) {
   const cache = getInMemoryCache(userId);
   if (!cache || !cache.tracks) return null;
   
@@ -729,6 +729,24 @@ export function getLastPlayed(userId) {
           loved: track.loved || false
         };
       }
+    }
+  }
+  
+  // If we have an album ID, fetch album year and cover from Firestore
+  if (mostRecent && mostRecent.albumId) {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      const albumDoc = await getDoc(doc(db, 'albums', mostRecent.albumId));
+      
+      if (albumDoc.exists()) {
+        const albumData = albumDoc.data();
+        mostRecent.albumYear = albumData.releaseYear || null;
+        mostRecent.albumCover = albumData.albumCover || null;
+      }
+    } catch (error) {
+      logCache('Error fetching album details for last played:', error);
+      // Continue without album year/cover if fetch fails
     }
   }
   

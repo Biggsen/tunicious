@@ -425,9 +425,9 @@ export function useUnifiedTrackCache() {
       if (!user.value) return null;
       return await updateLastPlayedFromPlaylist(trackId, playlistId, playlistName, user.value.uid, trackName, artistName);
     },
-    getLastPlayed: () => {
+    getLastPlayed: async () => {
       if (!user.value) return null;
-      return getLastPlayed(user.value.uid);
+      return await getLastPlayed(user.value.uid);
     }
   };
 }

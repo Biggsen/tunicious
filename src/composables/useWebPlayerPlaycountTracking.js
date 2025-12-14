@@ -13,6 +13,8 @@ const trackedPlaycountSessions = new Set();
  * Detects when tracks finish and increments playcount in cache
  */
 export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
+  logPlayer('[PLAYCOUNT] Initializing playcount tracking composable');
+  
   const { currentTrack, position, duration, isPlaying, playingFrom } = useSpotifyPlayer();
   const { getPlaycountForTrack, updatePlaycountForTrack, updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
   const { user } = useUserData();
@@ -107,6 +109,8 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       
       // Update last played playlist if we have playlist context
       const playlistContext = track.playlistContext;
+      logPlayer(`[PLAYCOUNT] Checking playlist context for last played update: ${playlistContext ? `${playlistContext.type}:${playlistContext.id} (${playlistContext.name})` : 'none'}`);
+      
       if (playlistContext && playlistContext.type === 'playlist' && playlistContext.id) {
         try {
           await updateLastPlayedFromPlaylist(
@@ -117,9 +121,15 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
             artistName
           );
           logPlayer(`[PLAYCOUNT] Updated last played playlist for "${track.name}": ${playlistContext.name}`);
+          
+          // Emit global event to notify Last Played panel to refresh
+          logPlayer(`[PLAYCOUNT] Emitting last-played-updated event`);
+          window.dispatchEvent(new CustomEvent('last-played-updated'));
         } catch (error) {
           logPlayer(`[PLAYCOUNT] Error updating last played playlist for "${track.name}":`, error);
         }
+      } else {
+        logPlayer(`[PLAYCOUNT] Skipping last played update - no valid playlist context (context: ${JSON.stringify(playlistContext)})`);
       }
       
       // Notify listener for UI updates (use actual track ID if found)
@@ -153,7 +163,10 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
     const trackDuration = trackedTrackDuration.value || 0;
     const contextToUse = playlistContext || trackedPlaylistContext.value;
     
+    logPlayer(`[PLAYCOUNT] Track finished: "${trackToProcess?.name}" - isNaturalFinish: ${isNaturalFinish}, playlistContext: ${contextToUse ? `${contextToUse.type}:${contextToUse.id} (${contextToUse.name})` : 'none'}`);
+    
     if (!trackToProcess || !trackStartTime) {
+      logPlayer(`[PLAYCOUNT] Missing track info or start time, skipping`);
       return;
     }
 
@@ -205,7 +218,7 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
     trackedPlaylistContext.value = playingFrom.value ? { ...playingFrom.value } : null;
     playcountIncremented.value = false;
     
-    logPlayer(`[PLAYCOUNT] Started tracking: ${trackedTrack.value.name}${trackedPlaylistContext.value ? ` from playlist: ${trackedPlaylistContext.value.name}` : ''}`);
+    logPlayer(`[PLAYCOUNT] Started tracking: ${trackedTrack.value.name}${trackedPlaylistContext.value ? ` from playlist: ${trackedPlaylistContext.value.name} (type: ${trackedPlaylistContext.value.type}, id: ${trackedPlaylistContext.value.id})` : ' (no playlist context)'}`);
   };
   
   /**
@@ -245,7 +258,9 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   };
   
   // Watch for track changes
+  logPlayer('[PLAYCOUNT] Setting up watcher for track changes');
   watch(() => currentTrack.value?.id, (newTrackId, oldTrackId) => {
+    logPlayer(`[PLAYCOUNT] Track ID changed: ${oldTrackId} -> ${newTrackId}`);
     if (oldTrackId && newTrackId !== oldTrackId) {
       // Track changed - capture old track info BEFORE overwriting
       const oldTrackInfo = trackedTrack.value ? { ...trackedTrack.value } : null;
@@ -277,11 +292,26 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   });
   
   // Watch position and duration to detect track finish
+  logPlayer('[PLAYCOUNT] Setting up watcher for position/duration/isPlaying');
   watch([position, duration, isPlaying], () => {
     if (currentTrack.value && isPlaying.value) {
       checkTrackFinished();
     }
   });
+  
+  // Watch for playback start (when isPlaying becomes true)
+  logPlayer('[PLAYCOUNT] Setting up watcher for playback state changes');
+  watch(isPlaying, (newIsPlaying, oldIsPlaying) => {
+    logPlayer(`[PLAYCOUNT] Playback state changed: ${oldIsPlaying} -> ${newIsPlaying}, currentTrack: ${currentTrack.value?.name || 'none'}`);
+    
+    // If playback just started and we have a track but haven't started tracking it yet
+    if (newIsPlaying && !oldIsPlaying && currentTrack.value && !trackedTrack.value) {
+      logPlayer(`[PLAYCOUNT] Playback started on existing track, initializing tracking`);
+      initializeTrackTracking();
+    }
+  });
+  
+  logPlayer('[PLAYCOUNT] Playcount tracking composable initialized successfully');
   
   return {
     // Expose for debugging/testing

@@ -28,6 +28,10 @@ export function enableDebug(namespace = 'app:*') {
   if (import.meta.env.PROD) {
     return;
   }
+  // Set both localStorage and enable directly (debug package checks localStorage)
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem('debug', namespace);
+  }
   debug.enable(namespace);
 }
 

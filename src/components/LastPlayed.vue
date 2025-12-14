@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useUserData } from '@composables/useUserData';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import { MusicalNoteIcon } from '@heroicons/vue/24/outline';
+import { logCache } from '@utils/logger';
 
 const router = useRouter();
 const { getLastPlayed, cacheLoaded } = useUnifiedTrackCache();
@@ -13,7 +14,7 @@ const { user } = useUserData();
 const lastPlayed = ref(null);
 const loading = ref(true);
 
-const fetchLastPlayed = () => {
+const fetchLastPlayed = async () => {
   if (!user.value) {
     loading.value = false;
     return;
@@ -21,14 +22,17 @@ const fetchLastPlayed = () => {
   
   // Wait for cache to be loaded
   if (!cacheLoaded.value) {
+    logCache('[LastPlayed] Cache not loaded yet, skipping fetch');
     return;
   }
   
   try {
     loading.value = true;
-    lastPlayed.value = getLastPlayed();
+    logCache('[LastPlayed] Fetching last played track');
+    lastPlayed.value = await getLastPlayed();
+    logCache('[LastPlayed] Last played result:', lastPlayed.value);
   } catch (error) {
-    console.error('Error fetching last played:', error);
+    logCache('[LastPlayed] Error fetching last played:', error);
   } finally {
     loading.value = false;
   }
@@ -76,9 +80,6 @@ const formatTimeAgo = (timestamp) => {
   return 'Just now';
 };
 
-onMounted(() => {
-  fetchLastPlayed();
-});
 
 watch(user, () => {
   if (user.value) {
@@ -90,6 +91,20 @@ watch(cacheLoaded, (loaded) => {
   if (loaded && user.value) {
     fetchLastPlayed();
   }
+});
+
+const handleLastPlayedUpdated = () => {
+  logCache('[LastPlayed] Received last-played-updated event, refreshing...');
+  fetchLastPlayed();
+};
+
+onMounted(() => {
+  fetchLastPlayed();
+  window.addEventListener('last-played-updated', handleLastPlayedUpdated);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('last-played-updated', handleLastPlayedUpdated);
 });
 </script>
 
@@ -106,60 +121,79 @@ watch(cacheLoaded, (loaded) => {
       No playback history yet
     </div>
 
-    <div v-else class="bg-white border-2 border-delft-blue rounded-xl p-6 space-y-4">
-      <!-- Playlist -->
-      <div>
-        <div class="text-sm text-delft-blue/70 mb-1">Playlist</div>
-        <button
-          v-if="lastPlayed.playlistId"
-          @click="navigateToPlaylist(lastPlayed.playlistId)"
-          class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
-        >
-          {{ lastPlayed.playlistName || 'Unknown Playlist' }}
-        </button>
-        <span v-else class="text-base font-semibold text-delft-blue">
-          {{ lastPlayed.playlistName || 'Unknown Playlist' }}
-        </span>
-      </div>
-
-      <!-- Album -->
-      <div>
-        <div class="text-sm text-delft-blue/70 mb-1">Album</div>
-        <button
-          v-if="lastPlayed.albumId"
-          @click="navigateToAlbum(lastPlayed.albumId)"
-          class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
-        >
-          {{ lastPlayed.albumName || 'Unknown Album' }}
-        </button>
-        <span v-else class="text-base font-semibold text-delft-blue">
-          {{ lastPlayed.albumName || 'Unknown Album' }}
-        </span>
-      </div>
-
-      <!-- Track -->
-      <div>
-        <div class="text-sm text-delft-blue/70 mb-1">Track</div>
-        <div class="text-base font-semibold text-delft-blue">
-          {{ lastPlayed.trackName || 'Unknown Track' }}
+    <div v-else class="bg-white border-2 border-delft-blue rounded-xl p-6">
+      <div class="flex gap-4 mb-4 items-start">
+        <!-- Album Cover -->
+        <div v-if="lastPlayed.albumCover" class="flex-shrink-0">
+          <img
+            :src="lastPlayed.albumCover"
+            :alt="lastPlayed.albumName || 'Album cover'"
+            class="w-28 h-28 rounded object-cover"
+          />
         </div>
-        <div v-if="lastPlayed.artistName" class="text-sm text-delft-blue/70 mt-1">
-          by 
+
+        <!-- Track Info -->
+        <div class="flex-1 min-w-0">
+          <!-- Track Title (large, bold) -->
+          <div class="mb-2">
+            <h3 class="text-lg font-semibold text-delft-blue">
+              {{ lastPlayed.trackName || 'Unknown Track' }}
+            </h3>
+          </div>
+
+          <!-- Album Year, Name, and Artist -->
+          <div class="mb-4">
+            <p v-if="lastPlayed.albumYear" class="text-xs lg:text-sm xl:text-base text-delft-blue/70">
+              {{ lastPlayed.albumYear }}
+            </p>
+            <p class="text-sm lg:text-base xl:text-lg text-delft-blue/70 font-semibold">
+              <button
+                v-if="lastPlayed.albumId"
+                @click="navigateToAlbum(lastPlayed.albumId)"
+                class="hover:underline cursor-pointer"
+              >
+                {{ lastPlayed.albumName || 'Unknown Album' }}
+              </button>
+              <span v-else>
+                {{ lastPlayed.albumName || 'Unknown Album' }}
+              </span>
+            </p>
+            <p class="text-sm lg:text-base xl:text-lg text-delft-blue/70">
+              <button
+                v-if="lastPlayed.artists?.[0]?.id"
+                @click="navigateToArtist(lastPlayed.artists[0].id)"
+                class="hover:underline cursor-pointer"
+              >
+                {{ lastPlayed.artistName || 'Unknown Artist' }}
+              </button>
+              <span v-else>{{ lastPlayed.artistName || 'Unknown Artist' }}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playlist and Timestamp -->
+      <div class="pt-3 border-t border-delft-blue/20 space-y-2">
+        <!-- Playlist -->
+        <div>
+          <div class="text-sm text-delft-blue/50 mb-1">Playlist</div>
           <button
-            v-if="lastPlayed.artists?.[0]?.id"
-            @click="navigateToArtist(lastPlayed.artists[0].id)"
-            class="hover:underline cursor-pointer"
+            v-if="lastPlayed.playlistId"
+            @click="navigateToPlaylist(lastPlayed.playlistId)"
+            class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
           >
-            {{ lastPlayed.artistName }}
+            {{ lastPlayed.playlistName || 'Unknown Playlist' }}
           </button>
-          <span v-else>{{ lastPlayed.artistName }}</span>
+          <span v-else class="text-base font-semibold text-delft-blue">
+            {{ lastPlayed.playlistName || 'Unknown Playlist' }}
+          </span>
         </div>
-      </div>
 
-      <!-- Timestamp -->
-      <div v-if="lastPlayed.timestamp" class="pt-2 border-t border-delft-blue/20">
-        <div class="text-xs text-delft-blue/50">
-          {{ formatTimeAgo(lastPlayed.timestamp) }}
+        <!-- Timestamp -->
+        <div v-if="lastPlayed.timestamp">
+          <div class="text-sm text-delft-blue/50">
+            {{ formatTimeAgo(lastPlayed.timestamp) }}
+          </div>
         </div>
       </div>
     </div>

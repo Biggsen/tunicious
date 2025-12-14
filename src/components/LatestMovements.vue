@@ -1,13 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useLatestMovements } from '@/composables/useLatestMovements';
 import { useRouter } from 'vue-router';
+import { useCurrentUser } from 'vuefire';
 import LoadingMessage from '@/components/common/LoadingMessage.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
 import { ClockIcon, ArrowRightIcon } from '@heroicons/vue/24/outline';
 import { HeartIcon, SparklesIcon } from '@heroicons/vue/24/solid';
 
 const router = useRouter();
+const user = useCurrentUser();
 const { movements, formattedMovements, loading, error, fetchLatestMovements } = useLatestMovements();
 
 const props = defineProps({
@@ -21,8 +23,20 @@ const props = defineProps({
   }
 });
 
+const loadMovements = async () => {
+  if (user.value) {
+    await fetchLatestMovements(props.limit);
+  }
+};
+
 onMounted(async () => {
-  await fetchLatestMovements(props.limit);
+  await loadMovements();
+});
+
+watch(user, () => {
+  if (user.value) {
+    loadMovements();
+  }
 });
 
 const navigateToAlbum = (movement) => {
