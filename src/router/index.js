@@ -27,6 +27,7 @@ import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 import StyleguideView from '@views/StyleguideView.vue';
 import OnboardingView from '@views/OnboardingView.vue';
+import UpdatesView from '@views/UpdatesView.vue';
 
 const routes = [
   {
@@ -204,6 +205,11 @@ const routes = [
     path: '/styleguide',
     name: 'styleguide',
     component: StyleguideView
+  },
+  {
+    path: '/updates',
+    name: 'updates',
+    component: UpdatesView
   }
 ];
 

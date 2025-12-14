@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "title": "Updates Page & Homepage Improvements",
+    "date": "2025-12-14",
+    "types": ["FEATURE"],
+    "hidden": false,
+    "changes": [
+      "Added updates page to inform users of changes",
+      "New last played panel added to homepage",
+      "Playcount iteration made global, so it accurately updates playcount on whatever page you're on"
+    ]
+  }
+]
+
