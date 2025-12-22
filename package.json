@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "migrate:users:friends": "node dbscripts/migrate-user-friends-fields.js"
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",

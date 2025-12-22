@@ -28,6 +28,7 @@ import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 import StyleguideView from '@views/StyleguideView.vue';
 import OnboardingView from '@views/OnboardingView.vue';
 import UpdatesView from '@views/UpdatesView.vue';
+import FriendsView from '@views/FriendsView.vue';
 
 const routes = [
   {
@@ -210,6 +211,12 @@ const routes = [
     path: '/updates',
     name: 'updates',
     component: UpdatesView
+  },
+  {
+    path: '/friends',
+    name: 'friends',
+    component: FriendsView,
+    meta: { requiresAuth: true }
   }
 ];
 

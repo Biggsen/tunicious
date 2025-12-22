@@ -3,7 +3,7 @@ import { RouterLink } from "vue-router";
 import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
 import { useAdmin } from "@composables/useAdmin";
-import { MusicalNoteIcon, MagnifyingGlassIcon, RocketLaunchIcon } from '@heroicons/vue/24/outline';
+import { MusicalNoteIcon, MagnifyingGlassIcon, RocketLaunchIcon, UserGroupIcon } from '@heroicons/vue/24/outline';
 
 const { user, userData } = useUserData();
 const { isAdmin } = useAdmin();
@@ -33,6 +33,12 @@ const { isAdmin } = useAdmin();
               <RouterLink to="/search" class="flex items-center gap-1">
                 <MagnifyingGlassIcon class="w-4 h-4" />
                 <span>Search</span>
+              </RouterLink>
+            </li>
+            <li>
+              <RouterLink to="/friends" class="flex items-center gap-1">
+                <UserGroupIcon class="w-4 h-4" />
+                <span>Friends</span>
               </RouterLink>
             </li>
             <li>

@@ -239,8 +239,11 @@ const saveDisplayName = async (displayName) => {
   savingDisplayName.value = true;
   try {
     console.log('[Onboarding] Saving displayName to Firestore...');
+    const trimmedDisplayName = displayName.trim();
     await setDoc(doc(db, 'users', user.value.uid), {
-      displayName: displayName.trim(),
+      displayName: trimmedDisplayName,
+      searchableDisplayName: trimmedDisplayName.toLowerCase(),
+      publicProfile: true, // Ensure publicProfile is set
       updatedAt: serverTimestamp()
     }, { merge: true });
     console.log('[Onboarding] displayName saved successfully');

@@ -15,12 +15,13 @@ export function useLatestMovements() {
   const movements = ref([]);
 
   /**
-   * Fetches recent album movements for the current user
+   * Fetches recent album movements for the current user or friends
    * @param {number} limitCount - Number of movements to fetch (default: 10)
+   * @param {Array<string>} friendIds - Optional array of friend user IDs to fetch movements for
    * @returns {Promise<Array>} Array of movement objects
    */
-  const fetchLatestMovements = async (limitCount = 10) => {
-    if (!user.value) {
+  const fetchLatestMovements = async (limitCount = 10, friendIds = null) => {
+    if (!user.value && !friendIds) {
       logAlbum('No user found in fetchLatestMovements');
       return [];
     }
@@ -29,7 +30,8 @@ export function useLatestMovements() {
       loading.value = true;
       error.value = null;
 
-      logAlbum('Fetching latest movements for user:', user.value.uid);
+      const targetUserIds = friendIds || [user.value.uid];
+      logAlbum('Fetching latest movements for users:', targetUserIds);
 
       // Get all albums - simpler approach without nested field queries
       const albumsRef = collection(db, 'albums');
@@ -42,14 +44,23 @@ export function useLatestMovements() {
       for (const doc of querySnapshot.docs) {
         const data = doc.data();
         
-        // Check if this user has entries for this album
-        if (!data.userEntries || !data.userEntries[user.value.uid]) {
+        // Check if any of the target users have entries for this album
+        let userEntry = null;
+        let userId = null;
+        
+        for (const targetUserId of targetUserIds) {
+          if (data.userEntries && data.userEntries[targetUserId]) {
+            userEntry = data.userEntries[targetUserId];
+            userId = targetUserId;
+            break;
+          }
+        }
+        
+        if (!userEntry) {
           continue;
         }
 
-        logAlbum('Found user entry for album:', doc.id, data.albumTitle);
-
-        const userEntry = data.userEntries[user.value.uid];
+        logAlbum('Found user entry for album:', doc.id, data.albumTitle, 'for user:', userId);
         
         if (!userEntry?.playlistHistory || !Array.isArray(userEntry.playlistHistory)) {
           logAlbum('No playlist history for album:', doc.id);
@@ -104,7 +115,9 @@ export function useLatestMovements() {
           fromPipelineRole: sortedHistory[1]?.pipelineRole || null,
           type: latestEntry.type,
           timestamp: addedAt,
-          updatedAt: updatedAt
+          updatedAt: updatedAt,
+          userId: userId, // Track which user this movement belongs to
+          isFriendMovement: friendIds !== null // Flag to indicate if this is a friend's movement
         });
       }
 
@@ -118,9 +131,11 @@ export function useLatestMovements() {
       });
 
       // Resolve all playlist names at once
+      // For friends' movements, we need to resolve playlists for each friend
+      // For now, use the current user's context (playlists are readable by all authenticated users)
       const playlistNames = await resolvePlaylistNames(
         Array.from(playlistIds),
-        user.value.uid,
+        user.value?.uid || targetUserIds[0],
         getPlaylist
       );
 
@@ -193,6 +208,45 @@ export function useLatestMovements() {
     };
   };
 
+  /**
+   * Fetches recent album movements for friends
+   * @param {Array<string>} friendIds - Array of friend user IDs
+   * @param {number} limitCount - Number of movements to fetch per friend (default: 10)
+   * @returns {Promise<Array>} Array of movement objects from all friends
+   */
+  const fetchFriendsMovements = async (friendIds, limitCount = 10) => {
+    if (!friendIds || friendIds.length === 0) {
+      return [];
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      logAlbum('Fetching movements for friends:', friendIds);
+
+      // Fetch movements for all friends in parallel
+      const allMovements = await fetchLatestMovements(limitCount * friendIds.length, friendIds);
+
+      // Sort all movements by updatedAt and limit to top N
+      const sortedMovements = allMovements
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, limitCount);
+
+      logAlbum('Total friends movements found:', sortedMovements.length);
+
+      movements.value = sortedMovements;
+      return sortedMovements;
+
+    } catch (e) {
+      logAlbum('Error fetching friends movements:', e);
+      error.value = 'Failed to fetch friends movements';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const formattedMovements = computed(() => 
     movements.value.map(formatMovement)
   );
@@ -202,6 +256,7 @@ export function useLatestMovements() {
     formattedMovements,
     loading,
     error,
-    fetchLatestMovements
+    fetchLatestMovements,
+    fetchFriendsMovements
   };
 } 

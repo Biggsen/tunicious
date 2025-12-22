@@ -20,8 +20,13 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      // Allow reading own profile, admin access, or public profiles for search
+      allow read: if isOwner(userId) || isAdmin() || 
+        (isAuthenticated() && resource.data.publicProfile == true);
       allow write: if isOwner(userId) || (isAdmin() && userId != request.auth.uid);
+      // Allow users to update their own searchableDisplayName and publicProfile
+      allow update: if isOwner(userId) && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['searchableDisplayName', 'publicProfile', 'updatedAt']);
     }
 
     // Playlists collection rules
@@ -84,6 +89,52 @@ service cloud.firestore {
     match /spotifyUsageDaily/{dailyId} {
       allow read: if isAuthenticated() && resource.data.identifier == "user:" + request.auth.uid;
       allow write: if false; // Only backend functions can write
+    }
+
+    // Friend Requests collection rules
+    match /friendRequests/{requestId} {
+      // Users can read requests they sent or received
+      allow read: if isAuthenticated() && 
+        (resource.data.fromUserId == request.auth.uid || 
+         resource.data.toUserId == request.auth.uid);
+      
+      // Users can create requests where they are the sender
+      allow create: if isAuthenticated() && 
+        request.resource.data.fromUserId == request.auth.uid &&
+        request.resource.data.fromUserId != request.resource.data.toUserId &&
+        request.resource.data.status == 'pending';
+      
+      // Recipients can update to accept/decline
+      allow update: if isAuthenticated() && 
+        resource.data.toUserId == request.auth.uid &&
+        (request.resource.data.status == 'accepted' || 
+         request.resource.data.status == 'declined');
+      
+      // Users can delete their own outgoing requests (cancel)
+      allow delete: if isAuthenticated() && 
+        resource.data.fromUserId == request.auth.uid;
+    }
+
+    // Friendships collection rules
+    match /friendships/{friendshipId} {
+      // Users can read friendships they are part of
+      allow read: if isAuthenticated() && 
+        (resource.data.user1Id == request.auth.uid || 
+         resource.data.user2Id == request.auth.uid);
+      
+      // Allow creation if user is part of the friendship and user1Id < user2Id
+      allow create: if isAuthenticated() && 
+        (request.resource.data.user1Id == request.auth.uid || 
+         request.resource.data.user2Id == request.auth.uid) &&
+        request.resource.data.user1Id < request.resource.data.user2Id;
+      
+      // No updates allowed (friendships are immutable)
+      allow update: if false;
+      
+      // Users can delete friendships they are part of (unfriend)
+      allow delete: if isAuthenticated() && 
+        (resource.data.user1Id == request.auth.uid || 
+         resource.data.user2Id == request.auth.uid);
     }
 
     // This rule allows anyone with your Firestore database reference to view, edit,

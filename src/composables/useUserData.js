@@ -148,6 +148,35 @@ export function useUserData() {
     }
   }
 
+  async function updateDisplayName(newDisplayName) {
+    if (!user.value) {
+      throw new Error('No authenticated user');
+    }
+
+    try {
+      const trimmedDisplayName = newDisplayName ? newDisplayName.trim() : null;
+      const updateData = {
+        displayName: trimmedDisplayName,
+        searchableDisplayName: trimmedDisplayName ? trimmedDisplayName.toLowerCase() : null,
+        updatedAt: serverTimestamp()
+      };
+
+      await setDoc(doc(db, 'users', user.value.uid), updateData, { merge: true });
+
+      // Optimistically update local state
+      if (userData.value) {
+        userData.value.displayName = trimmedDisplayName;
+        userData.value.searchableDisplayName = trimmedDisplayName ? trimmedDisplayName.toLowerCase() : null;
+      }
+
+      // Refresh user data to ensure consistency
+      await fetchUserData(user.value.uid);
+    } catch (error) {
+      logUser('Error updating display name:', error);
+      throw error;
+    }
+  }
+
   return {
     user,
     userData,
@@ -155,6 +184,7 @@ export function useUserData() {
     error,
     fetchUserData,
     clearLastFmAuth,
-    updateProfilePicture
+    updateProfilePicture,
+    updateDisplayName
   };
 } 

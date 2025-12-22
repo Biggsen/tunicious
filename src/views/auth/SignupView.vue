@@ -69,6 +69,9 @@ const onSubmit = async (formData) => {
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         displayName: null,
+        searchableDisplayName: null,
+        publicProfile: true,
+        friendsCount: 0,
         lastFmUserName: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
