@@ -415,11 +415,19 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Gets the user's Spotify profile including images
+   * @returns {Promise<Object>} User profile with images array
+   */
+  const getUserProfile = async () => {
+    return makeUserRequest('/me');
+  };
+
+  /**
    * Creates a new playlist for the user
    */
   const createPlaylist = async (name, description = '', isPublic = false) => {
     // First get the user's Spotify profile to get their user ID
-    const profile = await makeUserRequest('https://api.spotify.com/v1/me');
+    const profile = await getUserProfile();
     
     // Add Tunicious identifier to description at the beginning
     const tuniciousDescription = formatTuniciousDescription(description);
@@ -772,6 +780,7 @@ export function useUserSpotifyApi() {
     loading,
     error,
     makeUserRequest,
+    getUserProfile,
     createPlaylist,
     addTracksToPlaylist,
     addAlbumToPlaylist,

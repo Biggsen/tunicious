@@ -5,12 +5,21 @@ import { db } from '../firebase';
 import { useUserSpotifyApi } from './useUserSpotifyApi';
 import { logUser } from '@utils/logger';
 
+// Move refs outside the function to make them shared/singleton across all components
+// This ensures all components using useUserData() share the same reactive state
+const userData = ref(null);
+const loading = ref(true);
+const error = ref(null);
+let checkConnectionStatusFn = null;
+
 export function useUserData() {
   const user = useCurrentUser();
-  const userData = ref(null);
-  const loading = ref(true);
-  const error = ref(null);
-  const { checkConnectionStatus } = useUserSpotifyApi();
+  
+  // Initialize checkConnectionStatus only once
+  if (!checkConnectionStatusFn) {
+    const { checkConnectionStatus } = useUserSpotifyApi();
+    checkConnectionStatusFn = checkConnectionStatus;
+  }
 
   async function fetchUserData(uid) {
     try {
@@ -27,7 +36,7 @@ export function useUserData() {
         if (userData.value.spotifyConnected) {
           try {
             logUser('Checking Spotify connection status...');
-            const connectionStatus = await checkConnectionStatus();
+            const connectionStatus = await checkConnectionStatusFn();
             logUser('Spotify connection status:', connectionStatus);
             
             // If connection failed and we couldn't recover, update the user data
@@ -59,6 +68,7 @@ export function useUserData() {
   }
 
   // Watch for user changes and fetch data when user is available
+  // Each component sets up its own watcher, but they all update the shared userData ref
   watch(user, (newUser) => {
     if (newUser) {
       fetchUserData(newUser.uid);
@@ -98,12 +108,53 @@ export function useUserData() {
     }
   }
 
+  async function updateProfilePicture(imageUrl, source) {
+    if (!user.value) {
+      throw new Error('No authenticated user');
+    }
+
+    try {
+      const updateData = {
+        updatedAt: serverTimestamp()
+      };
+      
+      if (imageUrl === null || imageUrl === undefined) {
+        // Explicitly delete the fields if removing
+        updateData.profileImageUrl = null;
+        updateData.profileImageSource = null;
+      } else {
+        updateData.profileImageUrl = imageUrl;
+        updateData.profileImageSource = source;
+      }
+      
+      await setDoc(doc(db, 'users', user.value.uid), updateData, { merge: true });
+      
+      // Optimistically update local state immediately
+      if (userData.value) {
+        if (imageUrl === null || imageUrl === undefined) {
+          userData.value.profileImageUrl = null;
+          userData.value.profileImageSource = null;
+        } else {
+          userData.value.profileImageUrl = imageUrl;
+          userData.value.profileImageSource = source;
+        }
+      }
+
+      // Refresh user data to ensure consistency with Firestore
+      await fetchUserData(user.value.uid);
+    } catch (error) {
+      logUser('Error updating profile picture:', error);
+      throw error;
+    }
+  }
+
   return {
     user,
     userData,
     loading,
     error,
     fetchUserData,
-    clearLastFmAuth
+    clearLastFmAuth,
+    updateProfilePicture
   };
 } 

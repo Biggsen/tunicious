@@ -50,9 +50,21 @@ const { isAdmin } = useAdmin();
       <div v-if="!user">
         <RouterLink to="/login">Login</RouterLink>
       </div>
-      <div v-else>
-        <RouterLink to="/account" class="text-delft-blue hover:text-raspberry">
-          {{ userData?.displayName || user.email }}
+      <div v-else class="flex items-center gap-3">
+        <RouterLink to="/account/profile" class="flex items-center gap-2 text-delft-blue hover:text-raspberry">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
+            <img 
+              v-if="userData?.profileImageUrl" 
+              :src="userData.profileImageUrl" 
+              :key="userData.profileImageUrl"
+              alt="Profile picture"
+              class="w-full h-full object-cover"
+            />
+            <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-lg font-semibold">
+              {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
+            </div>
+          </div>
+          <span class="hidden sm:inline">{{ userData?.displayName || user.email }}</span>
         </RouterLink>
       </div>
     </div>
