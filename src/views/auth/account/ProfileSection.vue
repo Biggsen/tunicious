@@ -44,18 +44,15 @@ const fetchSpotifyImage = async () => {
   try {
     const profile = await getUserProfile();
     const images = profile.images || [];
-    console.log('Spotify images:', images);
     
     if (images.length > 0) {
       // Get the largest image (usually the last one)
       const largestImage = images[images.length - 1];
       const imageUrl = largestImage?.url;
       if (imageUrl && imageUrl.trim() !== '') {
-        console.log('Spotify image URL:', imageUrl);
         return imageUrl;
       }
     }
-    console.log('No valid Spotify image found');
     return null;
   } catch (error) {
     console.error('Error fetching Spotify profile image:', error);
@@ -69,7 +66,6 @@ const fetchLastFmImage = async () => {
   try {
     const result = await getUserInfo(userData.value.lastFmUserName);
     const images = result.user?.image || [];
-    console.log('Last.fm images:', images);
     
     if (Array.isArray(images) && images.length > 0) {
       // Find the largest image (usually 'extralarge' or 'large')
@@ -81,11 +77,9 @@ const fetchLastFmImage = async () => {
       const imageUrl = largeImage?.['#text'] || largeImage?.url;
       // Filter out empty strings
       if (imageUrl && imageUrl.trim() !== '') {
-        console.log('Last.fm image URL:', imageUrl);
         return imageUrl;
       }
     }
-    console.log('No valid Last.fm image found');
     return null;
   } catch (error) {
     console.error('Error fetching Last.fm profile image:', error);
@@ -128,7 +122,6 @@ const selectImage = async (source) => {
   }
   
   try {
-    console.log('Selecting profile image:', { source, imageUrl });
     await updateProfilePicture(imageUrl, source);
     selectedSource.value = source;
     showImageSelector.value = false;
