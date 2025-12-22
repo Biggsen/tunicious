@@ -106,7 +106,7 @@ export function useSpotifyPlayer() {
         // Only create player if it doesn't exist
         if (!player.value) {
           player.value = new window.Spotify.Player({
-            name: 'AudioFoodie Web Player',
+            name: 'Tunicious Web Player',
             getOAuthToken: async (cb) => {
               // Refresh token if needed
               try {
