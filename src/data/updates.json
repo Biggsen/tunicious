@@ -1,5 +1,22 @@
 [
   {
+    "id": 3,
+    "title": "Friends Feature & Major Improvements",
+    "date": "2025-12-22",
+    "types": ["FEATURE", "IMPROVEMENT", "BUGFIX"],
+    "hidden": false,
+    "changes": [
+      "Implemented Friends feature - connect and view friends' movements",
+      "Added profile picture selection from Last.fm and Spotify",
+      "Added RYM link customization",
+      "Optimized album processing to reduce Spotify API calls",
+      "Changed track selection to pick first track instead of last when playcounts are equal",
+      "Updated Spotify player name to Tunicious Web Player",
+      "Fixed cancel button on edit playlist page",
+      "Fixed flickering Spotify Connection issue banner"
+    ]
+  },
+  {
     "id": 2,
     "title": "Last.fm Session Management Improvements",
     "date": "2025-12-14",
