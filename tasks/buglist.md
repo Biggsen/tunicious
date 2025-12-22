@@ -15,7 +15,6 @@
 - [ ] _No high priority bugs at this time_
 
 ### Medium Priority
-- [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 
 ### Low Priority
@@ -59,36 +58,6 @@ When adding a bug, use the following format:
 
 ## Bug Details
 
-### RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
-**Status**: 🟡 Medium  
-**Reported**: 2025-01-27  
-**Component/Area**: Music Service Links, RYM Integration
-
-**Description**:  
-The Rate Your Music (RYM) links are frequently failing with 404 errors. This appears to be related to URL formatting issues, specifically the use of dashes vs underscores in the URL construction.
-
-**Steps to Reproduce**:
-1. Navigate to an album or artist page
-2. Click on the RYM link
-3. Observe 404 error on RYM website
-
-**Expected Behavior**:  
-RYM links should correctly navigate to the album/artist page on Rate Your Music.
-
-**Actual Behavior**:  
-RYM links frequently return 404 errors, likely due to incorrect URL formatting (dashes vs underscores).
-
-**Workaround**:  
-None identified at this time.
-
-**Notes**:  
-Need to investigate:
-- How RYM URLs are being constructed
-- Whether RYM uses dashes or underscores in their URL format
-- The `musicServiceLinks.js` utility function that generates RYM links
-- Compare working RYM URLs vs failing ones to identify the pattern
-
----
 
 
 ### App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
@@ -156,6 +125,23 @@ Need to investigate:
 **Component/Area**: Playlist Management, Database
 
 **Resolution**: Resolved through migration that removed the `name` field from Firebase playlists. Playlist names are now resolved dynamically using `playlistNameResolver.js`, which checks unified track cache, playlist summaries cache, and falls back to Spotify API. This ensures names always match what's in Spotify and eliminates stale data issues.
+
+---
+
+#### RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Resolved**: 2025-01-27  
+**Component/Area**: Music Service Links, RYM Integration
+
+**Resolution**: Fixed by:
+1. Changed RYM link generation from underscores to dashes in `musicServiceLinks.js` (RYM moved to dashes but has inadequate redirect policies for older underscore URLs)
+2. Added optional `rymLink` field to Albums collection, allowing users to manually set custom RYM links that take priority over auto-generated ones
+3. Added UI in `AlbumView.vue` to edit and save custom RYM links
+4. Updated `getRateYourMusicLink` to prioritize stored `rymLink` over auto-generated links
+5. Fixed `paginatedAlbums` to use `sortedAlbumsList` so `rymLink` is properly merged and displayed in `AlbumItem` components
+
+Users can now set custom RYM links on album pages, and the system defaults to dashes for auto-generated links to match RYM's current URL format.
 
 ---
 
