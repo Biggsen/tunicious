@@ -145,8 +145,61 @@ export function useLatestMovements() {
         m.fromPlaylist = m.fromPlaylistId ? (playlistNames[m.fromPlaylistId] || 'Unknown Playlist') : null;
       });
 
+      // Fetch excluded playlists for each user whose movements we're showing
+      // This ensures filtering works for both your own movements and friends viewing your movements
+      const excludedPlaylistsByUser = new Map(); // userId -> Set of excluded playlist IDs
+      
+      // Get unique user IDs from movements
+      const uniqueUserIds = new Set(albumMovements.map(m => m.userId).filter(Boolean));
+      
+      if (uniqueUserIds.size > 0) {
+        try {
+          const playlistsRef = collection(db, 'playlists');
+          
+          // Fetch excluded playlists for each user
+          for (const userId of uniqueUserIds) {
+            const excludedQuery = query(
+              playlistsRef,
+              where('userId', '==', userId),
+              where('excludeFromMovements', '==', true)
+            );
+            const excludedSnapshot = await getDocs(excludedQuery);
+            const excludedIds = new Set();
+            excludedSnapshot.forEach((doc) => {
+              const playlistData = doc.data();
+              if (playlistData.playlistId) {
+                excludedIds.add(playlistData.playlistId);
+              }
+            });
+            if (excludedIds.size > 0) {
+              excludedPlaylistsByUser.set(userId, excludedIds);
+              logAlbum(`Found ${excludedIds.size} excluded playlists for user ${userId}`);
+            }
+          }
+        } catch (err) {
+          logAlbum('Error fetching excluded playlists:', err);
+          // Continue without filtering if query fails
+        }
+      }
+
+      // Filter out movements involving excluded playlists based on the movement owner's excluded playlists
+      const filteredMovements = albumMovements.filter(m => {
+        if (!m.userId) return true; // Keep movements without userId
+        
+        const userExcludedPlaylists = excludedPlaylistsByUser.get(m.userId);
+        if (!userExcludedPlaylists) return true; // No exclusions for this user, keep movement
+        
+        const toExcluded = m.toPlaylistId && userExcludedPlaylists.has(m.toPlaylistId);
+        const fromExcluded = m.fromPlaylistId && userExcludedPlaylists.has(m.fromPlaylistId);
+        return !toExcluded && !fromExcluded; // Exclude if either playlist is in user's excluded list
+      });
+
+      if (excludedPlaylistsByUser.size > 0) {
+        logAlbum('Filtered movements (excluded playlists removed):', filteredMovements.length, 'of', albumMovements.length);
+      }
+
       // Sort by updatedAt (most recent first) and limit
-      const sortedMovements = albumMovements
+      const sortedMovements = filteredMovements
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
         .slice(0, limitCount);
 

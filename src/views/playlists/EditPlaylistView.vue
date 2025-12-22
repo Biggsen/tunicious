@@ -34,7 +34,8 @@ const form = ref({
   group: 'known',
   pipelineRole: 'source',
   nextStagePlaylistId: '',
-  terminationPlaylistId: ''
+  terminationPlaylistId: '',
+  excludeFromMovements: false
 });
 
 // Validation
@@ -118,7 +119,8 @@ async function loadPlaylist() {
       group: playlistData.group || 'unknown',
       pipelineRole: playlistData.pipelineRole || 'source',
       nextStagePlaylistId: playlistData.nextStagePlaylistId || '',
-      terminationPlaylistId: playlistData.terminationPlaylistId || ''
+      terminationPlaylistId: playlistData.terminationPlaylistId || '',
+      excludeFromMovements: playlistData.excludeFromMovements || false
     };
     
     // Load available playlists for connections
@@ -213,6 +215,7 @@ async function savePlaylist() {
     const updateData = {
       group: form.value.group,
       pipelineRole: form.value.pipelineRole,
+      excludeFromMovements: form.value.excludeFromMovements,
       updatedAt: serverTimestamp()
     };
     
@@ -378,6 +381,26 @@ onMounted(async () => {
             </p>
           </div>
         </div>
+      </div>
+      
+      <!-- Exclude from Movements -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Visibility Settings</h2>
+        
+        <div class="flex items-center">
+          <input 
+            type="checkbox" 
+            id="excludeFromMovements"
+            v-model="form.excludeFromMovements"
+            class="h-4 w-4 text-delft-blue focus:ring-delft-blue border-gray-300 rounded"
+          />
+          <label for="excludeFromMovements" class="ml-2 block text-sm text-gray-700">
+            Exclude from Latest Movements
+          </label>
+        </div>
+        <p class="mt-2 text-sm text-gray-500">
+          When checked, movements to/from this playlist will not appear in the Latest Movements feed.
+        </p>
       </div>
       
       <!-- Action Buttons -->
