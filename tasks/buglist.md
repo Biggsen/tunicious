@@ -16,6 +16,7 @@
 
 ### Medium Priority
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
+- [ ] Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -93,6 +94,33 @@ Need to investigate:
 
 ---
 
+### Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: Tracklist Display, Album Processing, UI State Management
+
+**Description**:  
+After processing an album to a new transient playlist, when the tracklist toggle is pressed, it only loads the tracklist for the newly added album. It doesn't attempt to load tracklists for any of the other albums that were already displayed.
+
+**Steps to Reproduce**:
+1. View a playlist page with multiple albums displayed
+2. Process/add a new album to the playlist
+3. Press the tracklist toggle
+4. Observe that only the newly added album's tracklist loads
+
+**Expected Behavior**:  
+When the tracklist toggle is pressed, it should load tracklists for all albums currently displayed on the page, not just the newly added one.
+
+**Actual Behavior**:  
+Only the newly added album's tracklist is loaded. Other albums' tracklists are not loaded.
+
+**Workaround**:  
+None identified.
+
+**Notes**:  
+This suggests the tracklist loading logic may be tied to the album processing/update flow rather than being triggered independently for all visible albums when the toggle is activated.
+
+---
 
 ## Resolved Bugs
 
