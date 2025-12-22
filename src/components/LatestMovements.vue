@@ -8,6 +8,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import LoadingMessage from '@/components/common/LoadingMessage.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
+import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import { ClockIcon, ArrowUpRightIcon, ArrowDownRightIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -29,10 +30,13 @@ const props = defineProps({
 const activeTab = ref('mine');
 const friends = ref([]);
 const friendDataMap = ref({}); // Map of userId -> userData for displaying friend names
+const excludeQueued = ref(false); // Toggle to exclude movements involving source playlists
 
 const loadMovements = async () => {
   if (user.value) {
-    await fetchLatestMovements(props.limit);
+    // Fetch more movements when excludeQueued is enabled to account for filtering
+    const fetchLimit = excludeQueued.value ? props.limit * 3 : props.limit;
+    await fetchLatestMovements(fetchLimit);
   }
 };
 
@@ -64,8 +68,9 @@ const loadFriendsMovements = async () => {
       }
     });
 
-    // Fetch movements for all friends
-    await fetchFriendsMovements(friendIds, props.limit);
+    // Fetch more movements when excludeQueued is enabled to account for filtering
+    const fetchLimit = excludeQueued.value ? props.limit * 3 : props.limit;
+    await fetchFriendsMovements(friendIds, fetchLimit);
   } catch (err) {
     console.error('Error loading friends movements:', err);
   }
@@ -90,6 +95,11 @@ watch(user, () => {
 });
 
 watch(activeTab, () => {
+  loadDataForTab();
+});
+
+watch(excludeQueued, () => {
+  // Reload movements when filter changes to fetch appropriate amount
   loadDataForTab();
 });
 
@@ -149,13 +159,36 @@ const getMovementTypeStyles = (type) => {
 };
 
 const fallbackImage = '/placeholder.png';
+
+// Filter movements based on excludeQueued toggle
+const filteredMovements = computed(() => {
+  if (!excludeQueued.value) {
+    return formattedMovements.value;
+  }
+  
+      // Filter out movements where album is in a source playlist (queued)
+      // This catches both "Added to" and "moved to" source playlists
+      const filtered = formattedMovements.value.filter(movement => {
+        const isInSourcePlaylist = movement.pipelineRole === 'source';
+        return !isInSourcePlaylist;
+      });
+      
+      // Limit to the original limit after filtering
+      return filtered.slice(0, props.limit);
+});
 </script>
 
 <template>
   <div class="latest-movements">
-    <div v-if="showHeader" class="flex items-center gap-2 mb-4">
-      <ClockIcon class="h-5 w-5 text-delft-blue" />
-      <h2 class="text-xl font-bold text-delft-blue">Latest Movements</h2>
+    <div v-if="showHeader" class="mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <ClockIcon class="h-5 w-5 text-delft-blue" />
+        <h2 class="text-xl font-bold text-delft-blue">Latest Movements</h2>
+      </div>
+      <div class="flex items-center gap-3 ml-[28px]">
+        <ToggleSwitch v-model="excludeQueued" variant="primary-on-celadon" />
+        <span class="text-delft-blue">Exclude queued</span>
+      </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -191,7 +224,7 @@ const fallbackImage = '/placeholder.png';
       <LoadingMessage v-if="loading" />
       <ErrorMessage v-else-if="error" :message="error" />
       
-      <div v-else-if="formattedMovements.length === 0" class="text-center py-8 text-gray-500">
+      <div v-else-if="filteredMovements.length === 0" class="text-center py-8 text-gray-500">
         <span v-if="activeTab === 'mine'">No recent movements found</span>
         <span v-else-if="friends.length === 0">No friends yet. Add friends to see their movements!</span>
         <span v-else>No recent movements from friends</span>
@@ -199,7 +232,7 @@ const fallbackImage = '/placeholder.png';
 
       <div v-else class="space-y-3">
         <div
-          v-for="movement in formattedMovements"
+          v-for="movement in filteredMovements"
           :key="`${movement.albumId}-${movement.timestamp}-${movement.userId || 'mine'}`"
           :class="[
             'movement-item border-2 rounded-xl p-4',
