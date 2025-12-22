@@ -15,7 +15,6 @@
 - [ ] _No high priority bugs at this time_
 
 ### Medium Priority
-- [ ] Playlist name mismatch between database and UI
 - [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 
@@ -59,38 +58,6 @@ When adding a bug, use the following format:
 ---
 
 ## Bug Details
-
-### Playlist name mismatch between database and UI
-**Status**: 🟡 Medium  
-**Reported**: 2025-01-27  
-**Component/Area**: Playlist Management, Database
-
-**Description**:  
-The playlist name stored in the database doesn't match what's displayed in the UI. The database appears to be storing an older name while the UI shows a different (presumably updated) name.
-
-**Steps to Reproduce**:
-1. View a playlist in the UI
-2. Check the playlist name displayed
-3. Compare with the name stored in the database (Firestore)
-4. Observe the mismatch
-
-**Expected Behavior**:  
-The playlist name in the database should match what's displayed in the UI.
-
-**Actual Behavior**:  
-The database contains an older playlist name that doesn't match the current UI display.
-
-**Workaround**:  
-None identified at this time.
-
-**Notes**:  
-Need to investigate:
-- Usage of the `name` field throughout the application
-- Whether the `name` field is actually needed or if it's redundant
-- Where playlist names are being updated and why the database isn't being updated accordingly
-- Potential race conditions or caching issues that might cause this discrepancy
-
----
 
 ### RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
 **Status**: 🟡 Medium  
@@ -179,6 +146,16 @@ Need to investigate:
 **Component/Area**: PlaylistSingle View, Spotify Connection Status, UI/UX
 
 **Resolution**: Fixed by adding a loading state check (`!userDataLoading`) before showing the connection status banner, preventing it from flickering during initial page load.
+
+---
+
+#### Playlist name mismatch between database and UI
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Resolved**: 2025-01-27  
+**Component/Area**: Playlist Management, Database
+
+**Resolution**: Resolved through migration that removed the `name` field from Firebase playlists. Playlist names are now resolved dynamically using `playlistNameResolver.js`, which checks unified track cache, playlist summaries cache, and falls back to Spotify API. This ensures names always match what's in Spotify and eliminates stale data issues.
 
 ---
 
