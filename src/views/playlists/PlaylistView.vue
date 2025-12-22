@@ -394,7 +394,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Tab Content -->
-      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl">
+      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-1/2 lg:w-1/2 xl:w-1/3">
         <PlaylistItem 
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
