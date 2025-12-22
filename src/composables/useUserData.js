@@ -11,6 +11,8 @@ const userData = ref(null);
 const loading = ref(true);
 const error = ref(null);
 let checkConnectionStatusFn = null;
+let fetchInProgress = false;
+let watchInitialized = false;
 
 export function useUserData() {
   const user = useCurrentUser();
@@ -21,7 +23,23 @@ export function useUserData() {
     checkConnectionStatusFn = checkConnectionStatus;
   }
 
+  // Helper function to add timeout to promises
+  function withTimeout(promise, timeoutMs = 8000) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+      )
+    ]);
+  }
+
   async function fetchUserData(uid) {
+    // Prevent concurrent fetches
+    if (fetchInProgress) {
+      return;
+    }
+    
+    fetchInProgress = true;
     try {
       loading.value = true;
       error.value = null;
@@ -33,10 +51,11 @@ export function useUserData() {
         logUser('User data fetched:', userData.value);
         
         // Check Spotify connection status if user has Spotify connected
+        // Use timeout to prevent blocking if the check hangs
         if (userData.value.spotifyConnected) {
           try {
             logUser('Checking Spotify connection status...');
-            const connectionStatus = await checkConnectionStatusFn();
+            const connectionStatus = await withTimeout(checkConnectionStatusFn(), 8000);
             logUser('Spotify connection status:', connectionStatus);
             
             // If connection failed and we couldn't recover, update the user data
@@ -51,8 +70,9 @@ export function useUserData() {
               userData.value.spotifyConnected = false;
             }
           } catch (connectionError) {
-            logUser('Error checking Spotify connection:', connectionError);
+            logUser('Error checking Spotify connection (timeout or error):', connectionError);
             // Don't fail the entire user data fetch for connection check errors
+            // Connection check is optional and should not block user data loading
           }
         }
       } else {
@@ -64,27 +84,35 @@ export function useUserData() {
       error.value = "Failed to fetch user data.";
     } finally {
       loading.value = false;
+      fetchInProgress = false;
     }
   }
 
   // Watch for user changes and fetch data when user is available
-  // Each component sets up its own watcher, but they all update the shared userData ref
-  watch(user, (newUser) => {
-    if (newUser) {
-      fetchUserData(newUser.uid);
-    } else {
-      userData.value = null;
-      loading.value = false;
-    }
-  }, { immediate: true });
+  // Only set up watcher once globally (not per component instance)
+  if (!watchInitialized) {
+    watchInitialized = true;
+    watch(user, (newUser) => {
+      if (newUser) {
+        fetchUserData(newUser.uid);
+      } else {
+        userData.value = null;
+        loading.value = false;
+        fetchInProgress = false;
+      }
+    }, { immediate: true });
+  }
 
   onMounted(() => {
     logUser('useUserData mounted, current user:', user.value);
-    if (user.value && !userData.value) {
+    // The watch with immediate: true will handle initial fetch, so onMounted is just for logging
+    // Only fetch if watch hasn't been set up yet (shouldn't happen, but defensive)
+    if (user.value && !userData.value && !fetchInProgress) {
       fetchUserData(user.value.uid);
     } else if (!user.value) {
       logUser('No user found in useUserData mounted');
       loading.value = false;
+      fetchInProgress = false;
     }
   });
 
