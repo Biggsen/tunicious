@@ -36,7 +36,7 @@ const { user, userData, loading: userDataLoading } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { isAdmin } = useAdmin();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks, removeTracksFromPlaylist, addTracksToPlaylist } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
@@ -1663,12 +1663,47 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
     const previousPlaylistData = previousPlaylistDoc.data();
     const previousSpotifyPlaylistId = previousPlaylistData.playlistId;
     
-    // 1. Remove album from current terminal playlist
-    await removeFromSpotify(id.value, album);
+    // Fetch album tracks once for reuse in removal and addition
+    let albumTrackUris = null;
+    try {
+      logPlaylist(`Fetching album tracks for ${album.id} (undo operation)`);
+      let allTracks = [];
+      let offset = 0;
+      const limit = 50;
+      
+      while (true) {
+        const response = await getAlbumTracks(album.id, limit, offset);
+        if (response.items && response.items.length > 0) {
+          allTracks = [...allTracks, ...response.items];
+          
+          if (response.items.length < limit) {
+            break;
+          }
+          
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+      
+      albumTrackUris = allTracks.map(track => `spotify:track:${track.id}`);
+      logPlaylist(`Fetched ${albumTrackUris.length} track URIs for album ${album.id}`);
+    } catch (error) {
+      logPlaylist(`Error fetching album tracks for ${album.id}:`, error);
+      // Fall back to existing behavior if fetch fails
+      throw new Error(`Failed to fetch album tracks: ${error.message}`);
+    }
+    
+    if (!albumTrackUris || albumTrackUris.length === 0) {
+      throw new Error('No tracks found for this album');
+    }
+    
+    // 1. Remove album from current terminal playlist using cached track URIs
+    await removeTracksFromPlaylist(id.value, albumTrackUris);
     await removeAlbumFromPlaylist(album.id, id.value);
     
-    // 2. Add album to previous Spotify playlist
-    await addAlbumToPlaylist(previousSpotifyPlaylistId, album.id);
+    // 2. Add album to previous Spotify playlist using cached track URIs
+    await addTracksToPlaylist(previousSpotifyPlaylistId, albumTrackUris);
     
     // 3. Add album to previous playlist in Firebase collection
     await addAlbumToCollection({
@@ -1807,6 +1842,9 @@ const handleProcessAlbum = async ({ album, action }) => {
       targetSpotifyPlaylistId = targetPlaylistData.playlistId;
     }
     
+    // Cache album track URIs for reuse in removal and addition
+    let albumTrackUris = null;
+    
     // Unlove all tracks if moving from transient to transient
     if (currentPlaylistData?.pipelineRole === 'transient' && targetPlaylistData?.pipelineRole === 'transient') {
       try {
@@ -1832,6 +1870,9 @@ const handleProcessAlbum = async ({ album, action }) => {
           }
         }
         
+        // Store track URIs for reuse in removal and addition
+        albumTrackUris = allTracks.map(track => `spotify:track:${track.id}`);
+        
         // Unlove each track
         for (const track of allTracks) {
           if (track.id) {
@@ -1852,12 +1893,48 @@ const handleProcessAlbum = async ({ album, action }) => {
       }
     }
     
-    // 1. Remove album from current playlist
-    await removeFromSpotify(id.value, album);
+    // If we didn't fetch tracks (not transient→transient), fetch them now
+    if (!albumTrackUris) {
+      try {
+        logPlaylist(`Fetching album tracks for ${album.id} (non-transient move)`);
+        let allTracks = [];
+        let offset = 0;
+        const limit = 50;
+        
+        while (true) {
+          const response = await getAlbumTracks(album.id, limit, offset);
+          if (response.items && response.items.length > 0) {
+            allTracks = [...allTracks, ...response.items];
+            
+            if (response.items.length < limit) {
+              break;
+            }
+            
+            offset += limit;
+          } else {
+            break;
+          }
+        }
+        
+        albumTrackUris = allTracks.map(track => `spotify:track:${track.id}`);
+        logPlaylist(`Fetched ${albumTrackUris.length} track URIs for album ${album.id}`);
+      } catch (error) {
+        logPlaylist(`Error fetching album tracks for ${album.id}:`, error);
+        // Fall back to existing behavior if fetch fails
+        throw new Error(`Failed to fetch album tracks: ${error.message}`);
+      }
+    }
+    
+    if (!albumTrackUris || albumTrackUris.length === 0) {
+      throw new Error('No tracks found for this album');
+    }
+    
+    // 1. Remove album from current playlist using cached track URIs
+    await removeTracksFromPlaylist(id.value, albumTrackUris);
     await removeAlbumFromPlaylist(album.id, id.value);
     
-    // 2. Add album to target Spotify playlist
-    await addAlbumToPlaylist(targetSpotifyPlaylistId, album.id);
+    // 2. Add album to target Spotify playlist using cached track URIs
+    await addTracksToPlaylist(targetSpotifyPlaylistId, albumTrackUris);
     
     // 3. Add album to target playlist in Firebase collection
     await addAlbumToCollection({
