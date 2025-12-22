@@ -1,5 +1,17 @@
 [
   {
+    "id": 4,
+    "title": "Latest Movements Improvements",
+    "date": "2025-12-23",
+    "types": ["IMPROVEMENT", "FEATURE"],
+    "hidden": false,
+    "changes": [
+      "Removed playlist links in friends' movements view - playlists are no longer clickable to prevent viewing friends' playlists",
+      "Added 'Exclude queued' toggle to Latest Movements to filter out albums in source/queued playlists",
+      "Added option to exclude individual playlists from movements feed in playlist settings"
+    ]
+  },
+  {
     "id": 3,
     "title": "Friends Feature & Major Improvements",
     "date": "2025-12-22",
