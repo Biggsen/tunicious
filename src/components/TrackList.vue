@@ -381,9 +381,9 @@ const selectNextTrackToQueue = async (nextAlbum) => {
         return a.track_number - b.track_number;
       });
 
-    // Take the last 3 tracks with minimum playcount, then select the last one
-    const last3Tracks = tracksWithMinPlaycount.slice(-3);
-    const selectedTrack = last3Tracks[last3Tracks.length - 1];
+    // Take the first 3 tracks with minimum playcount, then select the first one
+    const first3Tracks = tracksWithMinPlaycount.slice(0, 3);
+    const selectedTrack = first3Tracks[0];
     
     return selectedTrack ? selectedTrack.uri : null;
   } catch (error) {
