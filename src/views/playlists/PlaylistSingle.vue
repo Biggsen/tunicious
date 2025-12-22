@@ -32,6 +32,7 @@ import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
 const route = useRoute();
+const router = useRouter();
 const { user, userData, loading: userDataLoading } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
@@ -1110,12 +1111,13 @@ async function getPlaylistDocument() {
   const playlistsRef = collection(db, 'playlists');
   const q = query(
     playlistsRef, 
-    where('playlistId', '==', id.value)
+    where('playlistId', '==', id.value),
+    where('userId', '==', user.value.uid)
   );
   const querySnapshot = await getDocs(q);
   
   if (querySnapshot.empty) {
-    logPlaylist('Playlist document not found');
+    logPlaylist('Playlist document not found or not owned by user');
     return null;
   }
   
@@ -1127,6 +1129,13 @@ async function getPlaylistDocument() {
   
   if (activePlaylists.length === 0) {
     logPlaylist('No active playlist document found');
+    return null;
+  }
+  
+  // Double-check ownership (already filtered by query, but good to be explicit)
+  const playlistData = activePlaylists[0].data();
+  if (playlistData.userId !== user.value.uid) {
+    logPlaylist('Playlist ownership check failed');
     return null;
   }
   
@@ -1302,11 +1311,22 @@ async function loadPlaylistPage() {
     // loadCurrentPage is called within applySortingAndReload
     logPlaylist('Fetching playlist document');
     playlistDoc.value = await getPlaylistDocument();
+    
+    if (!playlistDoc.value) {
+      throw new Error('Playlist not found or you do not have permission to view this playlist');
+    }
+    
     logPlaylist('Playlist page loaded successfully');
   } catch (e) {
     logPlaylist("Error loading playlist page:", e);
     if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
       error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
+    } else if (e.message?.includes('permission') || e.message?.includes('not found')) {
+      error.value = e.message || "You do not have permission to view this playlist.";
+      // Redirect to playlists page after a delay
+      setTimeout(() => {
+        router.push({ name: 'playlists' });
+      }, 2000);
     } else {
       error.value = e.message || "Failed to load playlist data. Please try again.";
     }

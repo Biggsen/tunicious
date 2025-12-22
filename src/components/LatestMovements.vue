@@ -227,11 +227,11 @@ const fallbackImage = '/placeholder.png';
                       <button
                         v-if="movement.albumId"
                         @click="navigateToAlbum(movement)"
-                        class="hover:underline cursor-pointer"
+                        class="hover:underline cursor-pointer text-left"
                       >
                         {{ movement.albumTitle }}
                       </button>
-                      <span v-else>
+                      <span v-else class="text-left">
                         {{ movement.albumTitle }}
                       </span>
                     </p>
@@ -239,11 +239,11 @@ const fallbackImage = '/placeholder.png';
                       <button
                         v-if="movement.artistId"
                         @click="navigateToArtist(movement)"
-                        class="hover:underline cursor-pointer"
+                        class="hover:underline cursor-pointer text-left"
                       >
                         {{ movement.artistName }}
                       </button>
-                      <span v-else>{{ movement.artistName }}</span>
+                      <span v-else class="text-left">{{ movement.artistName }}</span>
                     </p>
                   </div>
                 </div>
@@ -266,8 +266,9 @@ const fallbackImage = '/placeholder.png';
             <div class="flex items-center gap-2 text-sm">
             <!-- Show badges for moved albums, text for added albums -->
             <div v-if="movement.movementType === 'moved' && movement.fromPlaylist" class="flex items-center gap-2">
+              <!-- Only show clickable link if it's your movement, not a friend's -->
               <button
-                v-if="movement.fromPlaylistId"
+                v-if="movement.fromPlaylistId && activeTab === 'mine'"
                 @click.stop="navigateToPlaylist(movement.fromPlaylistId)"
                 class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
               >
@@ -275,7 +276,7 @@ const fallbackImage = '/placeholder.png';
               </button>
               <span
                 v-else
-                class="text-base font-semibold text-delft-blue"
+                class="text-base text-delft-blue"
               >
                 {{ movement.fromPlaylist }}
               </span>
@@ -288,7 +289,7 @@ const fallbackImage = '/placeholder.png';
                 class="h-4 w-4 text-delft-blue" 
               />
               <button
-                v-if="movement.toPlaylistId"
+                v-if="movement.toPlaylistId && activeTab === 'mine'"
                 @click.stop="navigateToPlaylist(movement.toPlaylistId)"
                 class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
               >
@@ -296,14 +297,14 @@ const fallbackImage = '/placeholder.png';
               </button>
               <span
                 v-else
-                class="text-base font-semibold text-delft-blue"
+                class="text-base text-delft-blue"
               >
                 {{ movement.toPlaylist }}
               </span>
             </div>
             <div v-else-if="movement.movementType === 'moved'" class="flex items-center gap-2">
               <button
-                v-if="movement.toPlaylistId"
+                v-if="movement.toPlaylistId && activeTab === 'mine'"
                 @click.stop="navigateToPlaylist(movement.toPlaylistId)"
                 class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
               >
@@ -311,7 +312,7 @@ const fallbackImage = '/placeholder.png';
               </button>
               <span
                 v-else
-                class="text-base font-semibold text-delft-blue"
+                class="text-base text-delft-blue"
               >
                 {{ movement.toPlaylist }}
               </span>
@@ -319,7 +320,7 @@ const fallbackImage = '/placeholder.png';
             <div v-else class="flex items-center gap-2">
               <span class="text-base text-delft-blue">Added to</span>
               <button
-                v-if="movement.toPlaylistId"
+                v-if="movement.toPlaylistId && activeTab === 'mine'"
                 @click.stop="navigateToPlaylist(movement.toPlaylistId)"
                 class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
               >
@@ -327,7 +328,7 @@ const fallbackImage = '/placeholder.png';
               </button>
               <span
                 v-else
-                class="text-base font-semibold text-delft-blue"
+                class="text-base text-delft-blue"
               >
                 {{ movement.toPlaylist }}
               </span>
