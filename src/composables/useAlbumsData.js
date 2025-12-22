@@ -421,14 +421,15 @@ export function useAlbumsData() {
       return querySnapshot.docs.map(doc => {
         const data = doc.data();
         // Exclude userEntries
-        const { albumTitle, artistName, artistId, albumCover, releaseYear } = data;
+        const { albumTitle, artistName, artistId, albumCover, releaseYear, rymLink } = data;
         return {
           id: doc.id,
           albumTitle: albumTitle || '',
           artistName: artistName || '',
           artistId: artistId || '',
           albumCover: albumCover || '',
-          releaseYear: releaseYear || ''
+          releaseYear: releaseYear || '',
+          rymLink: rymLink || ''
         };
       });
     } catch (e) {
@@ -451,8 +452,8 @@ export function useAlbumsData() {
       if (!albumDoc.exists()) return null;
       const data = albumDoc.data();
       // Only return root-level fields, exclude userEntries
-      const { albumTitle, artistName, albumCover, artistId, releaseYear } = data;
-      return { albumTitle, artistName, albumCover, artistId, releaseYear };
+      const { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink } = data;
+      return { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink };
     } catch (e) {
       logAlbum('Error fetching album details:', e);
       return null;
@@ -484,10 +485,10 @@ export function useAlbumsData() {
         }
         
         const data = albumDoc.data();
-        const { albumTitle, artistName, albumCover, artistId, releaseYear } = data;
+        const { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink } = data;
         
         // Cache the raw DB format
-        const dbData = { albumTitle, artistName, albumCover, artistId, releaseYear };
+        const dbData = { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink };
         await setCache(cacheKey, dbData);
         
         // Transform DB format to Spotify format for component compatibility

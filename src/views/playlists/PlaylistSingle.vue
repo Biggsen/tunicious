@@ -637,9 +637,12 @@ const applySortingAndReload = async () => {
 const currentPage = ref(1);
 const itemsPerPage = ref(20);
 
-// Update paginatedAlbums to use albumData (current page albums)
+// Update paginatedAlbums to use sortedAlbumsList with pagination
 const paginatedAlbums = computed(() => {
-  return albumData.value;
+  const sorted = sortedAlbumsList.value;
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return sorted.slice(start, end);
 });
 
 // Update totalAlbums to use sortedAlbumIds
@@ -736,6 +739,11 @@ const sortedAlbumsList = computed(() => {
     // Try to find album in current page data first
     const albumInPage = albumData.value.find(a => a.id === albumWithDate.id);
     if (albumInPage) {
+      // Merge rymLink from root data if available
+      const rootData = albumRootDataMap.value[albumWithDate.id];
+      if (rootData?.rymLink) {
+        return { ...albumInPage, rymLink: rootData.rymLink };
+      }
       return albumInPage;
     }
     
@@ -745,7 +753,8 @@ const sortedAlbumsList = computed(() => {
       return {
         id: albumWithDate.id,
         artists: rootData.artists || [],
-        artistName: rootData.artistName || rootData.artists?.[0]?.name || ''
+        artistName: rootData.artistName || rootData.artists?.[0]?.name || '',
+        rymLink: rootData.rymLink || null
       };
     }
     
@@ -753,7 +762,8 @@ const sortedAlbumsList = computed(() => {
     return {
       id: albumWithDate.id,
       artists: [],
-      artistName: ''
+      artistName: '',
+      rymLink: null
     };
   });
 });

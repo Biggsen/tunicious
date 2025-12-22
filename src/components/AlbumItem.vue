@@ -337,7 +337,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
         >LastFM</a
       >
       <a
-        :href="getRateYourMusicLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
+        :href="getRateYourMusicLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '', rymLink: album.rymLink })"
         class="rym-link text-sm lg:text-base xl:text-lg ml-2" target="_blank"
         >RYM</a
       >

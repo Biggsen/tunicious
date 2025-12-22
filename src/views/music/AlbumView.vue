@@ -48,6 +48,10 @@ const searchError = ref(null);
 const isMappedAlbum = ref(false);
 const primaryAlbumId = ref(null);
 const albumExists = ref(false);
+const storedRymLink = ref(null);
+const editingRymLink = ref(false);
+const rymLinkInput = ref('');
+const savingRymLink = ref(false);
 
 // Last.fm loved tracks data (using unified cache)
 const lovedTracksCount = ref(0);
@@ -238,6 +242,42 @@ const handleUpdateYear = async (primaryId, spotifyYear) => {
   }
 };
 
+const handleEditRymLink = () => {
+  editingRymLink.value = true;
+  rymLinkInput.value = storedRymLink.value || '';
+};
+
+const handleCancelEditRymLink = () => {
+  editingRymLink.value = false;
+  rymLinkInput.value = '';
+};
+
+const handleSaveRymLink = async () => {
+  if (!user.value || !album.value) return;
+  
+  try {
+    savingRymLink.value = true;
+    error.value = null;
+    
+    const rymLinkValue = rymLinkInput.value.trim() || null;
+    
+    await updateAlbumDetails(album.value.id, {
+      rymLink: rymLinkValue
+    });
+    
+    storedRymLink.value = rymLinkValue;
+    editingRymLink.value = false;
+    rymLinkInput.value = '';
+    
+    logAlbum('RYM link saved:', rymLinkValue);
+  } catch (err) {
+    logAlbum('Error saving RYM link:', err);
+    error.value = err.message || 'Failed to save RYM link';
+  } finally {
+    savingRymLink.value = false;
+  }
+};
+
 
 // Watch for changes to tracks data and recalculate loved tracks count
 watch([tracks], async () => {
@@ -266,7 +306,8 @@ const rymLink = computed(() => {
   if (!album.value) return '#';
   return getRateYourMusicLink({
     artist: album.value.artists?.[0]?.name || '',
-    album: album.value.name || ''
+    album: album.value.name || '',
+    rymLink: storedRymLink.value
   });
 });
 
@@ -334,6 +375,12 @@ onMounted(async () => {
     const albumRef = doc(db, 'albums', albumId);
     const albumDoc = await getDoc(albumRef);
     albumExists.value = albumDoc.exists();
+    
+    // Fetch stored RYM link if album exists
+    if (albumDoc.exists()) {
+      const albumData = albumDoc.data();
+      storedRymLink.value = albumData.rymLink || null;
+    }
     
     // Fetch current playlist info if available
     if (albumId) {
@@ -510,22 +557,61 @@ onMounted(async () => {
           </div>
           
           <!-- Music Service Links -->
-          <div class="mb-6 flex gap-4">
-            <a
-              v-if="userData?.lastFmUserName"
-              :href="lastFmLink"
-              target="_blank"
-              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-            >
-              Last.fm
-            </a>
-            <a
-              :href="rymLink"
-              target="_blank"
-              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-            >
-              RYM
-            </a>
+          <div class="mb-6">
+            <div class="flex gap-4 items-center mb-2">
+              <a
+                v-if="userData?.lastFmUserName"
+                :href="lastFmLink"
+                target="_blank"
+                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+              >
+                Last.fm
+              </a>
+              <a
+                :href="rymLink"
+                target="_blank"
+                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+              >
+                RYM
+              </a>
+              <button
+                v-if="albumExists"
+                @click="handleEditRymLink"
+                class="text-xs text-gray-500 hover:text-gray-700 underline"
+                title="Edit RYM link"
+              >
+                Edit RYM Link
+              </button>
+            </div>
+            
+            <!-- RYM Link Editor -->
+            <div v-if="editingRymLink" class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                RYM Link (leave empty to use auto-generated)
+              </label>
+              <input
+                v-model="rymLinkInput"
+                type="text"
+                placeholder="https://rateyourmusic.com/release/album/artist/album-name/"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-delft-blue focus:border-delft-blue"
+              />
+              <div class="mt-2 flex gap-2">
+                <BaseButton
+                  @click="handleSaveRymLink"
+                  :disabled="savingRymLink"
+                  customClass="btn-primary text-sm px-3 py-1"
+                >
+                  {{ savingRymLink ? 'Saving...' : 'Save' }}
+                </BaseButton>
+                <BaseButton
+                  @click="handleCancelEditRymLink"
+                  :disabled="savingRymLink"
+                  customClass="btn-secondary text-sm px-3 py-1"
+                >
+                  Cancel
+                </BaseButton>
+              </div>
+            </div>
           </div>
 
           
