@@ -17,9 +17,7 @@
 ### Medium Priority
 - [ ] Playlist name mismatch between database and UI
 - [ ] RYM link is failing a lot, showing 404 - need to look into dashes vs underscores in the URL
-- [ ] Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
-- [ ] PlaylistSingle shows flickering 'Spotify connection issue' banner before loading albums
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -125,38 +123,6 @@ Need to investigate:
 
 ---
 
-### Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
-**Status**: 🟡 Medium  
-**Reported**: 2025-01-27  
-**Component/Area**: Navigation, Edit Playlist View
-
-**Description**:  
-When clicking the cancel button on the Edit Playlist page (which can only be accessed from the Playlists page), the user is incorrectly redirected to a PlaylistSingle page with what appears to be the wrong playlist ID. This causes a "Spotify connection lost - please reconnect your account" error. The user should be taken back to the Playlists page instead.
-
-**Steps to Reproduce**:
-1. Navigate to the Playlists page
-2. Access the Edit Playlist page for a playlist
-3. Click the Cancel button
-4. Observe being redirected to PlaylistSingle page with wrong playlist ID
-5. See error message: "Spotify connection lost - please reconnect your account"
-
-**Expected Behavior**:  
-Clicking Cancel on the Edit Playlist page should redirect the user back to the Playlists page.
-
-**Actual Behavior**:  
-User is redirected to a PlaylistSingle page with an incorrect playlist ID, causing an error.
-
-**Workaround**:  
-Manually navigate back to the Playlists page using browser back button or navigation.
-
-**Notes**:  
-Need to investigate:
-- The cancel button handler in EditPlaylistView
-- The navigation logic/routing configuration
-- Why it's using a playlist ID instead of going back to /playlists
-- Check if there's a route parameter being incorrectly used
-
----
 
 ### App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 **Status**: 🟡 Medium  
@@ -191,42 +157,28 @@ Need to investigate:
 
 ---
 
-### PlaylistSingle shows flickering 'Spotify connection issue' banner before loading albums
-**Status**: 🟡 Medium  
-**Reported**: 2025-01-27  
-**Component/Area**: PlaylistSingle View, Spotify Connection Status, UI/UX
-
-**Description**:  
-The PlaylistSingle view displays a flickering "Spotify connection issue" banner briefly before albums finish loading. This creates a poor user experience as the banner appears and disappears quickly, suggesting a connection problem when one may not exist.
-
-**Steps to Reproduce**:
-1. Navigate to a PlaylistSingle page
-2. Observe the page loading
-3. Notice the "Spotify connection issue" banner briefly appearing before albums load
-
-**Expected Behavior**:  
-The connection status banner should only appear if there's an actual connection issue, not during normal loading states.
-
-**Actual Behavior**:  
-The "Spotify connection issue" banner flickers/appears briefly during the initial load before albums are displayed.
-
-**Workaround**:  
-None identified at this time.
-
-**Notes**:  
-Need to investigate:
-- The loading state logic in PlaylistSingle view
-- How the Spotify connection status is determined
-- Whether the banner is shown based on a loading state rather than actual connection status
-- Timing of when albums data is fetched vs when connection status is checked
-- Consider adding a loading state check before showing connection error banners
-
----
 
 ## Resolved Bugs
 
 ### Recently Fixed
-- [x] _No recently fixed bugs_
+
+#### Cancel button on Edit Playlist page redirects to wrong PlaylistSingle page instead of Playlists page
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Resolved**: 2025-01-27  
+**Component/Area**: Navigation, Edit Playlist View
+
+**Resolution**: Fixed the cancel button handler in `EditPlaylistView.vue` to correctly navigate to `/playlists` instead of redirecting to a PlaylistSingle page.
+
+---
+
+#### PlaylistSingle shows flickering 'Spotify connection issue' banner before loading albums
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Resolved**: 2025-01-27  
+**Component/Area**: PlaylistSingle View, Spotify Connection Status, UI/UX
+
+**Resolution**: Fixed by adding a loading state check (`!userDataLoading`) before showing the connection status banner, preventing it from flickering during initial page load.
 
 ---
 
