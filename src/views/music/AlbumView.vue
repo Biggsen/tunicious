@@ -278,6 +278,49 @@ const handleSaveRymLink = async () => {
   }
 };
 
+const handleTrackLoved = async (track) => {
+  if (!album.value || !user.value) return;
+  
+  try {
+    // Refresh loved tracks to get updated data
+    await refreshLovedTracksForUser();
+    
+    // Recalculate loved percentage
+    const result = await getAlbumLovedPercentage(album.value.id);
+    lovedTracksCount.value = result.lovedCount;
+    lovedTracksPercentage.value = result.percentage;
+    
+    // Update the track in the tracks array
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value[trackIndex] = { ...tracks.value[trackIndex], loved: true };
+    }
+  } catch (err) {
+    logAlbum('Error handling track loved:', err);
+  }
+};
+
+const handleTrackUnloved = async (track) => {
+  if (!album.value || !user.value) return;
+  
+  try {
+    // Refresh loved tracks to get updated data
+    await refreshLovedTracksForUser();
+    
+    // Recalculate loved percentage
+    const result = await getAlbumLovedPercentage(album.value.id);
+    lovedTracksCount.value = result.lovedCount;
+    lovedTracksPercentage.value = result.percentage;
+    
+    // Update the track in the tracks array
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value[trackIndex] = { ...tracks.value[trackIndex], loved: false };
+    }
+  } catch (err) {
+    logAlbum('Error handling track unloved:', err);
+  }
+};
 
 // Watch for changes to tracks data and recalculate loved tracks count
 watch([tracks], async () => {
@@ -615,14 +658,23 @@ onMounted(async () => {
           </div>
 
           
-          <TrackList 
-            :tracks="tracks" 
-            :albumArtist="album.artists[0]?.name || ''"
-            :albumId="album.id"
-            :albumTitle="album.name"
-            :lastFmUserName="userData?.lastFmUserName || ''"
-            :sortByPlaycount="false"
-          />
+          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
+            <TrackList 
+              :tracks="tracks" 
+              :albumArtist="album.artists[0]?.name || ''"
+              :albumId="album.id"
+              :albumTitle="album.name"
+              :lastFmUserName="userData?.lastFmUserName || ''"
+              :sortByPlaycount="false"
+              :showTrackNumbers="true"
+              :sessionKey="userData?.lastFmSessionKey || ''"
+              :allowLoving="userData?.lastFmAuthenticated || false"
+              :largeElements="true"
+              :showDuration="true"
+              @track-loved="handleTrackLoved"
+              @track-unloved="handleTrackUnloved"
+            />
+          </div>
         </div>
       </div>
     </div>

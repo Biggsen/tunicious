@@ -298,23 +298,24 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         </div>
-        <TrackList 
-          v-else-if="tracks.length > 0"
-          :tracks="tracks" 
-          :lovedTracks="lovedTracks"
-          :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
-          :albumTitle="album.name || album.albumTitle || ''"
-          :sessionKey="lastFmSessionKey"
-          :allowLoving="allowTrackLoving"
-          :lastFmUserName="lastFmUserName"
-          :albumId="album.id"
-          :playlistId="playlistId"
-          :playlistName="playlistName || ''"
-          :albumsList="albumsList"
-          :playlistTrackIds="playlistTrackIds"
-          @track-loved="handleTrackLoved"
-          @track-unloved="handleTrackUnloved"
-        />
+        <div v-else-if="tracks.length > 0" class="bg-white border-2 border-delft-blue p-4 rounded-lg">
+          <TrackList 
+            :tracks="tracks" 
+            :lovedTracks="lovedTracks"
+            :albumArtist="album.artists?.[0]?.name || album.artistName || ''"
+            :albumTitle="album.name || album.albumTitle || ''"
+            :sessionKey="lastFmSessionKey"
+            :allowLoving="allowTrackLoving"
+            :lastFmUserName="lastFmUserName"
+            :albumId="album.id"
+            :playlistId="playlistId"
+            :playlistName="playlistName || ''"
+            :albumsList="albumsList"
+            :playlistTrackIds="playlistTrackIds"
+            @track-loved="handleTrackLoved"
+            @track-unloved="handleTrackUnloved"
+          />
+        </div>
       </div>
     </div>
     <!-- Rating bars -->

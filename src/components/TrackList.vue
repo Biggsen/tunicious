@@ -67,6 +67,21 @@ const props = defineProps({
     type: Boolean,
     default: true,
     description: 'Whether to sort tracks by playcount (descending)'
+  },
+  showTrackNumbers: {
+    type: Boolean,
+    default: false,
+    description: 'Whether to show track numbers'
+  },
+  largeElements: {
+    type: Boolean,
+    default: false,
+    description: 'Whether to use larger playcount text and heart icons'
+  },
+  showDuration: {
+    type: Boolean,
+    default: false,
+    description: 'Whether to show track duration'
   }
 });
 
@@ -105,6 +120,17 @@ const formatPlaycount = (count) => {
     return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toString();
+};
+
+/**
+ * Format duration from milliseconds to MM:SS
+ */
+const formatDuration = (durationMs) => {
+  if (!durationMs || durationMs === 0) return '0:00';
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 /**
@@ -455,7 +481,7 @@ const handleTrackClick = async (track) => {
 </script>
 
 <template>
-  <div class="bg-white border-2 border-delft-blue p-4 rounded-lg">
+  <div>
     <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Tracks</h2>
     <div v-if="playerError && playerReady" class="mb-2 px-3 text-xs text-red-500">
       {{ playerError }}
@@ -465,17 +491,19 @@ const handleTrackClick = async (track) => {
         v-for="track in sortedTracks" 
         :key="track.id"
         :class="[
-          'group flex justify-between items-start text-delft-blue hover:bg-white/30 pl-2 pr-2 py-1 transition-colors',
+          'flex justify-between items-start text-delft-blue hover:bg-white/30 pl-2 pr-2 py-1 transition-colors',
            {
              'bg-mint/20': (playerReady && isTrackPlayingBySpotify(track)) || (!playerReady && isTrackCurrentlyPlaying(track.name, albumArtist)),
              'font-semibold': (playerReady && isTrackPlayingBySpotify(track)) || (!playerReady && isTrackCurrentlyPlaying(track.name, albumArtist)),
-             'cursor-pointer': playerReady,
              'opacity-40 text-gray-500': !isTrackInPlaylist(track)
            }
         ]"
-        @click="playerReady ? handleTrackClick(track) : null"
       >
-        <span class="flex items-start flex-1">
+        <span 
+          class="group flex items-start flex-1"
+          :class="{ 'cursor-pointer': playerReady }"
+          @click="playerReady ? handleTrackClick(track) : null"
+        >
           <span 
             v-if="playerReady && isTrackPlayingBySpotify(track)" 
             class="mr-2 text-delft-blue flex-shrink-0 cursor-pointer self-center" 
@@ -499,20 +527,26 @@ const handleTrackClick = async (track) => {
           >
             <PlayIcon class="w-3 h-3" />
           </span>
+          <span v-if="showTrackNumbers && track.track_number" class="-ml-1 mr-2 text-delft-blue flex-shrink-0 self-center w-6 text-right">
+            {{ track.track_number }}.
+          </span>
           <span class="flex-1">{{ track.name }}</span>
-          <span v-if="lastFmUserName" class="ml-2 text-xs text-gray-500 flex-shrink-0">
+          <span v-if="showDuration && track.duration_ms" :class="['ml-2 text-gray-500 flex-shrink-0', largeElements ? 'text-sm' : 'text-xs']">
+            {{ formatDuration(track.duration_ms) }}
+          </span>
+          <span v-if="lastFmUserName" :class="[showDuration ? 'ml-6' : 'ml-2', 'text-gray-500 flex-shrink-0', largeElements ? 'text-sm' : 'text-xs']">
             {{ formatPlaycount(getTrackPlaycount(track)) }}
           </span>
         </span>
         <HeartIcon 
           v-if="isTrackLoved(track)" 
-          class="w-4 h-4 text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors ml-2" 
+          :class="['text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
           :title="allowLoving ? 'Click to unlike' : 'Loved on Last.fm'"
           @click="handleHeartClick(track, $event)"
         />
         <HeartIconOutline 
           v-else-if="allowLoving && sessionKey" 
-          class="w-4 h-4 text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors ml-2" 
+          :class="['text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
           title="Click to love"
           @click="handleHeartClick(track, $event)"
         />
