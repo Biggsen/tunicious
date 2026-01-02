@@ -6,8 +6,9 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   plugins: [vue()],
   server: {
-    host: true,
-    port: 5173
+    host: '0.0.0.0', // Allow access from network (for mobile testing)
+    port: 5173,
+    strictPort: true // Fail if port is already in use
   },
   resolve: {
     alias: {
