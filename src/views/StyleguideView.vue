@@ -3,9 +3,11 @@ import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
+import IconButton from '@components/common/IconButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import AlbumItem from '@components/AlbumItem.vue';
 import BaseModal from '@components/common/BaseModal.vue';
+import { EllipsisVerticalIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/outline';
 
 const togglePrimary = ref(false);
 const toggleOnCeladon = ref(false);
@@ -316,6 +318,76 @@ const dummyTracks = [
             </div>
           </div>
           <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Icon Button Variants</h3>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="default" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="default" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="default" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="primary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="secondary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Tertiary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="tertiary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="tertiary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="tertiary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Different Icons</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="secondary" aria-label="Menu">
+                  <Bars3Icon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" aria-label="Close">
+                  <XMarkIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+              </div>
+            </div>
+          </div>
+          <div>
             <h3 class="text-lg font-semibold text-delft-blue mb-4">Toggle Switches</h3>
             <div class="flex flex-wrap items-center gap-6">
             <div class="flex items-center gap-3">
@@ -381,6 +453,76 @@ const dummyTracks = [
               <button class="px-4 py-2 bg-white text-delft-blue rounded-lg hover:bg-delft-blue hover:text-white transition-colors font-medium border-2 border-delft-blue">
                 Outlined Button
               </button>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-delft-blue mb-4">Icon Button Variants</h3>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Default Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="default" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="default" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="default" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Primary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="primary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Secondary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="secondary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Tertiary Variant</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="tertiary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="tertiary" :disabled="true" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="tertiary" :loading="true" aria-label="Loading" />
+              </div>
+            </div>
+            
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-delft-blue mb-3">Different Icons</h4>
+              <div class="flex flex-wrap gap-4 items-center">
+                <IconButton variant="secondary" aria-label="Menu">
+                  <Bars3Icon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="secondary" aria-label="Close">
+                  <XMarkIcon class="h-5 w-5" />
+                </IconButton>
+                <IconButton variant="primary" aria-label="Menu">
+                  <EllipsisVerticalIcon class="h-5 w-5" />
+                </IconButton>
+              </div>
             </div>
           </div>
           <div>
