@@ -1,18 +1,14 @@
 <template>
   <div class="relative" ref="dropdownRef">
-    <button
+    <IconButton
       @click="toggle"
-      :class="[
-        'inline-flex items-center justify-center px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem]',
-        'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white',
-        'focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2',
-        buttonClass
-      ]"
+      variant="secondary"
+      :custom-class="buttonClass"
       :aria-label="ariaLabel"
       :aria-expanded="isOpen"
     >
       <EllipsisVerticalIcon class="h-5 w-5" />
-    </button>
+    </IconButton>
     
     <Transition
       enter-active-class="transition ease-out duration-100"
@@ -40,6 +36,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline';
+import IconButton from './IconButton.vue';
 
 const props = defineProps({
   buttonClass: {

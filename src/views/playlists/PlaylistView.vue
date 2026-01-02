@@ -326,8 +326,9 @@ onUnmounted(() => {
     <div class="flex items-center justify-between pb-4">
       <h1 class="h2">Playlists</h1>
       <div class="flex items-center gap-4">
-        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit">
+        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit" hide-text-on-mobile>
           <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
+          Reload
         </BaseButton>
         <DropdownMenu aria-label="Playlist actions">
           <RouterLink

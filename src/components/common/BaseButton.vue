@@ -3,8 +3,10 @@
     :type="type"
     :disabled="disabled || loading"
       :class="[
-      'inline-flex items-center justify-center gap-2 px-4 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] min-w-[100px]',
+      'inline-flex items-center justify-center gap-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem]',
+      hideTextOnMobile ? '' : 'px-4 min-w-[100px]',
       variantPadding,
+      mobileWidth,
       variantClasses,
       'disabled:opacity-50 disabled:cursor-not-allowed',
       customClass
@@ -19,7 +21,9 @@
       ]"
     ></span>
     <slot name="icon-left"></slot>
-    <slot />
+    <span :class="hideTextOnMobile ? 'hidden md:inline' : ''">
+      <slot />
+    </span>
     <slot name="icon-right"></slot>
   </button>
 </template>
@@ -32,17 +36,32 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
   customClass: { type: String, default: '' },
-  variant: { type: String, default: 'default' }
+  variant: { type: String, default: 'default' },
+  hideTextOnMobile: { type: Boolean, default: false }
 });
 
 defineEmits(['click']);
 
 const variantPadding = computed(() => {
+  // When hiding text on mobile, use square padding on mobile, normal padding on desktop
+  if (props.hideTextOnMobile) {
+    if (props.variant === 'tertiary') {
+      return 'p-[6px] md:px-4 md:py-[6px]';
+    }
+    return 'p-2 md:px-4 md:py-2';
+  }
   // Tertiary variant has border-2, so reduce padding to maintain same height
   if (props.variant === 'tertiary') {
     return 'py-[6px]';
   }
   return 'py-2';
+});
+
+const mobileWidth = computed(() => {
+  if (props.hideTextOnMobile) {
+    return 'w-[2.5rem] md:w-auto';
+  }
+  return '';
 });
 
 const variantClasses = computed(() => {
