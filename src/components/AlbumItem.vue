@@ -260,11 +260,11 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
       <div class="album-info">
         <div class="flex justify-between items-start">
           <div class="flex-1">
-            <p v-if="album.releaseYear || album.release_date" class="album-year text-xs lg:text-sm xl:text-base">
+            <p v-if="album.releaseYear || album.release_date" class="album-year text-base">
               {{ album.releaseYear || displayYear(album.release_date) }}
             </p>
             <router-link
-              class="album-name text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+              class="album-name text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
               :to="{ 
                 name: 'album', 
                 params: { id: album.id },
@@ -275,14 +275,14 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             </router-link>
             <router-link
               v-if="!hideArtist && (album.artists?.[0]?.name || album.artistName) && (album.artistId || album.artists?.[0]?.id)"
-              class="album-artist text-sm lg:text-base xl:text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
+              class="album-artist text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
               :to="{ name: 'artist', params: { id: album.artistId || album.artists?.[0]?.id } }"
             >
               {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
             </router-link>
             <span
               v-else-if="!hideArtist && (album.artists?.[0]?.name || album.artistName)"
-              class="album-artist text-sm lg:text-base xl:text-lg text-delft-blue"
+              class="album-artist text-lg text-delft-blue"
             >
               {{ album.artists?.[0]?.name || album.artistName || 'Unknown Artist' }}
             </span>
@@ -334,12 +334,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
     <div class="album-link">
       <a
         :href="getLastFmLink({ lastFmUserName, artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '' })"
-        class="lastfm-link text-sm lg:text-base xl:text-lg" target="_blank"
+        class="lastfm-link text-lg" target="_blank"
         >LastFM</a
       >
       <a
         :href="getRateYourMusicLink({ artist: album.artists?.[0]?.name || album.artistName || '', album: album.name || album.albumTitle || '', rymLink: album.rymLink })"
-        class="rym-link text-sm lg:text-base xl:text-lg ml-2" target="_blank"
+        class="rym-link text-lg ml-2" target="_blank"
         >RYM</a
       >
     </div>
@@ -560,6 +560,12 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 }
 
 .album-details :deep(li) {
-  @apply text-xs;
+  font-size: 0.80rem;
+  line-height: 1rem;
+}
+
+.album-details :deep(li span.text-gray-500.text-xs),
+.album-details :deep(li span.text-xs.text-gray-500) {
+  font-size: 0.80rem !important;
 }
 </style>
