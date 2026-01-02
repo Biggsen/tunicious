@@ -1,5 +1,5 @@
 <template>
-  <main class="max-w-4xl mx-auto p-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton to="/playlists" text="Back to Playlists" />
     </div>
@@ -215,7 +215,7 @@
                    <ErrorMessage v-if="userError || formError" :message="userError || formError" />
        </div>
   </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <script setup>
@@ -227,6 +227,7 @@ import { useUserData } from '@composables/useUserData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useForm } from '@composables/useForm';
 import { getCache, setCache } from '@utils/cache';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';

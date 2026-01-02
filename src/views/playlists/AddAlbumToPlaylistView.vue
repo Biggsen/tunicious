@@ -1,5 +1,5 @@
 <template>
-  <main class="max-w-4xl p-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton text="Back" />
     </div>
@@ -60,7 +60,7 @@
         </p>
       </div>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <script setup>
@@ -71,6 +71,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useToast } from '@composables/useToast';
 import { useCurrentUser } from 'vuefire';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import AlbumSearch from '@components/AlbumSearch.vue';

@@ -1,5 +1,5 @@
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <h1 class="h2 pb-4">Search</h1>
     <div class="flex flex-col gap-4 mb-6">
       <div class="flex items-center gap-2">
@@ -37,11 +37,12 @@
         />
       </ul>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import AlbumItem from '@/components/AlbumItem.vue';
 import { useAlbumsData } from '@/composables/useAlbumsData';
 import { usePlaylistData } from '@/composables/usePlaylistData';

@@ -1,11 +1,12 @@
 <script setup>
 import { useUpdates } from '@/composables/useUpdates';
+import BaseLayout from '@components/common/BaseLayout.vue';
 
 const { visibleUpdates, formatDate } = useUpdates();
 </script>
 
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <h1 class="h2 pb-4">Updates</h1>
 
     <div v-if="visibleUpdates.length === 0" class="py-12">
@@ -61,7 +62,7 @@ const { visibleUpdates, formatDate } = useUpdates();
         </div>
       </article>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

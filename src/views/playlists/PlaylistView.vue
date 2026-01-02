@@ -8,6 +8,7 @@ import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
 import { useRoute, RouterLink } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -321,7 +322,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <div class="flex items-center justify-between pb-4">
       <h1 class="h2">Playlists</h1>
       <div class="flex items-center gap-4">
@@ -409,7 +410,7 @@ onUnmounted(() => {
     <p v-else-if="availableGroups.length === 0" class="text-gray-500 text-center py-8">
       No playlists available.
     </p>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

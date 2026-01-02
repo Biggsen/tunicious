@@ -9,6 +9,7 @@ import { usePlaylistData } from "@composables/usePlaylistData";
 import { useAdmin } from "@composables/useAdmin";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import DropdownMenu from '@components/common/DropdownMenu.vue';
 
@@ -2568,7 +2569,7 @@ const handleUpdateYear = async (mismatch) => {
 </script>
 
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton text="Back" />
     </div>
@@ -3099,7 +3100,7 @@ const handleUpdateYear = async (mismatch) => {
       :startTime="mismatchCheckStartTime"
       @dismiss="showProgressModal = false"
     />
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

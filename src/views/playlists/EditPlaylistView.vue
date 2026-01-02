@@ -7,6 +7,7 @@ import { useUserData } from '@composables/useUserData';
 import { usePlaylistData } from '@composables/usePlaylistData';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameResolver';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
@@ -266,7 +267,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="max-w-4xl mx-auto p-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton :to="`/playlists`" text="Back to Playlists" />
     </div>
@@ -423,7 +424,7 @@ onMounted(async () => {
       
       
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

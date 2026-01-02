@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import AlbumItem from '@components/AlbumItem.vue';
@@ -147,7 +148,7 @@ const dummyTracks = [
 </script>
 
 <template>
-  <main class="max-w-6xl mx-auto px-4 py-8">
+  <BaseLayout>
     <div class="mb-8">
       <h1 class="text-4xl font-bold text-delft-blue mb-2">Style Guide</h1>
       <p class="text-delft-blue/70">
@@ -712,7 +713,7 @@ const dummyTracks = [
         </BaseButton>
       </template>
     </BaseModal>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <template>
-  <main class="max-w-6xl mx-auto px-4 py-8">
+  <BaseLayout>
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-delft-blue mb-2">Friends</h1>
       <p class="text-delft-blue/70">
@@ -131,7 +131,7 @@
         </div>
       </div>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <script setup>
@@ -139,6 +139,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFriends } from '@/composables/useFriends';
 import { useToast } from '@/composables/useToast';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import UserCard from '@/components/friends/UserCard.vue';
 import FriendRequestCard from '@/components/friends/FriendRequestCard.vue';
 import FriendCard from '@/components/friends/FriendCard.vue';

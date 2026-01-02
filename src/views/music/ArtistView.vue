@@ -7,6 +7,7 @@ import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { ArrowPathIcon } from '@heroicons/vue/24/solid'
@@ -285,7 +286,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton />
     </div>
@@ -351,7 +352,7 @@ onMounted(async () => {
       </div>
     </template>
     <p v-else class="no-data-message">No albums found for this artist.</p>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

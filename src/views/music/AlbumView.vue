@@ -12,6 +12,7 @@ import { useUserData } from '@composables/useUserData';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
@@ -514,7 +515,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="pt-6">
+  <BaseLayout>
     <div class="mb-6">
       <BackButton />
     </div>
@@ -678,7 +679,7 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

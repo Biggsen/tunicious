@@ -2,12 +2,13 @@
 import { useCurrentUser } from 'vuefire';
 import LatestMovements from '@components/LatestMovements.vue';
 import LastPlayed from '@components/LastPlayed.vue';
+import BaseLayout from '@components/common/BaseLayout.vue';
 
 const user = useCurrentUser();
 </script>
 
 <template>
-  <main class="max-w-6xl mx-auto px-4 py-8">
+  <BaseLayout>
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-delft-blue mb-2">
         Welcome{{ user?.displayName ? `, ${user.displayName}` : '' }}!
@@ -25,7 +26,7 @@ const user = useCurrentUser();
         <LastPlayed />
       </div>
     </div>
-  </main>
+  </BaseLayout>
 </template>
 
 <style scoped>

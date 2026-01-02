@@ -18,7 +18,7 @@ body {
 
 .h2,
 .heading2 {
-  @apply text-[48px] leading-[64px] -tracking-[0.01em] italic font-black;
+  @apply text-[32px] leading-[40px] md:text-[48px] md:leading-[64px] -tracking-[0.01em] italic font-black;
 }
 
 .h3,
