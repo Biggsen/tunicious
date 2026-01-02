@@ -2,8 +2,8 @@
   <button
     :type="type"
     :disabled="disabled || loading"
-    :class="[
-      'inline-flex items-center gap-2 px-4 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem]',
+      :class="[
+      'inline-flex items-center justify-center gap-2 px-4 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] min-w-[100px]',
       variantPadding,
       variantClasses,
       'disabled:opacity-50 disabled:cursor-not-allowed',
