@@ -12,6 +12,7 @@ import DiagnosticsSection from '@views/auth/account/DiagnosticsSection.vue';
 import StatisticsSection from '@views/auth/account/StatisticsSection.vue';
 import CacheSection from '@views/auth/account/CacheSection.vue';
 import SecuritySection from '@views/auth/account/SecuritySection.vue';
+import AdminSection from '@views/auth/account/AdminSection.vue';
 import LoginView from '@views/auth/LoginView.vue';
 import SignupView from '@views/auth/SignupView.vue';
 import VerifyEmailView from '@views/auth/VerifyEmailView.vue';
@@ -129,6 +130,11 @@ const routes = [
         path: 'security',
         component: SecuritySection,
         name: 'account-security'
+      },
+      {
+        path: 'admin',
+        component: AdminSection,
+        name: 'account-admin'
       }
     ]
   },
@@ -249,6 +255,7 @@ const allowedOnboardingRoutes = [
   '/account/statistics',
   '/account/cache',
   '/account/security',
+  '/account/admin',
   '/login',
   '/signup',
   '/spotify-callback',

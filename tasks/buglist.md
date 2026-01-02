@@ -17,6 +17,7 @@
 ### Medium Priority
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 - [ ] Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
+- [ ] Duplicate entry: "Pale Green Ghost" by John Grant appears twice
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -119,6 +120,39 @@ None identified.
 
 **Notes**:  
 This suggests the tracklist loading logic may be tied to the album processing/update flow rather than being triggered independently for all visible albums when the toggle is activated.
+
+---
+
+### Duplicate entry: "Pale Green Ghost" by John Grant appears twice
+**Status**: 🟡 Medium  
+**Reported**: 2025-01-27  
+**Component/Area**: Albums Collection, Data Integrity, Album Deduplication
+
+**Description**:  
+The album "Pale Green Ghost" by John Grant appears as two separate entries in the system. This could be due to:
+- Different Spotify album IDs for the same album (alternate vs primary IDs)
+- Album mapping issues
+- Data import/processing errors
+
+**Steps to Reproduce**:
+1. Search for or view "Pale Green Ghost" by John Grant
+2. Observe that there are two entries for this album
+
+**Expected Behavior**:  
+There should be only one entry for "Pale Green Ghost" by John Grant, with any alternate album IDs properly mapped to the primary ID.
+
+**Actual Behavior**:  
+Two separate entries exist for the same album.
+
+**Workaround**:  
+None identified.
+
+**Notes**:  
+Need to investigate:
+- Check if both entries have different Spotify album IDs
+- Verify if there's an album mapping that should connect these entries
+- Review album deduplication logic
+- Check if this is a one-off data issue or a systemic problem
 
 ---
 

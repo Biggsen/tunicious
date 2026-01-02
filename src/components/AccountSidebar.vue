@@ -1,17 +1,21 @@
 <script setup>
 import { RouterLink, useRoute } from 'vue-router';
+import { computed } from 'vue';
+import { useAdmin } from '@composables/useAdmin';
 import {
   UserIcon,
   PuzzlePieceIcon,
   WrenchScrewdriverIcon,
   ChartBarIcon,
   ArchiveBoxIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  ShieldCheckIcon
 } from '@heroicons/vue/24/outline';
 
 const route = useRoute();
+const { isAdmin } = useAdmin();
 
-const navItems = [
+const baseNavItems = [
   {
     name: 'Profile',
     path: '/account/profile',
@@ -49,6 +53,21 @@ const navItems = [
     order: 6
   }
 ];
+
+const adminNavItem = {
+  name: 'Admin',
+  path: '/account/admin',
+  icon: ShieldCheckIcon,
+  order: 7
+};
+
+const navItems = computed(() => {
+  const items = [...baseNavItems];
+  if (isAdmin.value) {
+    items.push(adminNavItem);
+  }
+  return items;
+});
 
 const isActive = (path) => {
   return route.path === path || route.path.startsWith(path + '/');
