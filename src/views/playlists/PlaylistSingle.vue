@@ -2648,103 +2648,105 @@ const handleUpdateYear = async (mismatch) => {
     <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
     <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
     
-    <div v-if="albumData.length > 0" class="mb-4 flex gap-4 items-center">
+    <div v-if="albumData.length > 0" class="mb-4 flex flex-row max-[500px]:flex-col max-[500px]:gap-3 gap-4 max-[500px]:items-start items-center">
       <div class="flex items-center gap-3">
         <ToggleSwitch v-model="showTracklists" variant="primary-on-celadon" />
         <span class="text-delft-blue font-medium">
           Tracklist
         </span>
       </div>
-      <div class="flex items-center gap-2 ml-auto">
-        <span class="text-delft-blue font-medium uppercase text-xs tracking-wide">Sort by:</span>
-        <div class="relative" ref="sortDropdownRef">
-          <button
-            @click="sortDropdownOpen = !sortDropdownOpen"
-            class="inline-flex items-center justify-between px-3 py-1.5 min-w-[140px] rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
-            :aria-expanded="sortDropdownOpen"
-          >
-            <span>{{ currentSortLabel }}</span>
-            <ChevronDownIcon class="h-4 w-4 ml-2" />
-          </button>
-          
-          <Transition
-            enter-active-class="transition ease-out duration-100"
-            enter-from-class="transform opacity-0 scale-95"
-            enter-to-class="transform opacity-100 scale-100"
-            leave-active-class="transition ease-in duration-75"
-            leave-from-class="transform opacity-100 scale-100"
-            leave-to-class="transform opacity-0 scale-95"
-          >
-            <div
-              v-if="sortDropdownOpen"
-              class="absolute left-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
-              role="menu"
-              @click.stop
+      <div class="flex max-[500px]:flex-col max-[500px]:items-start items-center gap-2 max-[500px]:ml-0 ml-auto">
+        <span class="text-delft-blue font-medium uppercase text-xs tracking-wide max-[500px]:mb-1">Sort by:</span>
+        <div class="flex items-center gap-2">
+          <div class="relative" ref="sortDropdownRef">
+            <button
+              @click="sortDropdownOpen = !sortDropdownOpen"
+              class="inline-flex items-center justify-between px-3 py-1.5 min-w-[140px] rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+              :aria-expanded="sortDropdownOpen"
             >
-              <div class="py-1" role="none">
-                <button
-                  @click="setSortMode('date')"
-                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
-                  role="menuitem"
-                >
-                  <span>Date added</span>
-                  <svg v-if="sortMode === 'date'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button
-                  @click="setSortMode('year')"
-                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
-                  role="menuitem"
-                >
-                  <span>Release year</span>
-                  <svg v-if="sortMode === 'year'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button
-                  @click="setSortMode('name')"
-                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
-                  role="menuitem"
-                >
-                  <span>Album name</span>
-                  <svg v-if="sortMode === 'name'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button
-                  @click="setSortMode('artist')"
-                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
-                  role="menuitem"
-                >
-                  <span>Artist name</span>
-                  <svg v-if="sortMode === 'artist'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button
-                  v-if="userData?.lastFmUserName"
-                  @click="setSortMode('loved')"
-                  class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
-                  role="menuitem"
-                >
-                  <span>Loved</span>
-                  <svg v-if="sortMode === 'loved'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
+              <span>{{ currentSortLabel }}</span>
+              <ChevronDownIcon class="h-4 w-4 ml-2" />
+            </button>
+            
+            <Transition
+              enter-active-class="transition ease-out duration-100"
+              enter-from-class="transform opacity-0 scale-95"
+              enter-to-class="transform opacity-100 scale-100"
+              leave-active-class="transition ease-in duration-75"
+              leave-from-class="transform opacity-100 scale-100"
+              leave-to-class="transform opacity-0 scale-95"
+            >
+              <div
+                v-if="sortDropdownOpen"
+                class="absolute left-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                role="menu"
+                @click.stop
+              >
+                <div class="py-1" role="none">
+                  <button
+                    @click="setSortMode('date')"
+                    class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                    role="menuitem"
+                  >
+                    <span>Date added</span>
+                    <svg v-if="sortMode === 'date'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="setSortMode('year')"
+                    class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                    role="menuitem"
+                  >
+                    <span>Release year</span>
+                    <svg v-if="sortMode === 'year'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="setSortMode('name')"
+                    class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                    role="menuitem"
+                  >
+                    <span>Album name</span>
+                    <svg v-if="sortMode === 'name'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="setSortMode('artist')"
+                    class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                    role="menuitem"
+                  >
+                    <span>Artist name</span>
+                    <svg v-if="sortMode === 'artist'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    v-if="userData?.lastFmUserName"
+                    @click="setSortMode('loved')"
+                    class="block w-full text-left px-4 py-2 text-sm text-delft-blue hover:bg-delft-blue hover:text-white transition-colors flex items-center justify-between"
+                    role="menuitem"
+                  >
+                    <span>Loved</span>
+                    <svg v-if="sortMode === 'loved'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-            </div>
-          </Transition>
+            </Transition>
+          </div>
+          <button
+            @click="toggleSortDirection"
+            class="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+            :title="sortDirection === 'asc' ? 'Ascending' : 'Descending'"
+          >
+            <ArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
+            <ArrowDownIcon v-else class="h-5 w-5" />
+          </button>
         </div>
-        <button
-          @click="toggleSortDirection"
-          class="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
-          :title="sortDirection === 'asc' ? 'Ascending' : 'Descending'"
-        >
-          <ArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
-          <ArrowDownIcon v-else class="h-5 w-5" />
-        </button>
       </div>
     </div>
 
