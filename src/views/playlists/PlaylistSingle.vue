@@ -2570,12 +2570,8 @@ const handleUpdateYear = async (mismatch) => {
 
 <template>
   <BaseLayout>
-    <div class="mb-6">
+    <div class="mb-6 flex items-center justify-between">
       <BackButton text="Back" />
-    </div>
-
-    <div class="flex items-center justify-between">
-      <h1 class="h2">{{ playlistName }}</h1>
       <div class="flex items-center gap-4">
         <BaseButton 
           v-if="userData?.lastFmUserName && showTracklists"
@@ -2583,13 +2579,14 @@ const handleUpdateYear = async (mismatch) => {
           @click="refreshLovedTracks"
           :disabled="refreshingLovedTracks"
           title="Refresh loved tracks and playcounts with Last.fm"
+          :hideTextOnMobile="true"
         >
           <template #icon-left>
             <HeartIcon class="h-5 w-5" :class="{ 'animate-spin': refreshingLovedTracks }" />
           </template>
           {{ refreshingLovedTracks ? 'Refreshing...' : 'Refresh' }}
         </BaseButton>
-        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit">
+        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit" :hideTextOnMobile="true">
           <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
           Reload
         </BaseButton>
@@ -2645,6 +2642,8 @@ const handleUpdateYear = async (mismatch) => {
         </DropdownMenu>
       </div>
     </div>
+
+    <h1 class="h2 mb-4">{{ playlistName }}</h1>
     
     <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
     <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
