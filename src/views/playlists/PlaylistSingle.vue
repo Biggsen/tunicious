@@ -3107,20 +3107,24 @@ const handleUpdateYear = async (mismatch) => {
 <style scoped>
 .album-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 304px));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
   justify-content: center;
 }
 
-@media (min-width: 1536px) {
-  .album-grid {
-    grid-template-columns: repeat(5, minmax(150px, 304px));
-  }
+.album-grid > * {
+  max-width: 300px;
+  justify-self: center;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 489px) {
   .album-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 304px));
+    grid-template-columns: 1fr;
+  }
+  
+  .album-grid > * {
+    max-width: 100%;
+    justify-self: stretch;
   }
 }
 
