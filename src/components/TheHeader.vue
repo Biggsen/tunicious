@@ -2,7 +2,6 @@
 import { RouterLink } from "vue-router";
 import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
-import { useAdmin } from "@composables/useAdmin";
 import { 
   MusicalNoteIcon, 
   MagnifyingGlassIcon, 
@@ -13,7 +12,6 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const { user, userData } = useUserData();
-const { isAdmin } = useAdmin();
 const isMobileMenuOpen = ref(false);
 
 const toggleMobileMenu = () => {
@@ -65,9 +63,6 @@ const closeMobileMenu = () => {
                 <span>Updates</span>
               </RouterLink>
             </li>
-            <li v-if="isAdmin">
-              <RouterLink to="/styleguide">Styleguide</RouterLink>
-            </li>
           </ul>
         </nav>
       </div>
@@ -91,7 +86,7 @@ const closeMobileMenu = () => {
                 {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
               </div>
             </div>
-            <span>{{ userData?.displayName || user.email }}</span>
+            <span class="block md:hidden lg:block">{{ userData?.displayName || user.email }}</span>
           </RouterLink>
         </div>
 
@@ -190,15 +185,6 @@ const closeMobileMenu = () => {
                 >
                   <RocketLaunchIcon class="w-6 h-6" />
                   <span>Updates</span>
-                </RouterLink>
-              </li>
-              <li v-if="isAdmin">
-                <RouterLink
-                  to="/styleguide"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
-                  @click="closeMobileMenu"
-                >
-                  <span>Styleguide</span>
                 </RouterLink>
               </li>
             </ul>
