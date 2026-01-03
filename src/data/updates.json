@@ -3,7 +3,7 @@
     "id": 5,
     "title": "Mobile & Interface Improvements",
     "date": "2026-01-03",
-    "types": ["IMPROVEMENT"],
+    "types": ["IMPROVEMENT", "UI", "MOBILE"],
     "hidden": false,
     "changes": [
       "Improved mobile responsiveness across core views, including track lists, album grids, and player controls",
