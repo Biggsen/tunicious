@@ -1,5 +1,20 @@
 [
   {
+    "id": 5,
+    "title": "Mobile & Interface Improvements",
+    "date": "2026-01-03",
+    "types": ["IMPROVEMENT"],
+    "hidden": false,
+    "changes": [
+      "Improved mobile responsiveness across core views, including track lists, album grids, and player controls",
+      "Refined layouts and controls on smaller screens to reduce clutter and improve usability",
+      "Simplified playlist and album views, prioritising primary actions on mobile",
+      "Introduced a more consistent page layout and improved overall UI structure",
+      "Added a slide-out navigation menu for mobile devices",
+      "Improved readability and visual consistency across album items and buttons"
+    ]
+  },
+  {
     "id": 4,
     "title": "Latest Movements Improvements",
     "date": "2025-12-23",
