@@ -417,8 +417,8 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
     v-if="showPlayer"
     class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-50 shadow-lg"
   >
-    <div class="container mx-auto px-4 py-3">
-      <div class="flex items-center gap-4">
+    <div class="container mx-auto px-4 py-3 player-container">
+      <div class="flex items-center gap-4 player-content">
         <div class="flex-shrink-0">
           <img 
             v-if="currentTrack?.image" 
@@ -429,7 +429,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         </div>
         
         <div class="flex-1 min-w-0">
-          <h3 class="font-semibold truncate">{{ currentTrack?.name }}</h3>
+          <h3 class="font-semibold truncate track-title">{{ currentTrack?.name }}</h3>
           <p class="text-sm text-gray-300 truncate">
             {{ currentTrack?.artists?.join(', ') }}
           </p>
@@ -438,12 +438,12 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           </p>
         </div>
         
-        <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="flex items-center gap-2 flex-shrink-0 controls-container">
           <button
             v-if="canLoveTracks"
             @click="handleHeartClick"
             :disabled="isLoving"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button"
             :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
           >
             <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
@@ -451,7 +451,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           </button>
           <button
             @click="togglePlayback"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors control-button"
             :title="isPlaying ? 'Pause' : 'Play'"
           >
             <PauseIcon v-if="isPlaying" class="w-6 h-6" />
@@ -459,7 +459,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           </button>
         </div>
         
-        <div class="flex-shrink-0 text-sm text-gray-300">
+        <div class="flex-shrink-0 text-sm text-gray-300 duration-display">
           <span>{{ formatTime(currentPosition) }}</span>
           <span class="mx-2">/</span>
           <span>{{ formatTime(duration) }}</span>
@@ -477,4 +477,38 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
 </template>
 
 <style scoped>
+@media (max-width: 549px) {
+  .player-container {
+    padding-top: 0.45rem;
+    padding-bottom: 0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .player-content {
+    gap: 0.75rem;
+  }
+  
+  .flex-shrink-0 img {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+  
+  .duration-display {
+    display: none;
+  }
+  
+  .controls-container {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .control-button {
+    padding: 0.25rem;
+  }
+  
+  .track-title {
+    font-size: 0.875rem;
+  }
+}
 </style>

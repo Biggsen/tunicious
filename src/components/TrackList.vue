@@ -482,7 +482,9 @@ const handleTrackClick = async (track) => {
 
 <template>
   <div>
-    <h2 class="text-xl font-bold text-delft-blue mb-4 px-3">Tracks</h2>
+    <div class="px-3">
+      <h2 class="text-xl font-bold text-delft-blue mb-4 border-b border-delft-blue">Tracks</h2>
+    </div>
     <div v-if="playerError && playerReady" class="mb-2 px-3 text-xs text-red-500">
       {{ playerError }}
     </div>

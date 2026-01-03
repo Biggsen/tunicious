@@ -566,6 +566,50 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 
 .album-details :deep(li span.text-gray-500.text-xs),
 .album-details :deep(li span.text-xs.text-gray-500) {
-  font-size: 0.80rem !important;
+  font-size: 0.80rem;
+}
+
+/* Mobile styles for TrackList in AlbumItem (below 550px) */
+@media (max-width: 549px) {
+  .album-year {
+    font-size: 1.125rem;
+  }
+  
+  .album-name {
+    font-size: 1.25rem;
+  }
+  
+  .album-artist {
+    font-size: 1.25rem;
+  }
+  
+  .album-info {
+    margin-bottom: 1rem;
+  }
+  
+  .album-details :deep(h2) {
+    font-size: 1.125rem;
+  }
+  
+  .album-details :deep(li) {
+    padding-top: 0.5rem;
+    padding-bottom: 0.2rem;
+  }
+  
+  .album-details :deep(li .group > span.flex-1) {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  
+  .album-details :deep(li .group > span.text-gray-500) {
+    font-size: 1rem;
+    margin-top: 3px;
+  }
+  
+  .album-details :deep(li > svg.text-red-500),
+  .album-details :deep(li > svg.text-gray-400) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }
 </style>
