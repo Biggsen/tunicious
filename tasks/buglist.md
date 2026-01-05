@@ -18,6 +18,8 @@
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 - [ ] Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
 - [ ] Duplicate entry: "Pale Green Ghost" by John Grant appears twice
+- [ ] Hearting tracks in web player doesn't get reflected in tracklist on album view
+- [ ] Creating a new playlist on the playlist management page isn't working
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -153,6 +155,71 @@ Need to investigate:
 - Verify if there's an album mapping that should connect these entries
 - Review album deduplication logic
 - Check if this is a one-off data issue or a systemic problem
+
+---
+
+### Hearting tracks in web player doesn't get reflected in tracklist on album view
+**Status**: 🟡 Medium  
+**Reported**: 2026-01-05  
+**Component/Area**: Album View, TrackList Component, Spotify Web Player Integration, UI State Sync
+
+**Description**:  
+When a user hearts (saves) a track using the Spotify web player controls, the hearted state is not reflected in the tracklist displayed on the album view. The tracklist should update to show the hearted state when tracks are saved/unsaved via the web player.
+
+**Steps to Reproduce**:
+1. Navigate to an album view page
+2. Open the tracklist for the album
+3. Heart (save) a track using the Spotify web player controls
+4. Observe that the tracklist doesn't update to show the hearted state
+
+**Expected Behavior**:  
+The tracklist should automatically update to reflect the hearted state when tracks are saved or unsaved via the Spotify web player controls.
+
+**Actual Behavior**:  
+The tracklist remains unchanged and doesn't show the updated hearted state after using the web player controls.
+
+**Workaround**:  
+Refresh the page or manually update the tracklist to see the current hearted state.
+
+**Notes**:  
+Need to investigate:
+- How the tracklist component tracks hearted state
+- Whether the Spotify web player emits events when tracks are saved/unsaved
+- Integration between `SpotifyPlayerBar` and `TrackList` components
+- Whether we need to poll Spotify API or listen to player state changes
+- How to sync the hearted state across components
+
+---
+
+### Creating a new playlist on the playlist management page isn't working
+**Status**: 🟡 Medium  
+**Reported**: 2026-01-05  
+**Component/Area**: Playlist Management, Playlist Creation, UI/UX
+
+**Description**:  
+Users are unable to create new playlists from the playlist management page. The create playlist functionality appears to be broken or non-functional.
+
+**Steps to Reproduce**:
+1. Navigate to the playlist management page
+2. Attempt to create a new playlist (via button, form, or other UI element)
+3. Observe that the playlist creation fails or doesn't work
+
+**Expected Behavior**:  
+Users should be able to successfully create a new playlist from the playlist management page, with the new playlist appearing in the list after creation.
+
+**Actual Behavior**:  
+Playlist creation fails or doesn't work when attempted from the playlist management page.
+
+**Workaround**:  
+None identified.
+
+**Notes**:  
+Need to investigate:
+- Which component/view handles playlist creation on the playlist management page
+- What error messages (if any) are displayed
+- Whether the issue is with the UI, API call, or backend processing
+- Check if playlist creation works from other pages/views
+- Review playlist creation form/component and associated handlers
 
 ---
 
