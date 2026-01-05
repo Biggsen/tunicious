@@ -1,5 +1,50 @@
 [
   {
+    "id": 8,
+    "title": "Album View Hearting Sync & Session Handling",
+    "date": "2026-01-05",
+    "types": ["IMPROVEMENT", "RELIABILITY", "UX"],
+    "hidden": false,
+    "description": "The album view now stays in sync with what you're doing in the player, and handles sign-in issues more gracefully.",
+    "changes": [
+      "Hearting or unhearting tracks updates instantly, whether you do it in the player or in the album tracklist",
+      "The album view now matches the playlist view's behaviour for hearting",
+      "You'll be clearly notified if your Last.fm session expires, with a prompt to reconnect",
+      "The interface updates immediately and automatically corrects itself if something goes wrong"
+    ]
+  },
+  {
+    "id": 7,
+    "title": "Playlist Playing Indicators",
+    "date": "2026-01-05",
+    "types": ["IMPROVEMENT", "UI", "UX"],
+    "hidden": false,
+    "description": "The playlists page now makes it much clearer what you're listening to at a glance.",
+    "changes": [
+      "A speaker icon now appears on playlists that are currently playing",
+      "Playing playlists are highlighted directly on their cover images",
+      "Tabs also show a speaker icon when any playlist inside them is playing, even if the tab isn't active",
+      "This makes it easy to see what's playing without switching views or opening a playlist"
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Playlist Creation & Pipeline Configuration Improvements",
+    "date": "2026-01-05",
+    "types": ["IMPROVEMENT", "WORKFLOW", "UI"],
+    "hidden": false,
+    "description": "This update refines how playlists are created and connected within the pipeline, reducing friction, removing legacy concepts, and making pipeline configuration clearer and more context-aware.",
+    "changes": [
+      "Added a contextual \"+ Add Playlist\" action directly to the Playlists view, with the Add Playlist screen now receiving the active group and pre-filling it automatically",
+      "Playlists can now be created directly within the app as part of the add flow, removing the previous dependency on Playlist Management",
+      "Removed playlist creation from the Playlist Management page to eliminate duplication",
+      "Removed the Basic Information panel and manual Spotify Playlist ID entry — playlists are now retrieved by selecting them",
+      "Introduced Previous Stage configuration, allowing a playlist to explicitly declare which playlist feeds into it",
+      "Existing pipeline connections now display as read-only when already established, with direct links back to the source playlist",
+      "Pipeline dropdowns are now context-aware, only showing playlists that are valid and not already part of an existing connection"
+    ]
+  },
+  {
     "id": 5,
     "title": "Mobile & Interface Improvements",
     "date": "2026-01-03",
