@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useUserData } from '@composables/useUserData';
@@ -39,6 +39,9 @@ const form = ref({
   excludeFromMovements: false
 });
 
+// Previous stage selection (not stored in form, handled separately)
+const selectedPreviousStageId = ref('');
+
 // Validation
 const formErrors = ref({});
 
@@ -54,10 +57,19 @@ const pipelineRoleFields = computed(() => {
     case 'source':
       return ['nextStagePlaylistId'];
     case 'transient':
-      return ['nextStagePlaylistId', 'terminationPlaylistId'];
+      const fields = ['previousStagePlaylistId'];
+      // Only include nextStagePlaylistId if there are available next stages
+      if (availableNextStages.value.length > 0) {
+        fields.push('nextStagePlaylistId');
+      }
+      // Only include terminationPlaylistId if there are available terminations
+      if (availableTerminations.value.length > 0) {
+        fields.push('terminationPlaylistId');
+      }
+      return fields;
     case 'terminal':
     case 'sink':
-      return [];
+      return ['previousStagePlaylistId'];
     default:
       return [];
   }
@@ -66,10 +78,11 @@ const pipelineRoleFields = computed(() => {
 const availableNextStages = computed(() => {
   if (!availablePlaylists.value) return [];
   
+  // For transient role, only show other transient playlists as next stages
   return availablePlaylists.value.filter(p => 
     p.firebaseId !== playlistId.value && 
     p.group === form.value.group &&
-    p.pipelineRole !== 'sink'
+    p.pipelineRole === 'transient'
   );
 });
 
@@ -81,6 +94,68 @@ const availableTerminations = computed(() => {
     p.group === form.value.group &&
     p.pipelineRole === 'sink'
   );
+});
+
+// Find the current previous stage playlist
+const currentPreviousStage = computed(() => {
+  if (!availablePlaylists.value || !playlist.value) return null;
+  
+  // For Transient and Terminal: find playlist that has this one as nextStagePlaylistId
+  if (form.value.pipelineRole === 'transient' || form.value.pipelineRole === 'terminal') {
+    return availablePlaylists.value.find(p => 
+      p.firebaseId !== playlist.value.id && 
+      p.nextStagePlaylistId === playlist.value.id
+    );
+  }
+  
+  // For Sink: find Transient that has this one as terminationPlaylistId
+  if (form.value.pipelineRole === 'sink') {
+    return availablePlaylists.value.find(p => 
+      p.firebaseId !== playlist.value.id && 
+      p.terminationPlaylistId === playlist.value.id
+    );
+  }
+  
+  return null;
+});
+
+// Available previous stages based on role
+const availablePreviousStages = computed(() => {
+  if (!availablePlaylists.value) return [];
+  
+  const currentPlaylistId = playlist.value?.id;
+  
+  if (form.value.pipelineRole === 'transient') {
+    // Transient can have Source or Transient as previous (via nextStagePlaylistId)
+    return availablePlaylists.value.filter(p => 
+      p.firebaseId !== currentPlaylistId && 
+      p.group === form.value.group &&
+      (p.pipelineRole === 'source' || p.pipelineRole === 'transient') &&
+      !p.nextStagePlaylistId // Don't show if they already have a next stage
+    );
+  }
+  
+  if (form.value.pipelineRole === 'sink') {
+    // Sink can only have Transient as previous (via terminationPlaylistId)
+    return availablePlaylists.value.filter(p => 
+      p.firebaseId !== currentPlaylistId && 
+      p.group === form.value.group &&
+      p.pipelineRole === 'transient' &&
+      !p.terminationPlaylistId // Don't show if they already have a termination
+    );
+  }
+  
+  if (form.value.pipelineRole === 'terminal') {
+    // Terminal can only have Transient as previous (via nextStagePlaylistId)
+    return availablePlaylists.value.filter(p => 
+      p.firebaseId !== currentPlaylistId && 
+      p.group === form.value.group &&
+      p.pipelineRole === 'transient' &&
+      !p.nextStagePlaylistId // Don't show if they already have a next stage
+    );
+  }
+  
+  return [];
 });
 
 async function loadPlaylist() {
@@ -127,6 +202,10 @@ async function loadPlaylist() {
     // Load available playlists for connections
     await loadAvailablePlaylists();
     
+    // Find and set current previous stage
+    const currentPrev = currentPreviousStage.value;
+    selectedPreviousStageId.value = currentPrev?.firebaseId || '';
+    
   } catch (err) {
     logPlaylist('Error loading playlist:', err);
     error.value = err.message || 'Failed to load playlist';
@@ -160,7 +239,9 @@ async function loadAvailablePlaylists() {
         id: playlistData.playlistId, // Spotify playlist ID
         firebaseId: doc.id, // Firebase document ID
         group: playlistData.group || 'unknown',
-        pipelineRole: playlistData.pipelineRole || 'transient'
+        pipelineRole: playlistData.pipelineRole || 'transient',
+        nextStagePlaylistId: playlistData.nextStagePlaylistId || null,
+        terminationPlaylistId: playlistData.terminationPlaylistId || null
       });
     });
     
@@ -233,15 +314,60 @@ async function savePlaylist() {
       updateData.terminationPlaylistId = null;
     }
     
+    // Handle previous stage playlist updates
+    if (pipelineRoleFields.value.includes('previousStagePlaylistId')) {
+      const currentPrevId = currentPreviousStage.value?.firebaseId;
+      const newPrevId = selectedPreviousStageId.value;
+      
+      // If changing the previous stage, update both playlists
+      if (currentPrevId !== newPrevId) {
+        // Clear old previous stage's connection if it exists
+        if (currentPrevId) {
+          const oldPrevRef = doc(db, 'playlists', currentPrevId);
+          const oldPrevDoc = await getDoc(oldPrevRef);
+          const oldPrevData = oldPrevDoc.data();
+          
+          const oldPrevUpdate = { updatedAt: serverTimestamp() };
+          
+          // Clear the appropriate connection field based on current playlist role
+          if (form.value.pipelineRole === 'sink') {
+            // Clear terminationPlaylistId from old Transient
+            oldPrevUpdate.terminationPlaylistId = null;
+          } else {
+            // Clear nextStagePlaylistId from old previous stage
+            oldPrevUpdate.nextStagePlaylistId = null;
+          }
+          
+          await updateDoc(oldPrevRef, oldPrevUpdate);
+        }
+        
+        // Set new previous stage's connection to this playlist
+        if (newPrevId) {
+          const newPrevRef = doc(db, 'playlists', newPrevId);
+          const newPrevUpdate = { 
+            updatedAt: serverTimestamp() 
+          };
+          
+          // Set the appropriate connection field based on current playlist role
+          if (form.value.pipelineRole === 'sink') {
+            // Set terminationPlaylistId on new Transient
+            newPrevUpdate.terminationPlaylistId = playlist.value.id;
+          } else {
+            // Set nextStagePlaylistId on new previous stage
+            newPrevUpdate.nextStagePlaylistId = playlist.value.id;
+          }
+          
+          await updateDoc(newPrevRef, newPrevUpdate);
+        }
+      }
+    }
+    
     await updateDoc(playlistRef, updateData);
     
     successMessage.value = 'Playlist updated successfully!';
     
-    // Update local playlist data
-    playlist.value = {
-      ...playlist.value,
-      ...updateData
-    };
+    // Reload playlist and available playlists to get updated data
+    await loadPlaylist();
     
   } catch (err) {
     logPlaylist('Error saving playlist:', err);
@@ -259,10 +385,20 @@ function handlePipelineRoleChange() {
   if (!pipelineRoleFields.value.includes('terminationPlaylistId')) {
     form.value.terminationPlaylistId = '';
   }
+  if (!pipelineRoleFields.value.includes('previousStagePlaylistId')) {
+    selectedPreviousStageId.value = '';
+  }
 }
 
 onMounted(async () => {
   await loadPlaylist();
+});
+
+// Watch for route parameter changes to reload playlist
+watch(() => route.params.id, async (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    await loadPlaylist();
+  }
 });
 </script>
 
@@ -330,6 +466,59 @@ onMounted(async () => {
         <h2 class="text-lg font-semibold mb-4">Pipeline Connections</h2>
         
         <div class="space-y-4">
+          <div v-if="pipelineRoleFields.includes('previousStagePlaylistId')" class="form-group">
+            <label for="previousStagePlaylistId" class="block text-sm font-medium text-gray-700 mb-1">
+              Previous Stage Playlist
+            </label>
+            
+            <!-- If already connected, show as read-only (connection managed from source) -->
+            <div v-if="currentPreviousStage" class="bg-gray-50 border border-gray-300 rounded-md p-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-700">{{ currentPreviousStage.name }}</p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    This connection is managed from the source playlist.
+                  </p>
+                </div>
+                <RouterLink 
+                  :to="`/playlist/${currentPreviousStage.firebaseId}/edit`"
+                  class="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Edit source playlist →
+                </RouterLink>
+              </div>
+            </div>
+            
+            <!-- If not connected, show dropdown with available options -->
+            <select 
+              v-else
+              id="previousStagePlaylistId" 
+              v-model="selectedPreviousStageId"
+              class="form-input w-full border-gray-300"
+            >
+              <option value="">No previous stage</option>
+              <option 
+                v-for="playlist in availablePreviousStages" 
+                :key="playlist.firebaseId" 
+                :value="playlist.firebaseId"
+              >
+                {{ playlist.name }}
+              </option>
+            </select>
+            
+            <p v-if="!currentPreviousStage && availablePreviousStages.length > 0" class="text-xs text-gray-500 mt-1">
+              <span v-if="form.pipelineRole === 'transient'">
+                This will update the selected playlist's "Next Stage" to point to this playlist.
+              </span>
+              <span v-else-if="form.pipelineRole === 'sink'">
+                This will update the selected Transient playlist's "Termination Playlist" to point to this playlist.
+              </span>
+              <span v-else-if="form.pipelineRole === 'terminal'">
+                This will update the selected Transient playlist's "Next Stage" to point to this playlist.
+              </span>
+            </p>
+          </div>
+          
           <div v-if="pipelineRoleFields.includes('nextStagePlaylistId')" class="form-group">
             <label for="nextStagePlaylistId" class="block text-sm font-medium text-gray-700 mb-1">
               Next Stage Playlist

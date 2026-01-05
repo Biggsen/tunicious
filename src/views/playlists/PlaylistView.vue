@@ -100,6 +100,10 @@ const currentPlaylists = computed(() => {
   return playlists;
 });
 
+const hasTerminalPlaylist = computed(() => {
+  return currentPlaylists.value.some(playlist => playlist.pipelineRole === 'terminal');
+});
+
 // Watch for changes to showEndPlaylists and update session storage
 watch(showEndPlaylists, (newValue) => {
   sessionStorage.setItem('showEndPlaylists', newValue);
@@ -403,10 +407,32 @@ onUnmounted(() => {
           :playlist="playlist"
           @playlist-deleted="handlePlaylistDeleted"
         />
+        <RouterLink
+          v-if="!hasTerminalPlaylist"
+          :to="{ path: '/playlist/add', query: { group: activeTab } }"
+          class="w-fit self-start no-underline"
+        >
+          <BaseButton variant="tertiary">
+            <template #icon-left><PlusIcon class="h-5 w-5" /></template>
+            Add playlist
+          </BaseButton>
+        </RouterLink>
       </div>
-      <p v-else class="text-gray-500 text-center py-8">
-        No {{ activeTab }} playlists available.
-      </p>
+      <div v-else class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-1/2 lg:w-1/2 xl:w-1/3">
+        <p class="text-gray-500 text-center py-8">
+          No {{ activeTab }} playlists available.
+        </p>
+        <RouterLink
+          v-if="!hasTerminalPlaylist"
+          :to="{ path: '/playlist/add', query: { group: activeTab } }"
+          class="w-fit self-start no-underline"
+        >
+          <BaseButton variant="tertiary">
+            <template #icon-left><PlusIcon class="h-5 w-5" /></template>
+            Add playlist
+          </BaseButton>
+        </RouterLink>
+      </div>
     </div>
     <p v-else-if="availableGroups.length === 0" class="text-gray-500 text-center py-8">
       No playlists available.

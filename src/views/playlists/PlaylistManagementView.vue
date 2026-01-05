@@ -16,59 +16,6 @@
     </div>
 
     <div v-else class="space-y-8">
-      <!-- Create New Playlist Section -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4">Create New Playlist</h2>
-        
-        <form @submit.prevent="handleCreatePlaylist" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-group">
-              <label for="playlistName">Playlist Name</label>
-              <input 
-                type="text" 
-                id="playlistName" 
-                v-model="createForm.name"
-                required
-                placeholder="Enter playlist name"
-                class="form-input"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label for="playlistDescription">Description (Optional)</label>
-              <input 
-                type="text" 
-                id="playlistDescription" 
-                v-model="createForm.description"
-                placeholder="Enter description"
-                class="form-input"
-              />
-            </div>
-          </div>
-          
-          <div class="flex items-center space-x-4">
-            <label class="flex items-center">
-              <input 
-                type="checkbox" 
-                v-model="createForm.isPublic"
-                class="mr-2"
-              />
-              <span class="text-sm">Make playlist public</span>
-            </label>
-          </div>
-          
-          <div class="flex gap-4">
-            <BaseButton 
-              type="submit" 
-              :disabled="spotifyLoading"
-              customClass="btn-primary"
-            >
-              {{ spotifyLoading ? 'Creating...' : 'Create Playlist' }}
-            </BaseButton>
-          </div>
-        </form>
-      </div>
-
       <!-- User's Playlists Section -->
        <div class="bg-white shadow rounded-lg p-6">
          <div class="flex justify-between items-center mb-4">
@@ -84,7 +31,7 @@
          
                  <div v-if="userPlaylists.length === 0" class="text-center py-8 text-gray-500">
            <p>
-             No Tunicious playlists found. Create your first Tunicious playlist above!
+             No Tunicious playlists found.
            </p>
          </div>
         
@@ -241,7 +188,6 @@ const { userData } = useUserData();
 const { 
   loading: spotifyLoading, 
   error: spotifyError, 
-  createPlaylist, 
   getUserPlaylists,
   getPlaylistAlbums,
   removeAlbumFromPlaylist,
@@ -254,43 +200,9 @@ const successMessage = ref('');
 const expandedPlaylists = ref(new Set());
 const playlistAlbums = ref(new Map());
 
-const createForm = ref({
-  name: '',
-  description: '',
-  isPublic: false
-});
-
 // Rename playlist state
 const renamingPlaylist = ref(null);
 const newPlaylistName = ref('');
-
-const handleCreatePlaylist = async () => {
-  try {
-    spotifyError.value = null;
-    successMessage.value = '';
-    
-    const playlist = await createPlaylist(
-      createForm.value.name,
-      createForm.value.description,
-      createForm.value.isPublic
-    );
-    
-         successMessage.value = `Tunicious playlist "${playlist.name}" created successfully!`;
-    
-    // Reset form
-    createForm.value = {
-      name: '',
-      description: '',
-      isPublic: false
-    };
-    
-    // Refresh playlists
-    await loadUserPlaylists();
-     } catch (err) {
-     logPlaylist('Error creating playlist:', err);
-     spotifyError.value = err.message || 'Failed to create playlist';
-   }
-};
 
 const handleRemoveAlbum = async (playlistId, album) => {
   if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {

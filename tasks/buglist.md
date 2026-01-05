@@ -19,7 +19,6 @@
 - [ ] Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
 - [ ] Duplicate entry: "Pale Green Ghost" by John Grant appears twice
 - [ ] Hearting tracks in web player doesn't get reflected in tracklist on album view
-- [ ] Creating a new playlist on the playlist management page isn't working
 
 ### Low Priority
 - [ ] _No low priority bugs at this time_
@@ -188,38 +187,6 @@ Need to investigate:
 - Integration between `SpotifyPlayerBar` and `TrackList` components
 - Whether we need to poll Spotify API or listen to player state changes
 - How to sync the hearted state across components
-
----
-
-### Creating a new playlist on the playlist management page isn't working
-**Status**: 🟡 Medium  
-**Reported**: 2026-01-05  
-**Component/Area**: Playlist Management, Playlist Creation, UI/UX
-
-**Description**:  
-Users are unable to create new playlists from the playlist management page. The create playlist functionality appears to be broken or non-functional.
-
-**Steps to Reproduce**:
-1. Navigate to the playlist management page
-2. Attempt to create a new playlist (via button, form, or other UI element)
-3. Observe that the playlist creation fails or doesn't work
-
-**Expected Behavior**:  
-Users should be able to successfully create a new playlist from the playlist management page, with the new playlist appearing in the list after creation.
-
-**Actual Behavior**:  
-Playlist creation fails or doesn't work when attempted from the playlist management page.
-
-**Workaround**:  
-None identified.
-
-**Notes**:  
-Need to investigate:
-- Which component/view handles playlist creation on the playlist management page
-- What error messages (if any) are displayed
-- Whether the issue is with the UI, API call, or backend processing
-- Check if playlist creation works from other pages/views
-- Review playlist creation form/component and associated handlers
 
 ---
 
