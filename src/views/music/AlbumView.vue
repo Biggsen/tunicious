@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
@@ -11,6 +11,8 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserData } from '@composables/useUserData';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
+import { useToast } from '@composables/useToast';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
@@ -18,6 +20,7 @@ import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistStatus from '@components/PlaylistStatus.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
+import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
 
 import { clearCache } from '@utils/cache';
@@ -32,7 +35,13 @@ const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtist
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
-const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved } = useUnifiedTrackCache();
+const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
+
+// Initialize toast
+const { showToast } = useToast();
+
+// Initialize Last.fm session modal
+const { showModal: showLastFmSessionModal } = useLastFmSessionModal();
 
 
 const album = ref(null);
@@ -283,21 +292,53 @@ const handleTrackLoved = async (track) => {
   if (!album.value || !user.value) return;
   
   try {
-    // Refresh loved tracks to get updated data
-    await refreshLovedTracksForUser();
+    // Optimistic UI update: update track in tracks array immediately
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      // Create new array to ensure Vue reactivity
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: true
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+    }
+    
+    // Update loved status in unified cache (optimistic update with background sync)
+    await updateLovedStatus(track.id, true);
     
     // Recalculate loved percentage
     const result = await getAlbumLovedPercentage(album.value.id);
     lovedTracksCount.value = result.lovedCount;
     lovedTracksPercentage.value = result.percentage;
     
-    // Update the track in the tracks array
-    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
-    if (trackIndex !== -1) {
-      tracks.value[trackIndex] = { ...tracks.value[trackIndex], loved: true };
-    }
+    // Emit window event to notify player bar
+    window.dispatchEvent(new CustomEvent('track-loved-from-tracklist', {
+      detail: {
+        track: {
+          id: track.id,
+          name: track.name,
+          artists: track.artists || []
+        }
+      }
+    }));
   } catch (err) {
     logAlbum('Error handling track loved:', err);
+    
+    // Revert optimistic update on error
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: false
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+    }
   }
 };
 
@@ -305,21 +346,223 @@ const handleTrackUnloved = async (track) => {
   if (!album.value || !user.value) return;
   
   try {
-    // Refresh loved tracks to get updated data
-    await refreshLovedTracksForUser();
+    // Optimistic UI update: update track in tracks array immediately
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      // Create new array to ensure Vue reactivity
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: false
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+    }
+    
+    // Update loved status in unified cache (optimistic update with background sync)
+    await updateLovedStatus(track.id, false);
     
     // Recalculate loved percentage
     const result = await getAlbumLovedPercentage(album.value.id);
     lovedTracksCount.value = result.lovedCount;
     lovedTracksPercentage.value = result.percentage;
     
-    // Update the track in the tracks array
-    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
-    if (trackIndex !== -1) {
-      tracks.value[trackIndex] = { ...tracks.value[trackIndex], loved: false };
-    }
+    // Emit window event to notify player bar
+    window.dispatchEvent(new CustomEvent('track-unloved-from-tracklist', {
+      detail: {
+        track: {
+          id: track.id,
+          name: track.name,
+          artists: track.artists || []
+        }
+      }
+    }));
   } catch (err) {
     logAlbum('Error handling track unloved:', err);
+    
+    // Revert optimistic update on error
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: true
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+    }
+  }
+};
+
+// Handle Last.fm sync errors
+const handleLastFmSyncError = (event) => {
+  const { trackName, artistName, message, isSessionError, trackId, attemptedLoved } = event.detail;
+  
+  logAlbum('Last.fm sync error received:', { trackId, trackName, artistName, attemptedLoved, message });
+  
+  // Show modal for session errors, toast for other errors
+  if (isSessionError) {
+    showLastFmSessionModal(message);
+  } else {
+    showToast(message, 'error');
+  }
+  
+  // Revert the UI update for all errors (cache already reverted, just need to update UI)
+  // The attemptedLoved tells us what we tried to set it to, so we revert to the opposite
+  const targetLovedState = !attemptedLoved;
+  
+  if (trackId) {
+    // Find and revert the track in tracks array by trackId
+    const trackIndex = tracks.value.findIndex(t => t.id === trackId);
+    if (trackIndex !== -1) {
+      const track = tracks.value[trackIndex];
+      // Only update if current state doesn't match the reverted state
+      if (track.loved !== targetLovedState) {
+        tracks.value = [
+          ...tracks.value.slice(0, trackIndex),
+          { ...track, loved: targetLovedState },
+          ...tracks.value.slice(trackIndex + 1)
+        ];
+        
+        logAlbum(`Reverted track ${trackId} from ${track.loved} to ${targetLovedState}`);
+        
+        // Recalculate loved percentage
+        if (album.value) {
+          getAlbumLovedPercentage(album.value.id).then(result => {
+            lovedTracksCount.value = result.lovedCount;
+            lovedTracksPercentage.value = result.percentage;
+          }).catch(err => {
+            logAlbum('Error recalculating loved percentage after revert:', err);
+          });
+        }
+      }
+    }
+  }
+  
+  // Fallback: try to find by track name and artist if trackId didn't work
+  if (trackName && artistName && !tracks.value.find(t => t.id === trackId)) {
+    const trackIndex = tracks.value.findIndex(t => {
+      const nameMatch = t.name?.toLowerCase() === trackName?.toLowerCase();
+      const artistMatch = t.artists?.some(a => {
+        const trackArtist = typeof a === 'string' ? a : a.name;
+        return trackArtist?.toLowerCase() === artistName?.toLowerCase();
+      });
+      return nameMatch && artistMatch;
+    });
+    
+    if (trackIndex !== -1) {
+      const track = tracks.value[trackIndex];
+      if (track.loved !== targetLovedState) {
+        tracks.value = [
+          ...tracks.value.slice(0, trackIndex),
+          { ...track, loved: targetLovedState },
+          ...tracks.value.slice(trackIndex + 1)
+        ];
+        
+        logAlbum(`Reverted track ${trackName} by ${artistName} from ${track.loved} to ${targetLovedState}`);
+        
+        // Recalculate loved percentage
+        if (album.value) {
+          getAlbumLovedPercentage(album.value.id).then(result => {
+            lovedTracksCount.value = result.lovedCount;
+            lovedTracksPercentage.value = result.percentage;
+          }).catch(err => {
+            logAlbum('Error recalculating loved percentage after revert:', err);
+          });
+        }
+      }
+    }
+  }
+};
+
+// Listen for track loved/unloved from player
+const handleTrackLovedFromPlayer = async (event) => {
+  const { track } = event.detail;
+  if (!track || !user.value || !album.value) return;
+  
+  // Find the track in tracks array (by name+artist since IDs might differ)
+  const foundTrack = tracks.value.find(t => {
+    const nameMatch = t.name?.toLowerCase() === track.name?.toLowerCase();
+    const artistMatch = t.artists?.some(a => {
+      const trackArtist = typeof a === 'string' ? a : a.name;
+      const playerArtist = track.artists?.[0];
+      return trackArtist?.toLowerCase() === playerArtist?.toLowerCase();
+    });
+    return nameMatch && artistMatch;
+  });
+  
+  if (foundTrack) {
+    // Use the existing handler with the found track (which has the correct ID from cache)
+    await handleTrackLoved(foundTrack);
+  } else if (track.id) {
+    // If track not found, update unified cache directly (with fallback lookup)
+    const trackName = track.name;
+    const artistName = track.artists?.[0] || '';
+    await updateLovedStatus(track.id, true, trackName, artistName);
+    
+    // Try to find by ID and update if found
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: true
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+      
+      // Recalculate loved percentage
+      const result = await getAlbumLovedPercentage(album.value.id);
+      lovedTracksCount.value = result.lovedCount;
+      lovedTracksPercentage.value = result.percentage;
+    }
+  }
+};
+
+const handleTrackUnlovedFromPlayer = async (event) => {
+  const { track } = event.detail;
+  if (!track || !user.value || !album.value) return;
+  
+  // Find the track in tracks array (by name+artist since IDs might differ)
+  const foundTrack = tracks.value.find(t => {
+    const nameMatch = t.name?.toLowerCase() === track.name?.toLowerCase();
+    const artistMatch = t.artists?.some(a => {
+      const trackArtist = typeof a === 'string' ? a : a.name;
+      const playerArtist = track.artists?.[0];
+      return trackArtist?.toLowerCase() === playerArtist?.toLowerCase();
+    });
+    return nameMatch && artistMatch;
+  });
+  
+  if (foundTrack) {
+    // Use the existing handler with the found track (which has the correct ID from cache)
+    await handleTrackUnloved(foundTrack);
+  } else if (track.id) {
+    // If track not found, update unified cache directly (with fallback lookup)
+    const trackName = track.name;
+    const artistName = track.artists?.[0] || '';
+    await updateLovedStatus(track.id, false, trackName, artistName);
+    
+    // Try to find by ID and update if found
+    const trackIndex = tracks.value.findIndex(t => t.id === track.id);
+    if (trackIndex !== -1) {
+      tracks.value = [
+        ...tracks.value.slice(0, trackIndex),
+        {
+          ...tracks.value[trackIndex],
+          loved: false
+        },
+        ...tracks.value.slice(trackIndex + 1)
+      ];
+      
+      // Recalculate loved percentage
+      const result = await getAlbumLovedPercentage(album.value.id);
+      lovedTracksCount.value = result.lovedCount;
+      lovedTracksPercentage.value = result.percentage;
+    }
   }
 };
 
@@ -356,6 +599,11 @@ const rymLink = computed(() => {
 });
 
 onMounted(async () => {
+  // Listen for track loved/unloved from player
+  window.addEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
+  window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
+  window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
+  
   try {
     loading.value = true;
     const albumId = route.params.id;
@@ -511,6 +759,12 @@ onMounted(async () => {
     error.value = err.message || 'Failed to load album details. Please try refreshing the page.';
     loading.value = false;
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
+  window.removeEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
+  window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
 });
 </script>
 
@@ -679,6 +933,7 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <LastFmSessionExpiredModal />
   </BaseLayout>
 </template>
 
