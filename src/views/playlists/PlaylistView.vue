@@ -7,7 +7,8 @@ import { usePlaylistData } from "@composables/usePlaylistData";
 import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
 import { useRoute, RouterLink } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
-import { PlusIcon, ArrowPathIcon } from '@heroicons/vue/24/solid'
+import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { PlusIcon, ArrowPathIcon, SpeakerWaveIcon } from '@heroicons/vue/24/solid'
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
@@ -18,6 +19,7 @@ import { logPlaylist } from '@utils/logger';
 const { user, userData, fetchUserData } = useUserData();
 const { playlists: userPlaylists, fetchUserPlaylists, getAvailableGroups } = usePlaylistData();
 const { refreshSpecificPlaylists: refreshSpecificPlaylistsComposable } = usePlaylistUpdates();
+const { playingFrom, isPlaying } = useSpotifyPlayer();
 
 const route = useRoute();
 const { getPlaylist} = useUserSpotifyApi();
@@ -103,6 +105,14 @@ const currentPlaylists = computed(() => {
 const hasTerminalPlaylist = computed(() => {
   return currentPlaylists.value.some(playlist => playlist.pipelineRole === 'terminal');
 });
+
+const isGroupPlaying = (group) => {
+  if (!isPlaying.value || playingFrom.value?.type !== 'playlist') {
+    return false;
+  }
+  const groupPlaylists = filteredPlaylists.value[group] || [];
+  return groupPlaylists.some(playlist => playlist.id === playingFrom.value.id);
+};
 
 // Watch for changes to showEndPlaylists and update session storage
 watch(showEndPlaylists, (newValue) => {
@@ -388,13 +398,17 @@ onUnmounted(() => {
             :key="group"
             @click="activeTab = group"
             :class="[
-              'py-3 px-4 font-semibold text-base capitalize rounded-t-lg transition-all duration-200',
+              'py-3 px-4 font-semibold text-base capitalize rounded-t-lg transition-all duration-200 flex items-center gap-2',
               activeTab === group
                 ? 'text-delft-blue bg-mint'
                 : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
             ]"
           >
-            {{ group }} ({{ filteredPlaylists[group]?.length || 0 }})
+            <span>{{ group }} ({{ filteredPlaylists[group]?.length || 0 }})</span>
+            <SpeakerWaveIcon 
+              v-if="isGroupPlaying(group)"
+              class="w-4 h-4 text-delft-blue"
+            />
           </button>
         </nav>
       </div>

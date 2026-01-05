@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { computed } from "vue";
-import { PencilIcon, TrashIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, TrashIcon, SpeakerWaveIcon } from '@heroicons/vue/24/solid';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { usePlaylistData } from '@composables/usePlaylistData';
 
@@ -72,22 +72,29 @@ const isCurrentlyPlaying = computed(() => {
         'p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry pr-6 relative group w-full',
         isTerminalPlaylist ? 'bg-delft-blue text-sm' : 
         isSinkPlaylist ? 'bg-red-700 text-sm ml-8' : 
-        'bg-delft-blue',
-        isCurrentlyPlaying ? 'ring-4 ring-mint shadow-lg' : ''
+        'bg-delft-blue'
       ]"
       @click="navigateToPlaylist(playlist.id)"
     >
-      <img 
-        v-if="playlist.images && playlist.images[2]?.url" 
-        :src="playlist.images[2].url" 
-        alt="" 
-        class="mr-4 rounded-lg w-16 h-16 sm:w-20 sm:h-20" 
-      />
-      <div 
-        v-else 
-        class="mr-4 rounded-lg w-16 h-16 sm:w-20 sm:h-20 bg-gray-300 flex items-center justify-center"
-      >
-        <span class="text-gray-500 text-xs">No Image</span>
+      <div class="mr-4 relative">
+        <img 
+          v-if="playlist.images && playlist.images[2]?.url" 
+          :src="playlist.images[2].url" 
+          alt="" 
+          class="rounded-lg w-16 h-16 sm:w-20 sm:h-20" 
+        />
+        <div 
+          v-else 
+          class="rounded-lg w-16 h-16 sm:w-20 sm:h-20 bg-gray-300 flex items-center justify-center"
+        >
+          <span class="text-gray-500 text-xs">No Image</span>
+        </div>
+        <div 
+          v-if="isCurrentlyPlaying"
+          class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-mindero border-2 border-delft-blue rounded-full p-2 shadow-lg"
+        >
+          <SpeakerWaveIcon class="w-5 h-5 text-delft-blue" />
+        </div>
       </div>
       <div :class="['flex-1', isSinkPlaylist ? 'mr-8' : 'mr-16']">
         <h2 :class="['mb-1 text-mindero truncate', isSinkPlaylist ? 'text-[16px]' : 'text-[20px]']">{{ playlist.name }}</h2>
