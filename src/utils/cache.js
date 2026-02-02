@@ -1,6 +1,6 @@
 import { logCache } from './logger';
 
-const CACHE_EXPIRATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const CACHE_EXPIRATION = 90 * 24 * 60 * 60 * 1000; // 90 days - only used for cleanup during quota emergencies
 const MAX_CACHE_ENTRIES = 100; // Maximum number of cache entries to keep
 
 export function setCache(key, data) {
@@ -46,12 +46,7 @@ export function getCache(key) {
     const cachedData = localStorage.getItem(key);
     if (!cachedData) return null;
 
-    const { data, timestamp } = JSON.parse(cachedData);
-    if (Date.now() - timestamp > CACHE_EXPIRATION) {
-      localStorage.removeItem(key);
-      return null;
-    }
-
+    const { data } = JSON.parse(cachedData);
     return data;
   } catch (error) {
     logCache('Error reading from cache:', error);
