@@ -1,6 +1,8 @@
 import { getCache } from './cache';
 import { loadUnifiedTrackCache } from './unifiedTrackCache';
 import { logPlaylist } from './logger';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 // In-memory cache for resolved playlist names during the session
 const sessionCache = new Map();
@@ -68,6 +70,29 @@ async function getPlaylistNameFromApi(playlistId, getPlaylistFn) {
 }
 
 /**
+ * Get playlist name from Firestore playlists collection
+ * This is useful for resolving friends' playlist names when Spotify API fails
+ * @param {string} playlistId - Spotify playlist ID
+ * @returns {Promise<string|null>} Playlist name or null if not found
+ */
+async function getPlaylistNameFromFirestore(playlistId) {
+  try {
+    const playlistsRef = collection(db, 'playlists');
+    const q = query(playlistsRef, where('playlistId', '==', playlistId));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const playlistData = snapshot.docs[0].data();
+      return playlistData.name || null;
+    }
+    return null;
+  } catch (error) {
+    logPlaylist(`Error fetching playlist name from Firestore for ${playlistId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Resolve a single playlist name from cache or API
  * @param {string} playlistId - Spotify playlist ID
  * @param {string} userId - User ID
@@ -106,6 +131,13 @@ export async function resolvePlaylistName(playlistId, userId, getPlaylistFn = nu
       sessionCache.set(sessionKey, name);
       return name;
     }
+  }
+
+  // Try Firestore as final fallback (works for friends' playlists)
+  name = await getPlaylistNameFromFirestore(playlistId);
+  if (name) {
+    sessionCache.set(sessionKey, name);
+    return name;
   }
 
   // Return fallback if nothing found
@@ -186,12 +218,22 @@ export async function resolvePlaylistNames(playlistIds, userId, getPlaylistFn = 
     missingIds.push(playlistId);
   }
 
-  // Fetch missing names from API if function provided
-  if (missingIds.length > 0 && getPlaylistFn) {
-    // Batch fetch from API (with error handling for individual failures)
+  // Fetch missing names from API if function provided, then Firestore as fallback
+  if (missingIds.length > 0) {
+    // Batch fetch from API first, then Firestore as fallback
     const apiPromises = missingIds.map(async (playlistId) => {
       try {
-        const name = await getPlaylistNameFromApi(playlistId, getPlaylistFn);
+        // Try Spotify API first (if available)
+        let name = null;
+        if (getPlaylistFn) {
+          name = await getPlaylistNameFromApi(playlistId, getPlaylistFn);
+        }
+        
+        // If Spotify API failed, try Firestore as fallback
+        if (!name) {
+          name = await getPlaylistNameFromFirestore(playlistId);
+        }
+        
         if (name) {
           result[playlistId] = name;
           const sessionKey = `${userId}:${playlistId}`;
@@ -206,11 +248,6 @@ export async function resolvePlaylistNames(playlistIds, userId, getPlaylistFn = 
     });
     
     await Promise.all(apiPromises);
-  } else {
-    // Set fallback for missing IDs
-    for (const playlistId of missingIds) {
-      result[playlistId] = 'Unknown Playlist';
-    }
   }
 
   return result;
