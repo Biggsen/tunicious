@@ -3,7 +3,8 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
-const {trackUsage, getRateLimitIdentifier} = require("./rateLimit");
+// Usage tracking disabled - data collected, see dbscripts/usage-analysis/
+// const {trackUsage, getRateLimitIdentifier} = require("./rateLimit");
 const {
   validateRequestSize,
   validateLastFmApiProxy,
@@ -67,9 +68,6 @@ exports.apiProxy = onRequest({
     // Verify authentication
     const authResult = await verifyAuthToken(req);
     
-    // Get identifier for tracking
-    const identifier = getRateLimitIdentifier(req, authResult);
-    
     // Validate request size
     const sizeError = validateRequestSize(req);
     if (sizeError) {
@@ -90,11 +88,6 @@ exports.apiProxy = onRequest({
     }
     
     const {method, params} = validationResult.sanitized;
-
-    // Track usage (non-blocking, fire and forget)
-    trackUsage(req, identifier, method, authResult).catch(err => {
-      logger.error("Failed to track usage", { error: err.message });
-    });
 
     // Determine environment and get appropriate credentials
     // Uses server-side environment detection (cannot be spoofed)

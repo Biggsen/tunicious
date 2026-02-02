@@ -4,7 +4,8 @@ const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
-const {getRateLimitIdentifier, trackSpotifyUsage} = require("./rateLimit");
+// Usage tracking disabled - data collected, see dbscripts/usage-analysis/
+// const {getRateLimitIdentifier, trackSpotifyUsage} = require("./rateLimit");
 const {
   validateRequestSize,
   validateTokenExchange,
@@ -31,14 +32,6 @@ exports.tokenExchange = onRequest({
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
-    
-    // Get identifier for tracking
-    const identifier = getRateLimitIdentifier(req, authResult);
-    
-    // Track usage (non-blocking, fire and forget)
-    trackSpotifyUsage(req, identifier, "tokenExchange", authResult).catch(err => {
-      logger.error("Failed to track Spotify usage", { error: err.message });
-    });
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -122,14 +115,6 @@ exports.refreshToken = onRequest({
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
-    
-    // Get identifier for tracking
-    const identifier = getRateLimitIdentifier(req, authResult);
-    
-    // Track usage (non-blocking, fire and forget)
-    trackSpotifyUsage(req, identifier, "refreshToken", authResult).catch(err => {
-      logger.error("Failed to track Spotify usage", { error: err.message });
-    });
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -224,9 +209,6 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
     
-    // Get identifier for tracking
-    const identifier = getRateLimitIdentifier(req, authResult);
-    
     // Validate request size
     const sizeError = validateRequestSize(req);
     if (sizeError) {
@@ -254,11 +236,6 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
       res.status(403).json({error: "Endpoint not allowed"});
       return;
     }
-
-    // Track usage (non-blocking, fire and forget)
-    trackSpotifyUsage(req, identifier, endpoint, authResult).catch(err => {
-      logger.error("Failed to track Spotify usage", { error: err.message });
-    });
 
     const url = `${SPOTIFY_API_BASE}${endpoint}`;
     

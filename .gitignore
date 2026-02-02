@@ -28,3 +28,6 @@ storybook-static
 *.sw?
 
 service-account.json
+
+# DB scripts output
+dbscripts/usage-analysis/

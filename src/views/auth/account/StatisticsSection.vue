@@ -19,11 +19,10 @@ const { userData, loading: userLoading, error: userError } = useUserData();
     <ErrorMessage v-else-if="userError" :message="userError" />
     
     <div v-else-if="userData && userData.displayName" class="space-y-6">
-      <!-- Spotify API Usage Stats -->
-      <SpotifyUsageStats />
-
-      <!-- Last.fm API Usage Stats -->
-      <LastFmUsageStats />
+      <!-- API Usage Stats - hidden while logging is disabled
+           To re-enable: uncomment components and re-enable tracking in functions/src/spotify.js and lastfm.js -->
+      <!-- <SpotifyUsageStats /> -->
+      <!-- <LastFmUsageStats /> -->
 
       <!-- Last.fm User Stats -->
       <LastFmStats v-if="userData.lastFmUserName" :username="userData.lastFmUserName" />
