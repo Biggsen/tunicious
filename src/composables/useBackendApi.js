@@ -4,6 +4,19 @@ import { getAuth } from 'firebase/auth';
 // Backend API base URL
 const BACKEND_BASE_URL = 'https://us-central1-audiofoodie-d5b2c.cloudfunctions.net';
 
+/**
+ * Format retry time in a human-readable way
+ * @param {number} seconds - Seconds until retry is allowed
+ * @returns {string} Formatted time string
+ */
+function formatRetryTime(seconds) {
+  if (seconds < 60) {
+    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+}
+
 export function useBackendApi() {
   const loading = ref(false);
   const error = ref(null);
@@ -96,13 +109,18 @@ export function useBackendApi() {
               errorMessage = 'Last.fm access denied - please reconnect your account';
             }
           } else if (response.status === 429) {
-            // Rate limit - determine which service based on endpoint
+            // Rate limit - include retry time if available
+            const retryAfter = errorData.retryAfter;
+            const retryText = retryAfter 
+              ? ` - please try again in ${formatRetryTime(retryAfter)}`
+              : ' - please try again in a moment';
+            
             if (isLastFmEndpoint) {
-              errorMessage = 'Last.fm rate limit exceeded - please try again in a moment';
+              errorMessage = `Last.fm rate limit exceeded${retryText}`;
             } else if (isSpotifyEndpoint) {
-              errorMessage = 'Spotify rate limit exceeded - please try again in a moment';
+              errorMessage = `Spotify rate limit exceeded${retryText}`;
             } else {
-              errorMessage = 'Rate limit exceeded - please try again in a moment';
+              errorMessage = `Rate limit exceeded${retryText}`;
             }
           } else if (response.status >= 500) {
             if (isSpotifyEndpoint) {

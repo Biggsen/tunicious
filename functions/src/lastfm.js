@@ -3,8 +3,11 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
-// Usage tracking disabled - data collected, see dbscripts/usage-analysis/
-// const {trackUsage, getRateLimitIdentifier} = require("./rateLimit");
+const {getRateLimitIdentifier, rateLimit} = require("./rateLimit");
+
+// Rate limit: 1000 requests per hour per user for Last.fm
+const LASTFM_RATE_LIMIT = 1000;
+const LASTFM_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const {
   validateRequestSize,
   validateLastFmApiProxy,
@@ -67,6 +70,19 @@ exports.apiProxy = onRequest({
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
+    
+    // Apply rate limiting
+    const identifier = `lastfm:${getRateLimitIdentifier(req, authResult)}`;
+    const rateLimitResult = await rateLimit(req, identifier, LASTFM_RATE_LIMIT, LASTFM_RATE_WINDOW_MS);
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);

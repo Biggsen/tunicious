@@ -4,8 +4,11 @@ const logger = require("firebase-functions/logger");
 const {verifyAuthToken} = require("./auth");
 const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
-// Usage tracking disabled - data collected, see dbscripts/usage-analysis/
-// const {getRateLimitIdentifier, trackSpotifyUsage} = require("./rateLimit");
+const {getRateLimitIdentifier, rateLimit} = require("./rateLimit");
+
+// Rate limit: 500 requests per hour per user for Spotify
+const SPOTIFY_RATE_LIMIT = 500;
+const SPOTIFY_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const {
   validateRequestSize,
   validateTokenExchange,
@@ -32,6 +35,19 @@ exports.tokenExchange = onRequest({
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
+    
+    // Apply rate limiting
+    const identifier = `spotify:${getRateLimitIdentifier(req, authResult)}`;
+    const rateLimitResult = await rateLimit(req, identifier, SPOTIFY_RATE_LIMIT, SPOTIFY_RATE_WINDOW_MS);
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -115,6 +131,19 @@ exports.refreshToken = onRequest({
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
+    
+    // Apply rate limiting
+    const identifier = `spotify:${getRateLimitIdentifier(req, authResult)}`;
+    const rateLimitResult = await rateLimit(req, identifier, SPOTIFY_RATE_LIMIT, SPOTIFY_RATE_WINDOW_MS);
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);
@@ -208,6 +237,19 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(req);
+    
+    // Apply rate limiting
+    const identifier = `spotify:${getRateLimitIdentifier(req, authResult)}`;
+    const rateLimitResult = await rateLimit(req, identifier, SPOTIFY_RATE_LIMIT, SPOTIFY_RATE_WINDOW_MS);
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter,
+        resetAt: new Date(rateLimitResult.resetAt).toISOString(),
+      });
+      return;
+    }
     
     // Validate request size
     const sizeError = validateRequestSize(req);
