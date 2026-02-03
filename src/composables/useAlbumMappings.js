@@ -91,6 +91,18 @@ export function useAlbumMappings() {
   };
 
   /**
+   * Resolves an album ID to its primary (canonical) ID.
+   * Returns the primary ID if mapped, otherwise returns the original ID.
+   * Use before any Firestore album doc lookup when the ID may be an alternate.
+   * @param {string} albumId - The album ID (may be primary or alternate)
+   * @returns {Promise<string>} The primary ID, or the original ID if not mapped
+   */
+  const resolveToPrimaryId = async (albumId) => {
+    const primary = await getPrimaryId(albumId);
+    return primary || albumId;
+  };
+
+  /**
    * Creates a mapping between an alternate ID and a primary ID
    * @param {string} alternateId - The alternate album ID
    * @param {string} primaryId - The primary album ID
@@ -127,6 +139,7 @@ export function useAlbumMappings() {
     loading,
     error,
     getPrimaryId,
+    resolveToPrimaryId,
     getAlternateIds,
     createMapping,
     isAlternateId

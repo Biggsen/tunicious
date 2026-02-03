@@ -15,6 +15,7 @@
 - [ ] _No high priority bugs at this time_
 
 ### Medium Priority
+- [ ] Last played panel doesn't update when playing from album view (only updates when playing from playlist context)
 - [ ] App should detect currently playing track from Last.fm when playing Spotify locally (not via web player)
 - [ ] Tracklist toggle only loads tracks for newly added album after processing, ignores other albums
 - [ ] Duplicate entry: "Pale Green Ghost" by John Grant appears twice
@@ -187,6 +188,35 @@ Need to investigate:
 - Integration between `SpotifyPlayerBar` and `TrackList` components
 - Whether we need to poll Spotify API or listen to player state changes
 - How to sync the hearted state across components
+
+---
+
+### Last played panel doesn't update when playing from album view
+**Status**: 🟡 Medium  
+**Reported**: 2026-02-02  
+**Component/Area**: Last Played Panel, useWebPlayerPlaycountTracking, useSpotifyPlayer
+
+**Description**:  
+The Last Played panel on the homepage only updates when playback is initiated from a playlist context. When playing directly from an album view (e.g. clicking play on an album page), the last played data is never recorded.
+
+**Steps to Reproduce**:
+1. Navigate to an album view page
+2. Click play to start playback
+3. Play a track long enough to count as a play (4 min or 50%)
+4. Return to the homepage
+5. Observe that the Last Played panel does not show the track you just played
+
+**Expected Behavior**:  
+The Last Played panel should update to show the most recently played track regardless of whether playback was started from a playlist or album view.
+
+**Actual Behavior**:  
+The last played update is skipped because `useWebPlayerPlaycountTracking` only calls `updateLastPlayedFromPlaylist` when `playlistContext.type === 'playlist'`. Album context is ignored.
+
+**Workaround**:  
+Start playback from a playlist instead of the album view.
+
+**Notes**:  
+Root cause: `incrementPlaycount` in `useWebPlayerPlaycountTracking.js` checks `playlistContext && playlistContext.type === 'playlist'` before updating last played. Need to extend logic to handle album context (e.g. pass album as context or use null playlist for album plays).
 
 ---
 

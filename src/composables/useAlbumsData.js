@@ -5,7 +5,7 @@ import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
 import { albumTitleSimilarity } from '../utils/fuzzyMatch';
 import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
-import { setCache, getCache } from "@utils/cache";
+import { setCache, getCache, clearCache } from "@utils/cache";
 import { logAlbum } from '@utils/logger';
 
 /**
@@ -26,7 +26,7 @@ import { logAlbum } from '@utils/logger';
 
 export function useAlbumsData() {
   const user = useCurrentUser();
-  const { getPrimaryId } = useAlbumMappings();
+  const { resolveToPrimaryId, createMapping } = useAlbumMappings();
   const albumData = ref({});
   const loading = ref(true);
   const error = ref(null);
@@ -46,18 +46,10 @@ export function useAlbumsData() {
     try {
       loading.value = true;
       error.value = null;
-      
-      // First try the direct album ID
-      let albumDoc = await getDoc(doc(db, 'albums', albumId));
-      
-      // If not found, check if it's an alternate ID
-      if (!albumDoc.exists()) {
-        const primaryId = await getPrimaryId(albumId);
-        if (primaryId) {
-          albumDoc = await getDoc(doc(db, 'albums', primaryId));
-        }
-      }
-      
+
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
+
       if (!albumDoc.exists()) {
         return null;
       }
@@ -332,6 +324,32 @@ export function useAlbumsData() {
     try {
       loading.value = true;
       error.value = null;
+
+      // === DEDUPLICATION: Determine target album ID ===
+      let targetAlbumId = await resolveToPrimaryId(album.id);
+
+      if (targetAlbumId !== album.id) {
+        logAlbum(`Using existing mapping: ${album.id} → ${targetAlbumId}`);
+      } else {
+        // Step 2: Search for existing album by title + artist
+        const existingAlbums = await searchAlbumsByTitleAndArtist(
+          album.name,
+          album.artists[0].name
+        );
+        
+        if (existingAlbums.length > 0) {
+          targetAlbumId = existingAlbums[0].id;
+          logAlbum(`Found existing album by title+artist: ${targetAlbumId}`);
+          
+          // Step 3: If IDs differ, create a mapping for future lookups
+          if (targetAlbumId !== album.id) {
+            await createMapping(album.id, targetAlbumId);
+            logAlbum(`Created mapping: ${album.id} → ${targetAlbumId}`);
+          }
+        }
+      }
+      // === END DEDUPLICATION ===
+
       // Find the playlist document if not provided
       let _playlistData = playlistData;
       if (!_playlistData) {
@@ -365,12 +383,15 @@ export function useAlbumsData() {
         const albumWithDate = albumsWithDates.find(a => a.id === album.id);
         _spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
       }
-      const albumRef = doc(db, 'albums', album.id);
-      // Get existing album data
-      const existingData = await fetchUserAlbumData(album.id);
-             // Prepare the new playlist history entry using playlist data
-       // Use group field to populate type in history entry
-       const entryType = _playlistData.group || 'unknown';
+
+      // Use targetAlbumId for the document reference
+      const albumRef = doc(db, 'albums', targetAlbumId);
+      // Get existing album data using target ID
+      const existingData = await fetchUserAlbumData(targetAlbumId);
+      
+      // Prepare the new playlist history entry using playlist data
+      // Use group field to populate type in history entry
+      const entryType = _playlistData.group || 'unknown';
       
       const newEntry = {
         playlistId: _playlistData.playlistId,
@@ -379,11 +400,15 @@ export function useAlbumsData() {
         addedAt: _spotifyAddedAt,
         removedAt: null
       };
-      // Prepare the user's album data
+      // Mark any current entry (removedAt null) as removed, preserve full history
+      const now = new Date();
+      const updatedHistory = existingData?.playlistHistory
+        ? existingData.playlistHistory.map(entry =>
+            !entry.removedAt ? { ...entry, removedAt: now } : entry
+          )
+        : [];
       const userAlbumData = {
-        playlistHistory: existingData?.playlistHistory 
-          ? [...existingData.playlistHistory.filter(h => h.removedAt !== null), newEntry]
-          : [newEntry],
+        playlistHistory: [...updatedHistory, newEntry],
         createdAt: existingData?.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -399,6 +424,12 @@ export function useAlbumsData() {
           [user.value.uid]: userAlbumData
         }
       }, { merge: true });
+
+      const cacheKeys = [`albumDbData_${targetAlbumId}_${user.value.uid}`];
+      if (album.id !== targetAlbumId) {
+        cacheKeys.push(`albumDbData_${album.id}_${user.value.uid}`);
+      }
+      cacheKeys.forEach(k => clearCache(k));
     } catch (e) {
       logAlbum('Error adding album to collection:', e);
       error.value = e.message || 'Failed to add album to collection';
@@ -443,12 +474,14 @@ export function useAlbumsData() {
 
   /**
    * Fetches root-level album details (excluding userEntries) from the albums collection for a given albumId.
+   * Resolves alternate IDs to primary before lookup so deduplicated albums return correct metadata.
    * @param {string} albumId - The Spotify album ID
    * @returns {Promise<Object|null>} The root-level album details or null if not found
    */
   const getAlbumDetails = async (albumId) => {
     try {
-      const albumDoc = await getDoc(doc(db, 'albums', albumId));
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
       if (!albumDoc.exists()) return null;
       const data = albumDoc.data();
       // Only return root-level fields, exclude userEntries
@@ -462,6 +495,7 @@ export function useAlbumsData() {
 
   /**
    * Fetches album details from DB for multiple album IDs in batch.
+   * Resolves alternate IDs to primary before lookup so deduplicated albums return correct metadata.
    * Returns a map of albumId -> album details (transformed to Spotify format) or null if not found.
    * @param {string[]} albumIds - Array of Spotify album IDs
    * @returns {Promise<Object.<string, Object|null>>} Map of album IDs to their details (Spotify format) or null
@@ -472,14 +506,15 @@ export function useAlbumsData() {
     try {
       // Fetch all albums in parallel
       const albumPromises = albumIds.map(async (albumId) => {
-        const cacheKey = `albumRootData_${albumId}`;
+        const targetAlbumId = await resolveToPrimaryId(albumId);
+        const cacheKey = `albumRootData_${targetAlbumId}`;
         let cached = await getCache(cacheKey);
         if (cached) {
           // Transform cached DB format to Spotify format
           return [albumId, transformDbAlbumToSpotifyFormat(albumId, cached)];
         }
         
-        const albumDoc = await getDoc(doc(db, 'albums', albumId));
+        const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
         if (!albumDoc.exists()) {
           return [albumId, null];
         }
@@ -487,7 +522,7 @@ export function useAlbumsData() {
         const data = albumDoc.data();
         const { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink } = data;
         
-        // Cache the raw DB format
+        // Cache the raw DB format (by primary ID for dedup consistency)
         const dbData = { albumTitle, artistName, albumCover, artistId, releaseYear, rymLink };
         await setCache(cacheKey, dbData);
         
@@ -536,13 +571,15 @@ export function useAlbumsData() {
 
   /**
    * Updates root-level album details (albumCover, artistId, releaseYear) for a given albumId in Firestore.
+   * Resolves alternate IDs to primary before writing to prevent recreating deleted duplicate documents.
    * @param {string} albumId - The Spotify album ID
    * @param {Object} details - The details to update (albumCover, artistId, releaseYear)
    * @returns {Promise<void>}
    */
   const updateAlbumDetails = async (albumId, details) => {
     try {
-      await setDoc(doc(db, 'albums', albumId), {
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      await setDoc(doc(db, 'albums', targetAlbumId), {
         ...details,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -568,7 +605,8 @@ export function useAlbumsData() {
   };
 
   /**
-   * Removes an album from a playlist by marking the current entry as removed
+   * Removes an album from a playlist by marking the current entry as removed.
+   * Resolves alternate IDs to primary before lookup so users with deduplicated albums can remove them.
    * @param {string} albumId - The Spotify album ID
    * @param {string} playlistId - The Spotify playlist ID to remove from
    * @returns {Promise<boolean>} True if successfully removed, false if not found
@@ -582,7 +620,8 @@ export function useAlbumsData() {
       loading.value = true;
       error.value = null;
 
-      const albumRef = doc(db, 'albums', albumId);
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      const albumRef = doc(db, 'albums', targetAlbumId);
       const albumDoc = await getDoc(albumRef);
 
       if (!albumDoc.exists()) {
@@ -626,9 +665,11 @@ export function useAlbumsData() {
         }
       }, { merge: true });
 
-      // Clear cache for this album to ensure fresh data on next fetch
-      const cacheKey = `albumDbData_${albumId}_${user.value.uid}`;
-      await import("@utils/cache").then(({ clearCache }) => clearCache(cacheKey));
+      const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
+      if (targetAlbumId !== albumId) {
+        cacheKeys.push(`albumDbData_${targetAlbumId}_${user.value.uid}`);
+      }
+      cacheKeys.forEach(k => clearCache(k));
 
       logAlbum(`Successfully removed album ${albumId} from playlist ${playlistId}`);
       return true;

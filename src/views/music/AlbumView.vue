@@ -4,8 +4,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
 import { useCurrentUser } from 'vuefire';
-import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useAlbumMappings } from '@composables/useAlbumMappings';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserData } from '@composables/useUserData';
@@ -31,7 +29,7 @@ const router = useRouter();
 const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
-const { fetchUserAlbumData, getCurrentPlaylistInfo, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
+const { fetchUserAlbumData, getCurrentPlaylistInfo, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
@@ -73,18 +71,8 @@ const checkIfNeedsUpdate = async () => {
     return;
   }
   
-  const albumRef = doc(db, 'albums', album.value.id);
-  const albumDoc = await getDoc(albumRef);
-  
-  if (!albumDoc.exists()) {
-    needsUpdate.value = false;
-    return;
-  }
-  
-  const albumData = albumDoc.data();
-  
-  // Check for missing album details (matching PlaylistSingle logic)
-  needsUpdate.value = !albumData.albumCover || !albumData.artistId || !albumData.releaseYear;
+  const details = await getAlbumDetails(album.value.id);
+  needsUpdate.value = details ? !details.albumCover || !details.artistId || !details.releaseYear : false;
 };
 
 
@@ -663,16 +651,10 @@ onMounted(async () => {
     // Set tracks immediately so page renders fast
     tracks.value = tracksData;
     
-    // Check if album exists in the albums collection
-    const albumRef = doc(db, 'albums', albumId);
-    const albumDoc = await getDoc(albumRef);
-    albumExists.value = albumDoc.exists();
-    
-    // Fetch stored RYM link if album exists
-    if (albumDoc.exists()) {
-      const albumData = albumDoc.data();
-      storedRymLink.value = albumData.rymLink || null;
-    }
+    // Check if album exists in the albums collection (resolves alternate IDs for deduplicated albums)
+    const details = await getAlbumDetails(albumId);
+    albumExists.value = !!details;
+    storedRymLink.value = details?.rymLink ?? null;
     
     // Fetch current playlist info if available
     if (albumId) {

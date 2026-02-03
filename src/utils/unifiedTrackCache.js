@@ -1,6 +1,9 @@
 import { getCache, setCache, clearCache } from './cache';
 import { logCache } from './logger';
 import { isSimilar } from './fuzzyMatch';
+import { useAlbumMappings } from '@/composables/useAlbumMappings';
+
+const { resolveToPrimaryId } = useAlbumMappings();
 
 // Cache schema version (increment for migrations)
 const CACHE_VERSION = 1;
@@ -737,7 +740,8 @@ export async function getLastPlayed(userId) {
     try {
       const { doc, getDoc } = await import('firebase/firestore');
       const { db } = await import('../firebase');
-      const albumDoc = await getDoc(doc(db, 'albums', mostRecent.albumId));
+      const targetAlbumId = await resolveToPrimaryId(mostRecent.albumId);
+      const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
       
       if (albumDoc.exists()) {
         const albumData = albumDoc.data();

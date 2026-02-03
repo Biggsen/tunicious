@@ -1,6 +1,12 @@
 # Album Deduplication Specification
 
-**Status:** 📋 Not Started
+**Status:** ✅ Complete
+
+**Completed:** 2026-02-02
+
+**Implementation summary:** Part 1 (prevention in `addAlbumToCollection`) and Part 2 (migration script `dbscripts/dedupe-albums.js`) implemented. Extended migration script with Phase 1 orphan cleanup and `--phase-1-only` / `--only-album` flags. Conducted album ID resolution audit and fixed all P0–P3 items across `useAlbumsData`, `AlbumView`, and `unifiedTrackCache`. Fixed cache invalidation regression when moving albums (source → transient → sink) with alternate IDs. Manual testing verified.
+
+---
 
 ## Overview
 
@@ -186,6 +192,7 @@ Mappings are checked in:
 - `fetchUserAlbumData()` - Falls back to primary ID if direct lookup fails
 - Artist discography view - Consolidates album versions
 - **NEW**: `addAlbumToCollection()` - Prevents duplicate creation
+- **NEW**: `removeAlbumFromPlaylist()` - Must resolve alternate ID to primary before lookup (otherwise users with alternate IDs cannot remove albums from playlists after deduplication)
 
 ### No Schema Changes Required
 
@@ -197,7 +204,7 @@ The existing mapping structure is sufficient. The enhancement is purely behavior
 
 | File | Change |
 |------|--------|
-| `src/composables/useAlbumsData.js` | Modify `addAlbumToCollection()` to check for existing albums |
+| `src/composables/useAlbumsData.js` | Modify `addAlbumToCollection()` to check for existing albums; modify `removeAlbumFromPlaylist()` to resolve alternate ID via `getPrimaryId` before Firestore lookup |
 | `src/composables/useAlbumMappings.js` | No changes needed (existing `createMapping()` is sufficient) |
 
 ### New Files
@@ -219,6 +226,7 @@ The existing mapping structure is sufficient. The enhancement is purely behavior
 1. Search for deduplicated album → single result
 2. Look up album by alternate ID → resolves to primary
 3. Multiple users add same album with different IDs → single document with all user entries
+4. User with alternate ID removes album from playlist → succeeds (resolves to primary document)
 
 ### Migration Testing
 
