@@ -1,5 +1,57 @@
 [
   {
+    "id": 12,
+    "title": "Album Deduplication",
+    "date": "2026-02-03",
+    "types": ["IMPROVEMENT", "RELIABILITY"],
+    "hidden": false,
+    "description": "The app now prevents and cleans up duplicate album entries that occur when Spotify changes album IDs over time.",
+    "changes": [
+      "Same album with different Spotify IDs (e.g. after catalog updates) now maps to a single record instead of creating duplicates",
+      "Search results and album views correctly resolve alternate IDs to the primary album",
+      "Moving albums between playlists (source → transient → sink) now preserves full playlist history when IDs differ",
+      "Existing duplicate albums in the database have been merged and mapped"
+    ]
+  },
+  {
+    "id": 11,
+    "title": "Friends Movement Playlist Names Fix",
+    "date": "2026-02-03",
+    "types": ["BUGFIX"],
+    "hidden": false,
+    "description": "Fixed an issue where friends' playlist names would show as 'Unknown Playlist' in the movements feed.",
+    "changes": [
+      "Friends' playlist movements now correctly display the playlist name instead of 'Unknown Playlist'",
+      "Added Firestore fallback for playlist name resolution when Spotify API can't access private playlists"
+    ]
+  },
+  {
+    "id": 10,
+    "title": "Improved Cache Persistence",
+    "date": "2026-02-03",
+    "types": ["IMPROVEMENT", "RELIABILITY"],
+    "hidden": false,
+    "description": "Your track data now persists much longer, so you won't have to wait for everything to reload.",
+    "changes": [
+      "Removed the 24-hour cache expiration that was forcing full data reloads",
+      "Your playlists, playcounts, and loved tracks now stay cached until you clear them manually",
+      "Use the Cache page in settings if you ever want to start fresh"
+    ]
+  },
+  {
+    "id": 9,
+    "title": "API Rate Limiting & Stability",
+    "date": "2026-02-03",
+    "types": ["RELIABILITY", "IMPROVEMENT"],
+    "hidden": false,
+    "description": "Added rate limiting to protect against runaway requests and improve overall stability.",
+    "changes": [
+      "Added rate limiting for Spotify and Last.fm API calls to prevent accidental overuse",
+      "If you hit a rate limit, you'll see a friendly message telling you how long to wait",
+      "Improved error handling throughout the app for smoother recovery from issues"
+    ]
+  },
+  {
     "id": 8,
     "title": "Album View Hearting Sync & Session Handling",
     "date": "2026-01-05",
