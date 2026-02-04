@@ -82,7 +82,7 @@ watch(currentUser, (user) => {
         <p class="text-sm text-gray-600 mb-2">
           <router-link to="/forgot-password" class="text-delft-blue hover:underline">Forgot password?</router-link>
         </p>
-        <p class="text-sm text-gray-600">
+        <p class="text-sm text-gray-600 hidden">
           Don't have an account? 
           <router-link to="/signup" class="text-delft-blue hover:underline">Sign up</router-link>
         </p>
