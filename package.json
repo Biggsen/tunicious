@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:prod": "cross-env VITE_FIREBASE_EMULATORS=0 vite --port 5173 --mode production",
     "build": "vite build",
     "preview": "vite preview",
+    "emulators": "firebase emulators:start --only firestore,auth,functions",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "migrate:users:friends": "node dbscripts/migrate-user-friends-fields.js"
@@ -36,6 +38,7 @@
     "react-dom": "^18.2.0",
     "sass": "^1.69.5",
     "storybook": "^7.6.16",
+    "cross-env": "^7.0.3",
     "tailwindcss": "^3.3.5",
     "vite": "^5.0.0"
   }
