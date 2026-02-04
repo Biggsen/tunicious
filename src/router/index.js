@@ -43,7 +43,7 @@ const routes = [
     path: '/activity',
     name: 'activity',
     component: ActivityView,
-    meta: { requiresSpotify: true }
+    meta: { requiresAuth: true, requiresSpotify: true }
   },
   {
     path: '/playlists',
@@ -299,7 +299,6 @@ router.beforeEach(async (to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     const user = await getCurrentUser();
     if (!user) {
-      alert('You must be logged in to access this page');
       next({ path: '/login', query: { redirect: to.fullPath } });
       return;
     }
