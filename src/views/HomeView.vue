@@ -43,7 +43,7 @@ onUnmounted(() => {
 
 <template>
   <BaseLayout>
-    <section class="text-delft-blue/90 space-y-4">
+    <section class="text-delft-blue/90 space-y-4 pt-16">
       <div ref="h2Ref" class="h2-wrapper hidden">
         <h2 class="h2 highlight-heading">
           <template v-if="lines.length">
@@ -58,7 +58,7 @@ onUnmounted(() => {
         <div ref="measureRef" class="measure-heading" aria-hidden="true"></div>
       </div>
       <h2 class="text-4xl font-normal text-delft-blue">
-        <span class="text-[72px] leading-[72px] -tracking-[0.04em] italic font-black text-raspberry">Tunicious</span><br><span class="text-[32px]">helps you give music the attention it deserves.</span>
+        <span class="text-[56px] leading-[56px] md:text-[72px] md:leading-[72px] -tracking-[0.04em] italic font-black text-raspberry">Tunicious</span><br><span class="text-[32px]">helps you give music the attention it deserves.</span>
       </h2>
       <p class="text-xl text-delft-blue/70 font-medium !mt-32">Coming soon…</p>
       <div class="hidden">
