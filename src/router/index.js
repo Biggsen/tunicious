@@ -3,6 +3,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import HomeView from '@views/HomeView.vue';
+import ActivityView from '@views/ActivityView.vue';
 import PlaylistView from '@views/playlists/PlaylistView.vue';
 import PlaylistSingle from '@views/playlists/PlaylistSingle.vue';
 import AccountView from '@views/auth/AccountView.vue';
@@ -36,6 +37,12 @@ const routes = [
     path: '/',
     name: 'home',
     component: HomeView,
+    meta: { requiresSpotify: true }
+  },
+  {
+    path: '/activity',
+    name: 'activity',
+    component: ActivityView,
     meta: { requiresSpotify: true }
   },
   {

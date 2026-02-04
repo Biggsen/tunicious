@@ -1,5 +1,19 @@
 [
   {
+    "id": 13,
+    "title": "Navigation, Header & Playlist Tweaks",
+    "date": "2026-02-03",
+    "types": ["IMPROVEMENT", "UI", "UX"],
+    "hidden": false,
+    "description": "Navigation and layout refinements including a dedicated Activity page, header polish, and richer playlist cards.",
+    "changes": [
+      "New Activity page — Latest Movements and Last Played moved from the homepage to their own dedicated page at /activity",
+      "Desktop header now shows nav links below the logo for a cleaner two-row layout",
+      "Header max width capped for better appearance on large screens",
+      "Wider content area site-wide for a more spacious layout on larger screens"
+    ]
+  },
+  {
     "id": 12,
     "title": "Album Deduplication",
     "date": "2026-02-03",

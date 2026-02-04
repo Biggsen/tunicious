@@ -4,6 +4,7 @@ import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
 import { 
   MusicalNoteIcon, 
+  BoltIcon,
   MagnifyingGlassIcon, 
   RocketLaunchIcon, 
   UserGroupIcon,
@@ -24,9 +25,10 @@ const closeMobileMenu = () => {
 </script>
 
 <template>
-  <header class="bg-mint h-[64px] flex border-b-4 border-delft-blue relative z-50">
-    <div class="container mx-auto px-4 flex items-center justify-between w-full">
-      <div class="flex items-center gap-4 md:gap-8">
+  <header class="bg-mint border-b-4 border-delft-blue relative z-50">
+    <div class="container mx-auto max-w-7xl px-4">
+      <!-- Mobile: single row with logo and hamburger -->
+      <div class="flex md:hidden h-[64px] items-center justify-between">
         <RouterLink to="/" class="no-underline hover:no-underline flex items-center gap-1" @click="closeMobileMenu">
           <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5" />
           <span
@@ -35,14 +37,63 @@ const closeMobileMenu = () => {
             Tunicious
           </span>
         </RouterLink>
-        
-        <!-- Desktop Navigation -->
-        <nav class="hidden md:flex items-center pt-[8px]">
+        <button
+          @click="toggleMobileMenu"
+          class="p-2 text-delft-blue hover:text-raspberry transition-colors"
+          aria-label="Toggle mobile menu"
+        >
+          <Bars3Icon v-if="!isMobileMenuOpen" class="w-6 h-6" />
+          <XMarkIcon v-else class="w-6 h-6" />
+        </button>
+      </div>
+
+      <!-- Desktop: logo + user on top row, nav below -->
+      <div class="hidden md:block py-3">
+        <div class="flex items-center justify-between">
+          <RouterLink to="/" class="no-underline hover:no-underline flex items-center gap-1" @click="closeMobileMenu">
+            <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5" />
+            <span
+              class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black text-delft-blue cursor-pointer hover:text-raspberry transition-colors"
+            >
+              Tunicious
+            </span>
+          </RouterLink>
+
+          <div class="flex items-center gap-3">
+            <div v-if="!user">
+              <RouterLink to="/login">Login</RouterLink>
+            </div>
+            <RouterLink v-else to="/account/profile" class="flex items-center gap-2 text-delft-blue hover:text-raspberry">
+              <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
+                <img 
+                  v-if="userData?.profileImageUrl" 
+                  :src="userData.profileImageUrl" 
+                  :key="userData.profileImageUrl"
+                  alt="Profile picture"
+                  class="w-full h-full object-cover"
+                />
+                <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-lg font-semibold">
+                  {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
+                </div>
+              </div>
+              <span class="lg:block">{{ userData?.displayName || user.email }}</span>
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- Desktop Nav Links (below logo) -->
+        <nav class="flex items-center pt-2">
           <ul class="flex gap-8">
             <li>
               <RouterLink to="/playlists" class="flex items-center gap-1">
                 <MusicalNoteIcon class="w-4 h-4" />
                 <span>Playlists</span>
+              </RouterLink>
+            </li>
+            <li>
+              <RouterLink to="/activity" class="flex items-center gap-1">
+                <BoltIcon class="w-4 h-4" />
+                <span>Activity</span>
               </RouterLink>
             </li>
             <li>
@@ -65,40 +116,6 @@ const closeMobileMenu = () => {
             </li>
           </ul>
         </nav>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <!-- Desktop User Section -->
-        <div v-if="!user" class="hidden md:block">
-          <RouterLink to="/login">Login</RouterLink>
-        </div>
-        <div v-else class="hidden md:flex items-center gap-3">
-          <RouterLink to="/account/profile" class="flex items-center gap-2 text-delft-blue hover:text-raspberry">
-            <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
-              <img 
-                v-if="userData?.profileImageUrl" 
-                :src="userData.profileImageUrl" 
-                :key="userData.profileImageUrl"
-                alt="Profile picture"
-                class="w-full h-full object-cover"
-              />
-              <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-lg font-semibold">
-                {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
-              </div>
-            </div>
-            <span class="block md:hidden lg:block">{{ userData?.displayName || user.email }}</span>
-          </RouterLink>
-        </div>
-
-        <!-- Mobile Menu Button -->
-        <button
-          @click="toggleMobileMenu"
-          class="md:hidden p-2 text-delft-blue hover:text-raspberry transition-colors"
-          aria-label="Toggle mobile menu"
-        >
-          <Bars3Icon v-if="!isMobileMenuOpen" class="w-6 h-6" />
-          <XMarkIcon v-else class="w-6 h-6" />
-        </button>
       </div>
     </div>
 
@@ -155,6 +172,16 @@ const closeMobileMenu = () => {
                 >
                   <MusicalNoteIcon class="w-6 h-6" />
                   <span>Playlists</span>
+                </RouterLink>
+              </li>
+              <li>
+                <RouterLink
+                  to="/activity"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  @click="closeMobileMenu"
+                >
+                  <BoltIcon class="w-6 h-6" />
+                  <span>Activity</span>
                 </RouterLink>
               </li>
               <li>

@@ -1,7 +1,7 @@
 <template>
   <BaseLayout>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-delft-blue mb-2">Friends</h1>
+      <h1 class="h2 mb-2">Friends</h1>
       <p class="text-delft-blue/70">
         Connect with other Tunicious users and discover music together
       </p>

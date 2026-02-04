@@ -27,10 +27,10 @@ const props = defineProps({
   }
 });
 
-const activeTab = ref('mine');
+const activeTab = ref(sessionStorage.getItem('activity_movements_tab') || 'mine');
 const friends = ref([]);
 const friendDataMap = ref({}); // Map of userId -> userData for displaying friend names
-const excludeQueued = ref(false); // Toggle to exclude movements involving source playlists
+const excludeQueued = ref(sessionStorage.getItem('activity_exclude_queued') === 'true'); // Toggle to exclude movements involving source playlists
 
 const loadMovements = async () => {
   if (user.value) {
@@ -94,11 +94,13 @@ watch(user, () => {
   }
 });
 
-watch(activeTab, () => {
+watch(activeTab, (newValue) => {
+  sessionStorage.setItem('activity_movements_tab', newValue);
   loadDataForTab();
 });
 
-watch(excludeQueued, () => {
+watch(excludeQueued, (newValue) => {
+  sessionStorage.setItem('activity_exclude_queued', newValue);
   // Reload movements when filter changes to fetch appropriate amount
   loadDataForTab();
 });

@@ -5,6 +5,7 @@ import { useAuth } from "@composables/useAuth";
 import { useCurrentUser } from "vuefire";
 import { useRouter } from "vue-router";
 import BaseButton from '@components/common/BaseButton.vue';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({
@@ -52,7 +53,8 @@ if (currentUser.value?.email) {
 </script>
 
 <template>
-  <div v-if="!currentUser?.email" class="p-4 pt-8">
+  <BaseLayout>
+  <div v-if="!currentUser?.email">
     <h1 class="h2 pb-4">Forgot Password</h1>
     
     <div class="forgot-password-content">
@@ -105,9 +107,10 @@ if (currentUser.value?.email) {
       </div>
     </div>
   </div>
-  <div v-else class="p-4 pt-8">
+  <div v-else>
     <p>You are already logged in.</p>
   </div>
+  </BaseLayout>
 </template>
 
 <style lang="scss" scoped>

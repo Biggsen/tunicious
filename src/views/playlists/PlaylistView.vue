@@ -414,7 +414,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Tab Content -->
-      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-1/2 lg:w-1/2 xl:w-1/3">
+      <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-3/4 lg:w-1/2">
         <PlaylistItem 
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
@@ -432,7 +432,7 @@ onUnmounted(() => {
           </BaseButton>
         </RouterLink>
       </div>
-      <div v-else class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-1/2 lg:w-1/2 xl:w-1/3">
+      <div v-else class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-3/4 lg:w-1/2">
         <p class="text-gray-500 text-center py-8">
           No {{ activeTab }} playlists available.
         </p>

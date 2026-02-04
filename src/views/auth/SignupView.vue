@@ -7,6 +7,7 @@ import { useRoute, useRouter } from "vue-router";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase";
 import BaseButton from '@components/common/BaseButton.vue';
+import BaseLayout from '@components/common/BaseLayout.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 
 const { form, isSubmitting, error: formError, success, handleSubmit } = useForm({
@@ -93,7 +94,8 @@ watch(currentUser, (user) => {
 </script>
 
 <template>
-  <div v-if="!currentUser?.email" class="p-4 pt-8">
+  <BaseLayout>
+  <div v-if="!currentUser?.email">
     <h1 class="h2 pb-4">Sign Up</h1>
     <form @submit.prevent="handleSubmit(onSubmit)" class="signup-form">
       <div class="form-group">
@@ -176,9 +178,10 @@ watch(currentUser, (user) => {
       </div>
     </form>
   </div>
-  <div v-else class="p-4 pt-8">
+  <div v-else>
     <p>You are already logged in.</p>
   </div>
+  </BaseLayout>
 </template>
 
 <style lang="scss" scoped>

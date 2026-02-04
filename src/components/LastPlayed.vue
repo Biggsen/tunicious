@@ -94,10 +94,10 @@ watch(cacheLoaded, (loaded) => {
   }
 });
 
-// Watch for route changes to refetch when navigating to home
+// Watch for route changes to refetch when navigating to activity
 watch(() => route.name, (newRouteName) => {
-  if (newRouteName === 'home' && user.value && cacheLoaded.value) {
-    logCache('[LastPlayed] Navigated to home page, refreshing last played');
+  if (newRouteName === 'activity' && user.value && cacheLoaded.value) {
+    logCache('[LastPlayed] Navigated to activity page, refreshing last played');
     fetchLastPlayed();
   }
 });
