@@ -213,7 +213,11 @@ const routes = [
   {
     path: '/search',
     name: 'search',
-    component: SearchView
+    component: SearchView,
+    meta: { 
+      requiresAuth: true,
+      requiresSpotify: true 
+    }
   },
   {
     path: '/styleguide',
