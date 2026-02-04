@@ -14,7 +14,7 @@
   {
     "id": 13,
     "title": "Activity Page, Header & Layout Tweaks",
-    "date": "2026-02-03",
+    "date": "2026-02-04",
     "types": ["IMPROVEMENT", "UI", "UX"],
     "hidden": false,
     "description": "Latest Movements and Last Played move to a dedicated Activity page that remembers your tab and filter choices. Desktop header gets a two-row layout and max width cap, and the content area widens site-wide.",
@@ -29,7 +29,7 @@
   {
     "id": 12,
     "title": "Album Deduplication",
-    "date": "2026-02-03",
+    "date": "2026-02-04",
     "types": ["IMPROVEMENT", "RELIABILITY"],
     "hidden": false,
     "description": "The app now prevents and cleans up duplicate album entries that occur when Spotify changes album IDs over time.",
@@ -43,7 +43,7 @@
   {
     "id": 11,
     "title": "Friends Movement Playlist Names Fix",
-    "date": "2026-02-03",
+    "date": "2026-02-04",
     "types": ["BUGFIX"],
     "hidden": false,
     "description": "Fixed an issue where friends' playlist names would show as 'Unknown Playlist' in the movements feed.",
@@ -55,7 +55,7 @@
   {
     "id": 10,
     "title": "Improved Cache Persistence",
-    "date": "2026-02-03",
+    "date": "2026-02-04",
     "types": ["IMPROVEMENT", "RELIABILITY"],
     "hidden": false,
     "description": "Your track data now persists much longer, so you won't have to wait for everything to reload.",
@@ -68,7 +68,7 @@
   {
     "id": 9,
     "title": "API Rate Limiting & Stability",
-    "date": "2026-02-03",
+    "date": "2026-02-04",
     "types": ["RELIABILITY", "IMPROVEMENT"],
     "hidden": false,
     "description": "Added rate limiting to protect against runaway requests and improve overall stability.",
