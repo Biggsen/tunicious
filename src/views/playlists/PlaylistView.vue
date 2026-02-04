@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { setCache, getCache, clearCache, updatePlaylistInCache, removePlaylistFromCache } from "@utils/cache";
+import { setCache, getCache, removePlaylistFromCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
@@ -26,7 +26,8 @@ const { getPlaylist} = useUserSpotifyApi();
 
 const loading = ref(true);
 const error = ref(null);
-const cacheCleared = ref(false);
+const loadingPipeline = ref(null);
+const reloadingGroup = ref(null);
 const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') !== 'false');
 
 // Dynamic active tab - will be set to first available group
@@ -51,36 +52,23 @@ const initializeActiveTab = () => {
 };
 
 
-const allPlaylistsLoaded = computed(() => {
-  logPlaylist('Computing allPlaylistsLoaded:', {
-    availableGroups: availableGroups.value,
-    userPlaylists: userPlaylists.value,
-    spotifyPlaylists: playlists.value,
-  });
-  
-  if (!userPlaylists.value || availableGroups.value.length === 0) return false;
-  
-  // Check if all available groups have been loaded from Spotify
-  const allGroupsLoaded = availableGroups.value.every(group => {
-    const groupPlaylists = playlists.value[group] || [];
-      // A group is considered loaded if it has playlists in the userPlaylists data
-      const hasPlaylistsInData = (userPlaylists.value[group] || []).length > 0;
-    
-    if (!hasPlaylistsInData) {
-      // If no playlists in data, consider it loaded
-      return true;
-    }
-    
-    // If there are playlists in data, check if they've been loaded from Spotify
-    return groupPlaylists.length > 0 && groupPlaylists.every(p => p.id != null);
-  });
-  
-  logPlaylist('Playlists loaded status:', { 
-    availableGroups: availableGroups.value,
-    allGroupsLoaded
-  });
-  return allGroupsLoaded;
+const activePipelineLoaded = computed(() => {
+  if (!availableGroups.value.length) return false;
+  const group = activeTab.value;
+  if (!group) return false;
+  const firestoreCount = (userPlaylists.value[group] || []).length;
+  if (firestoreCount === 0) return true;
+  const spotifyPlaylists = playlists.value[group] || [];
+  return spotifyPlaylists.length > 0 && spotifyPlaylists.every(p => p.id != null);
 });
+
+function getTabCount(group) {
+  const loaded = playlists.value[group];
+  if (loaded?.length > 0) {
+    return showEndPlaylists.value ? loaded.length : loaded.filter(p => p.pipelineRole !== 'sink').length;
+  }
+  return (userPlaylists.value[group] || []).length;
+}
 
 const filteredPlaylists = computed(() => {
   if (showEndPlaylists.value) {
@@ -134,99 +122,106 @@ watch(availableGroups, () => {
 async function loadPlaylists() {
   loading.value = true;
   error.value = null;
-  cacheCleared.value = false;
 
   logPlaylist('loadPlaylists called');
   logPlaylist('availableGroups:', availableGroups.value);
   logPlaylist('userPlaylists:', userPlaylists.value);
 
-  const cachedPlaylists = await getCache(cacheKey.value);
-
+  const cachedPlaylists = getCache(cacheKey.value);
   if (cachedPlaylists) {
-    logPlaylist('Using cached playlists:', cachedPlaylists);
+    logPlaylist('Using cached playlists (may be partial)');
     playlists.value = cachedPlaylists;
-    loading.value = false;
-    return;
   }
-
+  const groupToLoad = activeTab.value || availableGroups.value[0];
+  const needsLoad = groupToLoad && (userPlaylists.value[groupToLoad] || []).length > 0 && !(playlists.value[groupToLoad]?.length > 0);
+  if (needsLoad) {
     try {
-      logPlaylist('Starting loadPlaylists, availableGroups:', availableGroups.value);
-      logPlaylist('userPlaylists data:', userPlaylists.value);
-      
-      const playlistSummaries = {};
-      
-      // Load all playlists for each group
-      for (const group of availableGroups.value) {
-        logPlaylist(`Loading ${group} playlists...`);
-        
-        // Collect all playlists for this group
-        const allPlaylistsForGroup = [];
-        const groupPlaylists = userPlaylists.value[group] || [];
-        
-        logPlaylist(`Group ${group} has ${groupPlaylists.length} playlists from userPlaylists`);
-        
-        for (const playlistData of groupPlaylists) {
-        if (!playlistData?.playlistId) {
-          logPlaylist(`Missing playlist data for ${group}:`, playlistData);
-          continue;
-        }
-
-        try {
-          logPlaylist(`Fetching Spotify data for ${group} (${playlistData.playlistId})`);
-          const playlist = await getPlaylist(playlistData.playlistId);
-          logPlaylist(`Got Spotify data:`, playlist);
-          
-          allPlaylistsForGroup.push({
-            id: playlist.id, // Spotify playlist ID
-            firebaseId: playlistData.firebaseId, // Firebase document ID
-            name: playlist.name,
-            images: playlist.images,
-            tracks: { total: playlist.tracks.total },
-            pipelinePosition: playlistData.pipelinePosition,
-            totalPositions: playlistData.totalPositions,
-            pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
-          });
-        } catch (playlistError) {
-          logPlaylist(`Failed to load playlist ${playlistData.playlistId} for ${group}:`, playlistError);
-          // Still add the playlist with basic data even if Spotify API fails
-          allPlaylistsForGroup.push({
-            id: playlistData.playlistId, // Use the playlistId as fallback
-            firebaseId: playlistData.firebaseId,
-            name: `${group} playlist`, // Fallback name when Spotify API fails
-            images: [],
-            tracks: { total: 0 }, // Assume empty if we can't get data
-            pipelinePosition: playlistData.pipelinePosition,
-            totalPositions: playlistData.totalPositions,
-            pipelineRole: playlistData.pipelineRole || 'transient' // Include pipeline role from Firebase data
-          });
-        }
+      logPlaylist(`Loading active pipeline only: ${groupToLoad}`);
+      const summaries = await loadPipelinePlaylists(groupToLoad);
+      playlists.value = { ...playlists.value, [groupToLoad]: summaries };
+      await setCache(cacheKey.value, playlists.value);
+    } catch (e) {
+      logPlaylist('Error loading playlists:', e);
+      if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
+        error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data.";
+      } else {
+        error.value = "Failed to load playlists. Please try again.";
       }
-      
-      // Playlists are already ordered by derivePipelineOrder in usePlaylistData
-      // Just preserve the order from userPlaylists
-      playlistSummaries[group] = allPlaylistsForGroup;
     }
-
-    logPlaylist('Final playlist summaries:', playlistSummaries);
-    playlists.value = playlistSummaries;
-    await setCache(cacheKey.value, playlistSummaries);
-  } catch (e) {
-    logPlaylist("Error loading playlists:", e);
-    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
-      error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
-    } else {
-      error.value = "Failed to load playlists. Please try again.";
-    }
-  } finally {
-    loading.value = false;
   }
+  loading.value = false;
 }
 
-async function handleClearCache() {
-  await clearCache(cacheKey.value);
-  cacheCleared.value = true;
-  playlists.value = {};
-  await loadPlaylists();
+/**
+ * Load Spotify data for a single pipeline (group). Returns array of playlist summaries.
+ */
+async function loadPipelinePlaylists(group) {
+  const groupPlaylists = userPlaylists.value[group] || [];
+  const allPlaylistsForGroup = [];
+  for (const playlistData of groupPlaylists) {
+    if (!playlistData?.playlistId) continue;
+    try {
+      const playlist = await getPlaylist(playlistData.playlistId);
+      allPlaylistsForGroup.push({
+        id: playlist.id,
+        firebaseId: playlistData.firebaseId,
+        name: playlist.name,
+        images: playlist.images,
+        tracks: { total: playlist.tracks.total },
+        pipelinePosition: playlistData.pipelinePosition,
+        totalPositions: playlistData.totalPositions,
+        pipelineRole: playlistData.pipelineRole || 'transient'
+      });
+    } catch (playlistError) {
+      logPlaylist(`Failed to load playlist ${playlistData.playlistId} for ${group}:`, playlistError);
+      allPlaylistsForGroup.push({
+        id: playlistData.playlistId,
+        firebaseId: playlistData.firebaseId,
+        name: `${group} playlist`,
+        images: [],
+        tracks: { total: 0 },
+        pipelinePosition: playlistData.pipelinePosition,
+        totalPositions: playlistData.totalPositions,
+        pipelineRole: playlistData.pipelineRole || 'transient'
+      });
+    }
+  }
+  return allPlaylistsForGroup;
+}
+
+// When user switches tab, load that pipeline if not yet loaded
+watch(activeTab, async (newTab) => {
+  if (!newTab || !cacheKey.value) return;
+  const groupPlaylists = userPlaylists.value[newTab] || [];
+  if (groupPlaylists.length === 0) return;
+  const alreadyLoaded = (playlists.value[newTab] || []).length > 0;
+  if (alreadyLoaded) return;
+  logPlaylist(`Lazy-loading pipeline: ${newTab}`);
+  loadingPipeline.value = newTab;
+  try {
+    const summaries = await loadPipelinePlaylists(newTab);
+    if (summaries) {
+      playlists.value = { ...playlists.value, [newTab]: summaries };
+      await setCache(cacheKey.value, playlists.value);
+    }
+  } finally {
+    loadingPipeline.value = null;
+  }
+});
+
+async function reloadPipeline(group) {
+  if (!group || !cacheKey.value) return;
+  reloadingGroup.value = group;
+  try {
+    const summaries = await loadPipelinePlaylists(group);
+    playlists.value = { ...playlists.value, [group]: summaries };
+    await setCache(cacheKey.value, playlists.value);
+  } catch (e) {
+    logPlaylist('Error reloading pipeline:', e);
+    error.value = "Failed to reload pipeline. Please try again.";
+  } finally {
+    reloadingGroup.value = null;
+  }
 }
 
 /**
@@ -340,10 +335,6 @@ onUnmounted(() => {
     <div class="flex items-center justify-between pb-4">
       <h1 class="h2">Playlists</h1>
       <div class="flex items-center gap-4">
-        <BaseButton variant="secondary" @click.prevent="handleClearCache" class="w-fit" hide-text-on-mobile>
-          <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
-          Reload
-        </BaseButton>
         <DropdownMenu aria-label="Playlist actions">
           <RouterLink
             to="/playlist/add"
@@ -383,13 +374,9 @@ onUnmounted(() => {
       <span class="text-delft-blue">Rating Playlists</span>
     </div>
 
-    <p v-if="cacheCleared" class="mb-4 text-green-500">
-      Reloading playlists...
-    </p>
-
     <p v-if="loading">Loading playlists...</p>
     <ErrorMessage v-else-if="error" :message="error" />
-    <div v-else-if="allPlaylistsLoaded && availableGroups.length > 0">
+    <div v-else-if="availableGroups.length > 0 && (activePipelineLoaded || loadingPipeline === activeTab)">
       <!-- Tab Navigation -->
       <div>
         <nav class="-mb-px flex space-x-2 ml-[20px]">
@@ -404,7 +391,7 @@ onUnmounted(() => {
                 : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
             ]"
           >
-            <span>{{ group }} ({{ filteredPlaylists[group]?.length || 0 }})</span>
+            <span>{{ group }} ({{ getTabCount(group) }})</span>
             <SpeakerWaveIcon 
               v-if="isGroupPlaying(group)"
               class="w-4 h-4 text-delft-blue"
@@ -415,6 +402,20 @@ onUnmounted(() => {
 
       <!-- Tab Content -->
       <div v-if="currentPlaylists.length > 0" class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-3/4 lg:w-1/2">
+        <div class="flex justify-end">
+          <BaseButton
+            variant="secondary"
+            class="w-fit"
+            :disabled="reloadingGroup === activeTab || loadingPipeline === activeTab"
+            @click="reloadPipeline(activeTab)"
+            :aria-label="`Reload ${activeTab}`"
+          >
+            <template #icon-left>
+              <ArrowPathIcon :class="['h-5 w-5', reloadingGroup === activeTab && 'animate-spin']" />
+            </template>
+            {{ reloadingGroup === activeTab ? 'Reloading…' : 'Reload' }}
+          </BaseButton>
+        </div>
         <PlaylistItem 
           v-for="playlist in currentPlaylists"
           :key="playlist.id"
@@ -422,7 +423,7 @@ onUnmounted(() => {
           @playlist-deleted="handlePlaylistDeleted"
         />
         <RouterLink
-          v-if="!hasTerminalPlaylist"
+          v-if="!hasTerminalPlaylist && loadingPipeline !== activeTab"
           :to="{ path: '/playlist/add', query: { group: activeTab } }"
           class="w-fit self-start no-underline"
         >
@@ -433,11 +434,29 @@ onUnmounted(() => {
         </RouterLink>
       </div>
       <div v-else class="flex flex-col gap-4 bg-mint p-4 rounded-xl w-full md:w-3/4 lg:w-1/2">
-        <p class="text-gray-500 text-center py-8">
+        <div class="flex justify-end">
+          <BaseButton
+            variant="secondary"
+            class="w-fit"
+            :disabled="reloadingGroup === activeTab || loadingPipeline === activeTab"
+            @click="reloadPipeline(activeTab)"
+            :aria-label="`Reload ${activeTab}`"
+          >
+            <template #icon-left>
+              <ArrowPathIcon :class="['h-5 w-5', reloadingGroup === activeTab && 'animate-spin']" />
+            </template>
+            {{ reloadingGroup === activeTab ? 'Reloading…' : 'Reload' }}
+          </BaseButton>
+        </div>
+        <div v-if="loadingPipeline === activeTab" class="flex flex-col items-center gap-2 py-8" aria-label="Loading">
+          <div class="animate-spin rounded-full h-8 w-8 border-2 border-delft-blue border-t-transparent" aria-hidden="true"></div>
+          <span class="text-gray-500">Loading</span>
+        </div>
+        <p v-else class="text-gray-500 text-center py-8">
           No {{ activeTab }} playlists available.
         </p>
         <RouterLink
-          v-if="!hasTerminalPlaylist"
+          v-if="!hasTerminalPlaylist && loadingPipeline !== activeTab"
           :to="{ path: '/playlist/add', query: { group: activeTab } }"
           class="w-fit self-start no-underline"
         >

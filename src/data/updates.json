@@ -1,13 +1,26 @@
 [
   {
+    "id": 14,
+    "title": "Faster Playlists Page & Per-Tab Reload",
+    "date": "2026-02-04",
+    "types": ["IMPROVEMENT", "UX", "PERFORMANCE"],
+    "hidden": false,
+    "description": "The Playlists page now loads much faster by loading only the active tab's playlists first, and you can reload a single tab instead of the whole page.",
+    "changes": [
+      "Playlists page loads only the first (or active) tab from Spotify on open — other tabs load when you switch to them",
+      "Reload button moved into each tab's content so you can refresh just that tab instead of reloading everything"
+    ]
+  },
+  {
     "id": 13,
-    "title": "Navigation, Header & Playlist Tweaks",
+    "title": "Activity Page, Header & Layout Tweaks",
     "date": "2026-02-03",
     "types": ["IMPROVEMENT", "UI", "UX"],
     "hidden": false,
-    "description": "Navigation and layout refinements including a dedicated Activity page, header polish, and richer playlist cards.",
+    "description": "Latest Movements and Last Played move to a dedicated Activity page that remembers your tab and filter choices. Desktop header gets a two-row layout and max width cap, and the content area widens site-wide.",
     "changes": [
       "New Activity page — Latest Movements and Last Played moved from the homepage to their own dedicated page at /activity",
+      "Activity page remembers your Mine/Friends tab and Exclude queued toggle",
       "Desktop header now shows nav links below the logo for a cleaner two-row layout",
       "Header max width capped for better appearance on large screens",
       "Wider content area site-wide for a more spacious layout on larger screens"
