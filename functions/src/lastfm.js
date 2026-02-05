@@ -17,9 +17,9 @@ const {handleError} = require("./errorHandler");
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 
-// One set of secret names per project; dev and prod projects each set their own values
-const lastfmApiKey = defineSecret("LASTFM_API_KEY");
-const lastfmApiSecret = defineSecret("LASTFM_API_SECRET");
+// Prod project uses existing _PROD secrets; local emulator uses functions/.env with dev credentials
+const lastfmApiKey = defineSecret("LASTFM_API_KEY_PROD");
+const lastfmApiSecret = defineSecret("LASTFM_API_SECRET_PROD");
 
 /**
  * Proxy for Last.fm API calls
