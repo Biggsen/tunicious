@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "audiofoodie-d5b2c"
+    "default": "audiofoodie-d5b2c",
+    "prod": "audiofoodie-d5b2c"
   }
 }

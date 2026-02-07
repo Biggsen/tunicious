@@ -185,9 +185,9 @@ const isLastStep = computed(() => {
   return currentStepIndexComputed.value === steps.length - 1;
 });
 
-// Show skip button after step 3 (create_source)
+// Show skip button from "Choose Setup Method" onward (order 2.5) so users who already have playlists can skip
 const showSkip = computed(() => {
-  return currentStepIndexComputed.value >= 3;
+  return currentStepIndexComputed.value >= 2.5;
 });
 
 // Get step description (placeholder for now)
@@ -353,13 +353,13 @@ const proceedToNextStep = async () => {
       await completeStep(currentStep.value);
     }
     
-    // Navigate to next step
+    // Navigate to next step (await so route updates before we rely on it)
     console.log('[Onboarding] Navigating to next step');
-    router.push({
+    await router.push({
       path: '/onboarding',
       query: { step: nextStep.id }
     });
-    
+
     await updateCurrentStep(nextStep.id);
     console.log('[Onboarding] Step updated successfully');
   }

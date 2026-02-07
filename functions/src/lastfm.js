@@ -17,55 +17,16 @@ const {handleError} = require("./errorHandler");
 // Last.fm API configuration
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 
-// Define secrets for Last.fm API (both DEV and PROD)
-const lastfmApiKeyProd = defineSecret("LASTFM_API_KEY_PROD");
-const lastfmApiSecretProd = defineSecret("LASTFM_API_SECRET_PROD");
-const lastfmApiKeyDev = defineSecret("LASTFM_API_KEY_DEV");
-const lastfmApiSecretDev = defineSecret("LASTFM_API_SECRET_DEV");
-
-/**
- * Determine if running in development environment
- * Uses server-side environment variables (cannot be spoofed by clients)
- * TEMPORARY: Also checks origin for localhost requests until emulator is set up
- * TODO: Remove origin check once Firebase Functions emulator is configured (see firebase-project-separation-spec.md)
- */
-function isDevelopmentEnvironment(req = null) {
-  // Check if running in Firebase Functions emulator (local development)
-  if (process.env.FUNCTIONS_EMULATOR === "true") {
-    return true;
-  }
-  
-  // Check if NODE_ENV is set to development
-  if (process.env.NODE_ENV === "development") {
-    return true;
-  }
-  
-  // Check if GCP project name indicates development (e.g., contains 'dev')
-  if (process.env.GCLOUD_PROJECT && process.env.GCLOUD_PROJECT.includes("dev")) {
-    return true;
-  }
-  
-  // TEMPORARY: Check origin for localhost (already validated by CORS)
-  // This is a workaround until Firebase Functions emulator is set up
-  // Origin is safe to check here because it's already validated against allowedOrigins in CORS
-  if (req) {
-    const origin = req.headers.origin || req.headers.referer || "";
-    if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
-      logger.info("Using DEV Last.fm credentials based on localhost origin");
-      return true;
-    }
-  }
-  
-  // Default to production
-  return false;
-}
+// Prod project uses existing _PROD secrets; local emulator uses functions/.env with dev credentials
+const lastfmApiKey = defineSecret("LASTFM_API_KEY_PROD");
+const lastfmApiSecret = defineSecret("LASTFM_API_SECRET_PROD");
 
 /**
  * Proxy for Last.fm API calls
  */
 exports.apiProxy = onRequest({
   cors: corsConfig,
-  secrets: [lastfmApiKeyProd, lastfmApiSecretProd, lastfmApiKeyDev, lastfmApiSecretDev],
+  secrets: [lastfmApiKey, lastfmApiSecret],
 }, async (req, res) => {
   try {
     // Verify authentication
@@ -105,16 +66,11 @@ exports.apiProxy = onRequest({
     
     const {method, params} = validationResult.sanitized;
 
-    // Determine environment and get appropriate credentials
-    // Uses server-side environment detection (cannot be spoofed)
-    // TEMPORARY: Also checks origin for localhost until emulator is set up
-    const isDev = isDevelopmentEnvironment(req);
-    const apiKey = isDev ? lastfmApiKeyDev.value() : lastfmApiKeyProd.value();
-    const apiSecret = isDev ? lastfmApiSecretDev.value() : lastfmApiSecretProd.value();
-    
+    const apiKey = lastfmApiKey.value();
+    const apiSecret = lastfmApiSecret.value();
+
     logger.info("Last.fm API call", {
       method,
-      environment: isDev ? "DEV" : "PROD",
       hasApiKey: !!apiKey,
       apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + "..." : "none",
       hasApiSecret: !!apiSecret,
@@ -122,7 +78,7 @@ exports.apiProxy = onRequest({
     });
 
     if (!apiKey) {
-      logger.error(`Missing Last.fm API key in ${isDev ? "DEV" : "PROD"} environment`);
+      logger.error("Missing Last.fm API key");
       res.status(500).json({error: "Server configuration error"});
       return;
     }
@@ -136,7 +92,7 @@ exports.apiProxy = onRequest({
     if (isAuthenticatedMethod) {
       // For authenticated methods, use POST with form data
       if (!apiSecret) {
-        logger.error(`Missing Last.fm API secret for authenticated method in ${isDev ? "DEV" : "PROD"} environment`);
+        logger.error("Missing Last.fm API secret for authenticated method");
         res.status(500).json({error: "Server configuration error"});
         return;
       }

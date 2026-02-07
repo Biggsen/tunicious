@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .firebase/*
 .env
+.env.*
 .specstory/history/
 storybook-static
 
@@ -31,3 +32,4 @@ service-account.json
 
 # DB scripts output
 dbscripts/usage-analysis/
+dbscripts/seed-data/

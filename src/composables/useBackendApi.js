@@ -1,8 +1,14 @@
 import { ref } from 'vue';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../firebase';
 
-// Backend API base URL
-const BACKEND_BASE_URL = 'https://us-central1-audiofoodie-d5b2c.cloudfunctions.net';
+function getBackendBaseUrl() {
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  const useEmulators = import.meta.env.VITE_FIREBASE_EMULATORS === '1' || import.meta.env.VITE_FIREBASE_EMULATORS === 'true';
+  if (useEmulators && typeof window !== 'undefined') {
+    return `http://${window.location.hostname}:5001/${projectId}/us-central1`;
+  }
+  return `https://us-central1-${projectId}.cloudfunctions.net`;
+}
 
 /**
  * Format retry time in a human-readable way
@@ -25,7 +31,6 @@ export function useBackendApi() {
    * Get Firebase ID token for authentication
    */
   const getIdToken = async () => {
-    const auth = getAuth();
     const user = auth.currentUser;
     if (!user) {
       throw new Error('User not authenticated');
@@ -44,7 +49,7 @@ export function useBackendApi() {
       // Get authentication token
       const idToken = await getIdToken();
 
-      const url = `${BACKEND_BASE_URL}/${endpoint}`;
+      const url = `${getBackendBaseUrl()}/${endpoint}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {

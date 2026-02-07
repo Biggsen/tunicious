@@ -1,9 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -13,8 +13,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
 export const firebaseApp = initializeApp(firebaseConfig);
-
-// Initialize Firestore
 export const db = getFirestore(firebaseApp);
+export const auth = getAuth(firebaseApp);
+export const functions = getFunctions(firebaseApp, "us-central1");
+
+const useEmulators = import.meta.env.VITE_FIREBASE_EMULATORS === "1" || import.meta.env.VITE_FIREBASE_EMULATORS === "true";
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+const prodProjectId = "audiofoodie-d5b2c";
+
+if (useEmulators && typeof window !== "undefined") {
+  const hostname = window.location.hostname;
+  connectFirestoreEmulator(db, hostname, 8080);
+  connectAuthEmulator(auth, `http://${hostname}:9099`, { disableWarnings: true });
+  connectFunctionsEmulator(functions, hostname, 5001);
+}
+if (typeof window !== "undefined" && !useEmulators && projectId === prodProjectId) {
+  console.warn("[Firebase] Production database is active.");
+}
