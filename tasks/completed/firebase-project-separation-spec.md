@@ -1,6 +1,6 @@
 # Firebase Local Dev (Emulator-Only) Specification
 
-## **Status**: 📋 Ready to implement
+## **Status**: ✅ Implemented
 
 ## **Current State**
 - Single Firebase project (`audiofoodie-d5b2c`) used for both development and production
@@ -105,7 +105,10 @@ No branching on `_DEV`/`_PROD` variable names; only on `VITE_FIREBASE_EMULATORS`
 ### **Phase 6: Local dev workflow and seed script**
 
 - **Start emulators**: `npm run emulators` (Firestore, Auth, Functions).
-- **Seed the local DB**: Run `npm run seed:emulator` (uses `dbscripts/seed-emulator.js` with `FIRESTORE_EMULATOR_HOST` and `FIREBASE_AUTH_EMULATOR_HOST` set). Creates one Auth user and matching Firestore user doc; log in with `dev@example.com` / `devpass123` (override with `SEED_EMAIL`, `SEED_PASSWORD`, `SEED_UID` env vars).
+- **Seed the local DB**: Run `npm run seed:emulator` (uses `dbscripts/seed-emulator.js` with `FIRESTORE_EMULATOR_HOST` and `FIREBASE_AUTH_EMULATOR_HOST` set).
+  - **Minimal seed**: Creates one Auth user and matching Firestore user doc; log in with `dev@example.com` / `devpass123` (override with `SEED_EMAIL`, `SEED_PASSWORD`, `SEED_UID` env vars).
+  - **Full seed**: If `dbscripts/seed-data/user.json` and `dbscripts/seed-data/playlists.json` exist, the script also writes that user doc and all playlist docs (with original document IDs). Timestamps in JSON are deserialized from `{ _type: 'timestamp', _seconds, _nanoseconds }`.
+- **Export seed data**: After using the app in the emulator (e.g. onboarding, playlists), run `npm run export:seed-data` to export the seed user and playlists from the emulator to `dbscripts/seed-data/user.json` and `dbscripts/seed-data/playlists.json`. Timestamps are serialized for re-import. The `seed-data/` directory is gitignored.
 - **Run the app**: `npm run dev` (loads `.env.development` with `VITE_FIREBASE_EMULATORS=1`; app connects to emulators and local Functions).
 
 **Third-party redirect URIs** (for Auth + Spotify/Last.fm callbacks when testing locally):
@@ -118,17 +121,17 @@ No branching on `_DEV`/`_PROD` variable names; only on `VITE_FIREBASE_EMULATORS`
 ### **Phase 7: Optional — legacy user data migration**
 
 - **App code** already uses the flat user shape (`lastFmSessionKey`, `lastFmAuthenticated`).
-- **If** production Firestore still has user documents with the old nested shape (`lastFmSessionKeys`, etc.), run a **one-time migration** to flatten them. The spec does not require this if you confirm all user docs are already flat.
+- **Not required**: Production user docs are confirmed flat; no migration needed.
 
 ---
 
 ## **File changes summary**
 
 ### **Files to modify**
-- `.gitignore` — ensure `.env*` (or `.env.development`, `.env.production`) are ignored.
+- `.gitignore` — ensure `.env*` (or `.env.development`, `.env.production`) are ignored; add `dbscripts/seed-data/`.
 - `src/firebase.js` — single config from env; connect to emulators when `VITE_FIREBASE_EMULATORS` is set; optional prod warning by `projectId`.
 - `src/composables/useBackendApi.js` (or equivalent) — backend base URL derived from `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_EMULATORS` so that when emulators are on, requests go to the Functions emulator.
-- `package.json` — add scripts: `dev`, `dev:prod`, `emulators` (no `--project`; uses default); add `cross-env` as devDependency.
+- `package.json` — add scripts: `dev`, `dev:prod`, `emulators` (no `--project`; uses default), `seed:emulator`, `export:seed-data`; add `cross-env` as devDependency.
 - `functions/src/lastfm.js` — remove `isDevelopmentEnvironment()`, use single `LASTFM_API_KEY` and `LASTFM_API_SECRET`; remove all `*_DEV`/`*_PROD` secrets.
 - `functions/src/spotify.js` — if it has similar env branching, use one secret set only.
 - `.firebaserc` — keep `default` (and optionally `prod`) pointing at the single prod project. No `dev` alias required for emulator-only.
@@ -136,6 +139,8 @@ No branching on `_DEV`/`_PROD` variable names; only on `VITE_FIREBASE_EMULATORS`
 
 ### **Files to create**
 - `env.production.example` — same keys as `.env.production`, placeholders and one-line note (copy to `.env.production`, fill in, required for prod builds).
+- `dbscripts/seed-emulator.js` — creates Auth user + Firestore user doc; when `dbscripts/seed-data/user.json` and `seed-data/playlists.json` exist, loads and writes user + playlists (with `_type: 'timestamp'` deserialization). Requires emulator hosts set; localhost-only.
+- `dbscripts/export-seed-data.js` — exports seed user and playlists from emulator to `dbscripts/seed-data/user.json` and `playlists.json` (timestamps serialized). npm script: `export:seed-data`. `dbscripts/seed-data/` is in `.gitignore`.
 
 ### **Files to delete**
 - None required.
@@ -179,18 +184,18 @@ Same names in dev and prod; in dev, same project values with `VITE_FIREBASE_EMUL
 
 ## **Quick checklist**
 
-- [ ] Ensure `.env*` is in `.gitignore`.
-- [ ] Create `.env.development` (same project as prod + `VITE_FIREBASE_EMULATORS=1`) and `.env.production` (prod, emulators off)—local only.
-- [ ] Create `env.production.example` with same keys and placeholders; commit.
-- [ ] Add npm scripts: `dev`, `dev:prod` (cross-env + `--mode production` + `VITE_FIREBASE_EMULATORS=0`), `emulators` (no `--project`); add `cross-env` as devDependency.
-- [ ] Update `src/firebase.js`: single config from env; connect emulators when `VITE_FIREBASE_EMULATORS` is set; optional prod warning.
-- [ ] Update backend API base URL logic so it points to Functions emulator when `VITE_FIREBASE_EMULATORS=1`.
-- [ ] Ensure `.firebaserc` default (and optionally `prod`) points at prod project; no dev project alias required.
-- [ ] Add Spotify and Last.fm redirect URIs for localhost; ensure Firebase Auth authorized domains include `localhost`.
-- [ ] Simplify Functions: single secret names; remove `isDevelopmentEnvironment()` and four Last.fm secrets; set prod secret values in prod project.
-- [ ] CI: run `vite build` with prod env; deploy to prod project only.
-- [ ] (Optional) If prod has legacy nested user data, run one-time migration to flatten.
-- [ ] Test local dev: start emulators → seed (if used) → `npm run dev`. Test prod: build + deploy.
+- [x] Ensure `.env*` is in `.gitignore`; add `dbscripts/seed-data/`.
+- [x] Create `.env.development` (same project as prod + `VITE_FIREBASE_EMULATORS=1`) and `.env.production` (prod, emulators off)—local only.
+- [x] Create `env.production.example` with same keys and placeholders; commit.
+- [x] Add npm scripts: `dev`, `dev:prod` (cross-env + `--mode production` + `VITE_FIREBASE_EMULATORS=0`), `emulators` (no `--project`), `seed:emulator`, `export:seed-data`; add `cross-env` as devDependency.
+- [x] Update `src/firebase.js`: single config from env; connect emulators when `VITE_FIREBASE_EMULATORS` is set; optional prod warning.
+- [x] Update backend API base URL logic so it points to Functions emulator when `VITE_FIREBASE_EMULATORS=1`.
+- [x] Ensure `.firebaserc` default (and optionally `prod`) points at prod project; no dev project alias required.
+- [x] Add Spotify and Last.fm redirect URIs for localhost; ensure Firebase Auth authorized domains include `localhost`.
+- [x] Simplify Functions: single secret names; remove `isDevelopmentEnvironment()` and four Last.fm secrets; set prod secret values in prod project.
+- [x] CI: run `vite build` with prod env; deploy to prod project only.
+- [x] Legacy user migration not required (prod user docs are flat).
+- [x] Test local dev: start emulators → seed (if used) → `npm run dev`. Test prod: build + deploy.
 
 ---
 
@@ -205,3 +210,4 @@ Same names in dev and prod; in dev, same project values with `VITE_FIREBASE_EMUL
 - Aligns with vz-price-guide: same env names, Vite mode + .env, emulators for dev, prod-only CI. One project; dev is fully local.
 - Production data is never touched by local dev when using emulators.
 - Seed script: set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` (and `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` if the seed uses Auth) when running the seed so it populates the emulator, not prod.
+- Export/import: Use `npm run export:seed-data` after shaping data in the emulator, then `npm run seed:emulator` (with `seed-data/` present) to restore that snapshot for repeatable local dev.
