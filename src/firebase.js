@@ -27,6 +27,7 @@ if (useEmulators && typeof window !== "undefined") {
   connectFirestoreEmulator(db, hostname, 8080);
   connectAuthEmulator(auth, `http://${hostname}:9099`, { disableWarnings: true });
   connectFunctionsEmulator(functions, hostname, 5001);
-}if (typeof window !== "undefined" && !useEmulators && projectId === prodProjectId) {
+}
+if (typeof window !== "undefined" && !useEmulators && projectId === prodProjectId) {
   console.warn("[Firebase] Production database is active.");
 }
