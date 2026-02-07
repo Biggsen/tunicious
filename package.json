@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "emulators": "firebase emulators:start --only firestore,auth,functions",
+    "seed:emulator": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node dbscripts/seed-emulator.js",
+    "export:seed-data": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node dbscripts/export-seed-data.js",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "migrate:users:friends": "node dbscripts/migrate-user-friends-fields.js"

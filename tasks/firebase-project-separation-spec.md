@@ -105,7 +105,7 @@ No branching on `_DEV`/`_PROD` variable names; only on `VITE_FIREBASE_EMULATORS`
 ### **Phase 6: Local dev workflow and seed script**
 
 - **Start emulators**: `npm run emulators` (Firestore, Auth, Functions).
-- **Seed the local DB**: Run your seed script with emulator env vars set so it talks to local Firestore (e.g. `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`). Optionally add an npm script that sets these and runs the seed.
+- **Seed the local DB**: Run `npm run seed:emulator` (uses `dbscripts/seed-emulator.js` with `FIRESTORE_EMULATOR_HOST` and `FIREBASE_AUTH_EMULATOR_HOST` set). Creates one Auth user and matching Firestore user doc; log in with `dev@example.com` / `devpass123` (override with `SEED_EMAIL`, `SEED_PASSWORD`, `SEED_UID` env vars).
 - **Run the app**: `npm run dev` (loads `.env.development` with `VITE_FIREBASE_EMULATORS=1`; app connects to emulators and local Functions).
 
 **Third-party redirect URIs** (for Auth + Spotify/Last.fm callbacks when testing locally):
