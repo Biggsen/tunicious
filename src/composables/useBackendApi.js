@@ -5,7 +5,7 @@ function getBackendBaseUrl() {
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
   const useEmulators = import.meta.env.VITE_FIREBASE_EMULATORS === '1' || import.meta.env.VITE_FIREBASE_EMULATORS === 'true';
   if (useEmulators && typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:5001/${projectId}/us-central1`;
+    return `http://${window.location.hostname}:5002/${projectId}/us-central1`;
   }
   return `https://us-central1-${projectId}.cloudfunctions.net`;
 }

@@ -5,7 +5,7 @@
  *
  * Usage:
  *   npm run seed:emulator
- *   or: FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node dbscripts/seed-emulator.js
+ *   or: FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9100 node dbscripts/seed-emulator.js
  */
 
 import admin from 'firebase-admin';
@@ -42,8 +42,8 @@ if (!isLocalHost) {
 
 // Default Auth emulator if only Firestore was set
 if (!authEmulator) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
-  console.log('ℹ FIREBASE_AUTH_EMULATOR_HOST set to 127.0.0.1:9099');
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9100';
+  console.log('ℹ FIREBASE_AUTH_EMULATOR_HOST set to 127.0.0.1:9100');
 }
 
 // Do not load service-account.json when seeding emulator — use projectId only so prod credentials are never used
