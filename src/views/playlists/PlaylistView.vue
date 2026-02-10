@@ -127,7 +127,8 @@ async function loadPlaylists() {
   logPlaylist('availableGroups:', availableGroups.value);
   logPlaylist('userPlaylists:', userPlaylists.value);
 
-  const cachedPlaylists = getCache(cacheKey.value);
+  const key = cacheKey.value;
+  const cachedPlaylists = key ? getCache(key) : null;
   if (cachedPlaylists) {
     logPlaylist('Using cached playlists (may be partial)');
     playlists.value = cachedPlaylists;

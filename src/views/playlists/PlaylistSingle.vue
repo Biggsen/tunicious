@@ -1648,11 +1648,6 @@ const performRemoveAlbum = async () => {
   closeRemoveConfirmModal();
   removingAlbumId.value = album.id;
 
-  // #region agent log
-  const removeT0 = Date.now();
-  fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'remove_start',data:{albumId:album.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
-
   try {
     spotifyError.value = null;
     successMessage.value = '';
@@ -1678,25 +1673,31 @@ const performRemoveAlbum = async () => {
       }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'after_spotify_firebase_cache',data:{duration_ms:Date.now()-removeT0},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-
     successMessage.value = `"${album.name}" removed from playlist and collection successfully!`;
 
-    const tBeforeRefresh = Date.now();
     await refreshListAfterMove(album, null, trackCountToSubtract);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'after_refreshListAfterMove',data:{duration_ms:Date.now()-tBeforeRefresh},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
 
     // Update count of albums in database
     await countAlbumsInDatabase();
 
-    // Also clear the PlaylistView cache to update track counts
+    // Optimistically update PlaylistView cache so Back → Playlists doesn't refetch everything
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      await clearCache(playlistViewCacheKey);
+      const currentCacheState = getCache(playlistViewCacheKey);
+      if (currentCacheState && typeof currentCacheState === 'object') {
+        for (const group of Object.keys(currentCacheState)) {
+          const list = currentCacheState[group];
+          if (!Array.isArray(list)) continue;
+          const entry = list.find(p => p.id === id.value);
+          if (entry) {
+            const prev = entry.tracks?.total ?? 0;
+            entry.tracks = { total: Math.max(0, prev - trackCountToSubtract) };
+            await setCache(playlistViewCacheKey, currentCacheState);
+            logPlaylist('Updated playlist_summaries cache (optimistic) after remove:', { playlistId: id.value, newTotal: entry.tracks.total });
+            break;
+          }
+        }
+      }
     }
   } catch (err) {
     logPlaylist('Error removing album:', err);
