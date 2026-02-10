@@ -75,7 +75,7 @@ import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import AlbumSearch from '@components/AlbumSearch.vue';
-import { clearCache } from '@utils/cache';
+import { clearCache, getCache, setCache } from '@utils/cache';
 import { formatAlbumName } from '@utils/formatting';
 import { logPlaylist } from '@utils/logger';
 import { loadUnifiedTrackCache, addAlbumTracks, addAlbumToPlaylistInCache } from '@utils/unifiedTrackCache';
@@ -160,6 +160,7 @@ const handleAddAlbum = async () => {
     
     const playlistId = albumForm.value.playlistId;
     const album = selectedAlbum.value;
+    let trackCountToAdd = album.total_tracks ?? 0;
 
     // Add album to Spotify playlist
     await addAlbumToPlaylist(playlistId, album.id);
@@ -188,6 +189,7 @@ const handleAddAlbum = async () => {
           }
         }
         if (allTracks.length > 0) {
+          trackCountToAdd = allTracks.length;
           await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
           await addAlbumTracks(album.id, allTracks, album, user.value.uid);
           await addAlbumToPlaylistInCache(
@@ -219,10 +221,23 @@ const handleAddAlbum = async () => {
       albumForm.value.playlistId = '';
     }
 
-    // Clear cache to update track counts
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      await clearCache(playlistViewCacheKey);
+      const currentCacheState = getCache(playlistViewCacheKey);
+      if (currentCacheState && typeof currentCacheState === 'object') {
+        for (const group of Object.keys(currentCacheState)) {
+          const list = currentCacheState[group];
+          if (!Array.isArray(list)) continue;
+          const entry = list.find(p => p.id === playlistId);
+          if (entry) {
+            const prev = entry.tracks?.total ?? 0;
+            entry.tracks = { total: prev + trackCountToAdd };
+            await setCache(playlistViewCacheKey, currentCacheState);
+            logPlaylist('Updated playlist_summaries cache (optimistic) after add:', { playlistId, newTotal: entry.tracks.total });
+            break;
+          }
+        }
+      }
 
       const playlistAlbumListCacheKey = `playlist_${playlistId}_albumsWithDates`;
       await clearCache(playlistAlbumListCacheKey);
