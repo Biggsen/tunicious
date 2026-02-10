@@ -1303,6 +1303,13 @@ async function loadPlaylistPage() {
   loading.value = true;
   error.value = null;
   cacheCleared.value = false;
+  if (id.value && !playlistName.value) {
+    const cachedName = getCache(`playlist_name_${id.value}`);
+    if (cachedName) {
+      playlistName.value = cachedName;
+      logCache('Playlist name loaded from playlist_name cache:', cachedName);
+    }
+  }
   try {
     logPlaylist('Fetching album ID list');
     await fetchAlbumIdList(id.value);
@@ -1316,6 +1323,7 @@ async function loadPlaylistPage() {
           const cachedPlaylist = cache?.playlists[id.value];
           if (cachedPlaylist?.playlistName) {
             playlistName.value = cachedPlaylist.playlistName;
+            setCache(`playlist_name_${id.value}`, playlistName.value);
             logCache('Playlist name loaded from unified cache:', playlistName.value);
           }
         } catch (error) {
@@ -1328,6 +1336,7 @@ async function loadPlaylistPage() {
         logPlaylist('Playlist name not in cache, fetching playlist details from Spotify');
         const playlistResponse = await getPlaylist(id.value);
         playlistName.value = playlistResponse.name;
+        if (playlistName.value) setCache(`playlist_name_${id.value}`, playlistName.value);
         totalTracks.value = playlistResponse.tracks?.total || 0;
         logPlaylist('Playlist details fetched:', { name: playlistName.value, totalTracks: totalTracks.value });
       } else {
@@ -2758,7 +2767,9 @@ const handleUpdateYear = async (mismatch) => {
       </div>
     </div>
 
-    <h1 class="h2 mb-4">{{ playlistName }}</h1>
+    <div class="min-h-[40px] md:min-h-[64px] mb-4">
+      <h1 class="h2">{{ playlistName }}</h1>
+    </div>
     
     <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
     <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
