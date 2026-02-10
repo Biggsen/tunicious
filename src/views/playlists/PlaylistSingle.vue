@@ -792,13 +792,17 @@ const sortedAlbumsList = computed(() => {
     if (rootData) {
       return {
         id: albumWithDate.id,
+        name: rootData.albumTitle || rootData.name || '',
+        albumTitle: rootData.albumTitle || rootData.name || '',
         artists: rootData.artists || [],
         artistName: rootData.artistName || rootData.artists?.[0]?.name || '',
+        images: rootData.images,
+        release_date: rootData.release_date,
         rymLink: rootData.rymLink || null
       };
     }
-    
-    // Last resort: return minimal object with id
+
+    // Last resort: minimal object (e.g. newly added album not yet in page/root data)
     return {
       id: albumWithDate.id,
       artists: [],
@@ -982,6 +986,7 @@ async function countAlbumsInDatabase() {
 async function fetchAlbumIdList(playlistId) {
   logPlaylist('Fetching album ID list:', { playlistId, cacheKey: albumIdListCacheKey.value });
   let albumsWithDatesData = await getCache(albumIdListCacheKey.value);
+  const listCacheMiss = !albumsWithDatesData;
   if (!albumsWithDatesData) {
     logCache('Cache miss for album ID list, fetching from Spotify');
     albumsWithDatesData = await getPlaylistAlbumsWithDates(playlistId);
@@ -991,7 +996,22 @@ async function fetchAlbumIdList(playlistId) {
     logCache('Cache hit for album ID list:', { count: albumsWithDatesData.length });
   }
   albumsWithDates.value = albumsWithDatesData;
-  
+
+  // When we refetched the list (cache miss), pagination cache is stale — clear it so
+  // fetchAlbumsForPage refetches; otherwise we can show "Unknown Album" for newly added albums.
+  if (listCacheMiss) {
+    const totalPagesToClear = 50;
+    const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+    const directions = ['asc', 'desc'];
+    for (let page = 1; page <= totalPagesToClear; page++) {
+      for (const mode of sortModes) {
+        for (const dir of directions) {
+          await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
+        }
+      }
+    }
+  }
+
   // Apply initial sorting
   logPlaylist('Applying initial sorting');
   await applySortingAndReload();
@@ -1008,8 +1028,6 @@ async function fetchAlbumsForPage(albumIds, page) {
   const start = (page - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
   const pageAlbumIds = albumIds.slice(start, end);
-  
-  // Check cache first
   let pageAlbums = await getCache(pageCacheKey(page));
   if (pageAlbums) {
     return pageAlbums;
@@ -1387,6 +1405,18 @@ const handlePlaylistAlbumsUpdated = async (event) => {
   // If this is the playlist we're currently viewing, reload it
   if (playlistId === id.value) {
     logPlaylist(`Received playlist-albums-updated event for current playlist, reloading...`);
+    // Clear pagination caches so fetchAlbumsForPage refetches; otherwise we can show
+    // "Unknown Album" for the newly added album (stale page cache missing it).
+    const totalPagesToClear = totalPages.value || 50;
+    const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+    const directions = ['asc', 'desc'];
+    for (let page = 1; page <= totalPagesToClear; page++) {
+      for (const mode of sortModes) {
+        for (const dir of directions) {
+          await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
+        }
+      }
+    }
     await loadPlaylistPage();
   }
 };
