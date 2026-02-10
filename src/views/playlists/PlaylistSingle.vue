@@ -22,6 +22,7 @@ import ToggleSwitch from '@components/common/ToggleSwitch.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
 import LoadingMessage from '@components/common/LoadingMessage.vue';
 import ProgressModal from '@components/common/ProgressModal.vue';
+import BaseModal from '@components/common/BaseModal.vue';
 import { albumTitleSimilarity } from '@utils/fuzzyMatch';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
@@ -636,6 +637,43 @@ const applySortingAndReload = async () => {
   }
 };
 
+/**
+ * Lightweight refresh after an album left this playlist (move or remove): update list in place and re-sort/reload current page.
+ * Avoids full loadPlaylistPage() and getPlaylistAlbumsWithDates (saves ~4s).
+ * @param {Object} removedAlbum - Album that left the playlist
+ * @param {string|null} otherPlaylistId - If album was moved, the target playlist ID (to clear its list cache). If removed, null.
+ * @param {number} trackCount - Track count to subtract from totalTracks
+ */
+async function refreshListAfterMove(removedAlbum, otherPlaylistId, trackCount = 0) {
+  albumsWithDates.value = albumsWithDates.value.filter(a => a.id !== removedAlbum.id);
+  await clearCache(albumIdListCacheKey.value);
+  if (otherPlaylistId) {
+    await clearCache(`playlist_${otherPlaylistId}_albumsWithDates`);
+  }
+  const totalPagesToClear = totalPages.value || 50;
+  const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
+  const directions = ['asc', 'desc'];
+  for (let page = 1; page <= totalPagesToClear; page++) {
+    for (const mode of sortModes) {
+      for (const dir of directions) {
+        await clearCache(`playlist_${id.value}_page_${page}_${mode}_${dir}`);
+      }
+    }
+  }
+  if (trackCount > 0) {
+    totalTracks.value = Math.max(0, (totalTracks.value || 0) - trackCount);
+  }
+  if (albumsWithDates.value.length === 0) {
+    sortedAlbumIds.value = [];
+    albumData.value = [];
+    currentPage.value = 1;
+    albumTracksData.value = {};
+    totalTracks.value = 0;
+    return;
+  }
+  await applySortingAndReload();
+}
+
 const currentPage = ref(1);
 const itemsPerPage = ref(20);
 
@@ -1104,9 +1142,9 @@ async function handleClearCache(options = {}) {
   // Clear loved tracks data
   lovedTracksLoadingStarted.value = false;
   albumLovedData.value = {};
-  
+
   await loadPlaylistPage();
-  
+
   // Restore tracklist if it was enabled before clearing
   if (wasTracklistEnabled && showTracklists.value && albumData.value.length > 0) {
     await fetchAlbumTracks();
@@ -1590,25 +1628,49 @@ const formatAlbumName = (album) => {
   };
 };
 const successMessage = ref('');
+const showRemoveConfirmModal = ref(false);
+const albumToRemove = ref(null);
+const removingAlbumId = ref(null);
 
-const handleRemoveAlbum = async (album) => {
-  if (!confirm(`Are you sure you want to remove "${album.name}" from this playlist?`)) {
-    return;
-  }
-  
+const handleRemoveAlbum = (album) => {
+  albumToRemove.value = album;
+  showRemoveConfirmModal.value = true;
+};
+
+const closeRemoveConfirmModal = () => {
+  showRemoveConfirmModal.value = false;
+  albumToRemove.value = null;
+};
+
+const performRemoveAlbum = async () => {
+  const album = albumToRemove.value;
+  if (!album) return;
+  closeRemoveConfirmModal();
+  removingAlbumId.value = album.id;
+
+  // #region agent log
+  const removeT0 = Date.now();
+  fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'remove_start',data:{albumId:album.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+
   try {
     spotifyError.value = null;
     successMessage.value = '';
-    
+
     // Remove from Spotify playlist
     await removeFromSpotify(id.value, album);
-    
+
     // Remove from Firebase collection
     await removeAlbumFromPlaylist(album.id, id.value);
 
+    let trackCountToSubtract = album.tracks?.length ?? album.total_tracks ?? 0;
     if (user.value) {
       try {
-        await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        const cache = await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        const cachedAlbum = cache?.playlists?.[id.value]?.albums?.[album.id];
+        if (cachedAlbum?.trackIds?.length) {
+          trackCountToSubtract = cachedAlbum.trackIds.length;
+        }
         await removeAlbumFromPlaylistInCache(id.value, album.id, user.value.uid);
         logPlaylist(`Removed album ${album.id} from unified cache for playlist ${id.value}`);
       } catch (error) {
@@ -1616,10 +1678,17 @@ const handleRemoveAlbum = async (album) => {
       }
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'after_spotify_firebase_cache',data:{duration_ms:Date.now()-removeT0},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
     successMessage.value = `"${album.name}" removed from playlist and collection successfully!`;
 
-    // Clear list/pagination caches and reload (surgical remove already updated unified cache)
-    await handleClearCache({ nukeUnifiedCache: false });
+    const tBeforeRefresh = Date.now();
+    await refreshListAfterMove(album, null, trackCountToSubtract);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a1fc5e74-2015-4bcd-9075-6e2dd2cf95f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlaylistSingle.vue:handleRemoveAlbum',message:'after_refreshListAfterMove',data:{duration_ms:Date.now()-tBeforeRefresh},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
     // Update count of albums in database
     await countAlbumsInDatabase();
@@ -1629,10 +1698,11 @@ const handleRemoveAlbum = async (album) => {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
       await clearCache(playlistViewCacheKey);
     }
-    
   } catch (err) {
     logPlaylist('Error removing album:', err);
     spotifyError.value = err.message || 'Failed to remove album from playlist';
+  } finally {
+    removingAlbumId.value = null;
   }
 };
 
@@ -1700,7 +1770,7 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
     const previousPlaylistDoc = activePlaylists[0];
     const previousPlaylistData = previousPlaylistDoc.data();
     const previousSpotifyPlaylistId = previousPlaylistData.playlistId;
-    
+
     // Fetch album tracks once for reuse in removal and addition
     let albumTrackUris = null;
     try {
@@ -1772,7 +1842,7 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
         // Don't fail the whole operation if cache update fails
       }
     }
-    
+
     const albumText = formatAlbumName(album);
     showToast({
       parts: [
@@ -1780,38 +1850,37 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
         { text: ' moved back to previous playlist' }
       ]
     }, 'success');
-    
-    // Clear album list cache for both playlists so they refetch fresh data
+
+    // Clear album list cache for both playlists
     await clearCache(`playlist_${id.value}_albumsWithDates`);
     await clearCache(`playlist_${previousSpotifyPlaylistId}_albumsWithDates`);
     logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${previousSpotifyPlaylistId}`);
-    
-    // Clear cache and reload the current playlist (surgical move already updated unified cache)
-    await handleClearCache({ nukeUnifiedCache: false });
-    
+
+    await refreshListAfterMove(album, previousSpotifyPlaylistId, albumTrackUris?.length ?? 0);
+
     // Update count of albums in database
     await countAlbumsInDatabase();
-    
+
     // Refresh only the affected playlists in PlaylistView cache (current and previous)
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      
+
       // Get current cache state so we can properly update it
       const currentCacheState = await getCache(playlistViewCacheKey) || {};
-      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`, 
+      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`,
         Object.keys(currentCacheState).map(g => `${g}: ${currentCacheState[g]?.length || 0}`).join(', '));
-      
+
       // Refresh both playlists from Spotify and update cache
       const updatedState = await refreshSpecificPlaylists(
         [id.value, previousSpotifyPlaylistId], // Current terminal and previous playlists
         currentCacheState, // Pass cache state so it can be properly updated
         playlistViewCacheKey
       );
-      
+
       // Explicitly save the updated state to ensure cache is persisted
       await setCache(playlistViewCacheKey, updatedState);
       logPlaylist('Cache updated and saved after undo');
-      
+
       // Clear page caches for both playlists (album list changed)
       const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
       const directions = ['asc', 'desc'];
@@ -1879,7 +1948,7 @@ const handleProcessAlbum = async ({ album, action }) => {
       targetPlaylistData = terminationPlaylistDoc.data();
       targetSpotifyPlaylistId = targetPlaylistData.playlistId;
     }
-    
+
     // Cache album track URIs for reuse in removal and addition
     let albumTrackUris = null;
     
@@ -2003,7 +2072,7 @@ const handleProcessAlbum = async ({ album, action }) => {
         // Don't fail the whole operation if cache update fails
       }
     }
-    
+
     const albumText = formatAlbumName(album);
     showToast({
       parts: [
@@ -2011,34 +2080,33 @@ const handleProcessAlbum = async ({ album, action }) => {
         { text: ' moved to new playlist' }
       ]
     }, 'success');
-    
-    // Clear album list cache for both playlists so they refetch fresh data
+
+    // Clear album list cache for both playlists
     await clearCache(`playlist_${id.value}_albumsWithDates`);
     await clearCache(`playlist_${targetSpotifyPlaylistId}_albumsWithDates`);
     logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${targetSpotifyPlaylistId}`);
-    
-    // Clear cache and reload the current playlist (surgical move already updated unified cache)
-    await handleClearCache({ nukeUnifiedCache: false });
-    
+
+    await refreshListAfterMove(album, targetSpotifyPlaylistId, albumTrackUris?.length ?? 0);
+
     // Update count of albums in database
     await countAlbumsInDatabase();
-    
+
     // Refresh only the affected playlists in PlaylistView cache (source and target)
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      
+
       // Get current cache state so we can properly update it
       const currentCacheState = await getCache(playlistViewCacheKey) || {};
-      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`, 
+      logPlaylist(`Cache state retrieved: ${Object.keys(currentCacheState).length} groups, playlists:`,
         Object.keys(currentCacheState).map(g => `${g}: ${currentCacheState[g]?.length || 0}`).join(', '));
-      
+
       // Refresh both playlists from Spotify and update cache
       const updatedState = await refreshSpecificPlaylists(
         [id.value, targetSpotifyPlaylistId], // Source and target playlists
         currentCacheState, // Pass cache state so it can be properly updated
         playlistViewCacheKey
       );
-      
+
       // Explicitly save the updated state to ensure cache is persisted
       if (updatedState && Object.keys(updatedState).length > 0) {
         logPlaylist(`Saving updated state to cache with ${Object.keys(updatedState).length} groups`);
@@ -2075,7 +2143,7 @@ const handleProcessAlbum = async ({ album, action }) => {
       window.dispatchEvent(new CustomEvent('playlists-updated', {
         detail: { playlistIds: [id.value, targetSpotifyPlaylistId] }
       }));
-      
+
       // Clear page caches for both playlists (album list changed)
       const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
       const directions = ['asc', 'desc'];
@@ -2087,13 +2155,13 @@ const handleProcessAlbum = async ({ album, action }) => {
           }
         }
       }
-      
+
       // Dispatch event for target playlist if it's currently open
       window.dispatchEvent(new CustomEvent('playlist-albums-updated', {
         detail: { playlistId: targetSpotifyPlaylistId }
       }));
     }
-    
+
   } catch (err) {
     logPlaylist('Error processing album:', err);
     showToast(err.message || 'Failed to process album', 'error');
@@ -3035,6 +3103,7 @@ const handleUpdateYear = async (mismatch) => {
           :isSourcePlaylist="!!playlistDoc?.data()?.nextStagePlaylistId"
           :hasTerminationPlaylist="!!playlistDoc?.data()?.terminationPlaylistId"
           :isProcessing="processingAlbum === album.id"
+          :isRemoving="removingAlbumId === album.id"
           :showUndoButton="userData?.spotifyConnected && (playlistDoc?.data()?.pipelineRole === 'terminal' || playlistDoc?.data()?.pipelineRole === 'sink') && !!getPreviousPlaylistId(album.id)"
           :previousPlaylistId="getPreviousPlaylistId(album.id) || ''"
           :tracks="albumTracksData[album.id] || []"
@@ -3117,6 +3186,24 @@ const handleUpdateYear = async (mismatch) => {
       :startTime="mismatchCheckStartTime"
       @dismiss="showProgressModal = false"
     />
+
+    <!-- Remove album confirmation modal -->
+    <BaseModal
+      :visible="showRemoveConfirmModal"
+      title="Remove from playlist"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Cancel"
+      confirm-text="Remove"
+      confirm-variant="primary"
+      @cancel="closeRemoveConfirmModal"
+      @confirm="performRemoveAlbum"
+      @close="closeRemoveConfirmModal"
+    >
+      <p v-if="albumToRemove">
+        Are you sure you want to remove "{{ albumToRemove.name }}" from this playlist?
+      </p>
+    </BaseModal>
   </BaseLayout>
 </template>
 

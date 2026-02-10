@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="toasts.length > 0"
-      class="fixed top-[72px] left-0 right-0 z-[100] flex flex-col items-center gap-2 px-4 pt-2 pointer-events-none"
+      class="fixed top-28 left-0 right-0 z-[100] flex flex-col items-center gap-2 px-4 pt-2 pointer-events-none"
     >
       <TransitionGroup name="toast" tag="div" class="flex flex-col items-center gap-2">
         <div

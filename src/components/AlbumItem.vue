@@ -130,6 +130,10 @@ const props = defineProps({
   previousPlaylistId: {
     type: String,
     default: ''
+  },
+  isRemoving: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -204,7 +208,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
 </script>
 
 <template>
-  <li class="album-item" :class="{ 'processing': isProcessing }">
+  <li class="album-item" :class="{ 'processing': isProcessing || isRemoving }">
     <div class="album-image-container">
       <img :src="album.albumCover || album.images?.[1]?.url || album.images?.[0]?.url || fallbackImage" alt="" class="album-image" />
                     <div v-if="showProcessingButtons || showRemoveButton || showUndoButton" class="hover-buttons">
@@ -344,10 +348,10 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
       >
     </div>
     <!-- Processing overlay -->
-    <div v-if="isProcessing" class="processing-overlay">
+    <div v-if="isProcessing || isRemoving" class="processing-overlay">
       <div class="processing-text-box">
         <div class="text-delft-blue font-semibold text-lg">
-          Moving album<span class="dots">
+          {{ isRemoving ? 'Removing' : 'Moving' }} album<span class="dots">
             <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
           </span>
         </div>
