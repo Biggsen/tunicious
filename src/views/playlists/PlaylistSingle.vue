@@ -29,7 +29,7 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useToast } from '@composables/useToast';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
-import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached } from '@utils/unifiedTrackCache';
+import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
 const route = useRoute();
@@ -1042,10 +1042,17 @@ async function loadCurrentPage() {
   }
 }
 
-async function handleClearCache() {
+/**
+ * Clear playlist list/pagination caches and optionally nuke the playlist from unified track cache.
+ * @param {Object} options
+ * @param {boolean} [options.nukeUnifiedCache=true] - If true, remove playlist from unified cache (full rebuild on next load). Set false after surgical add/move/remove.
+ */
+async function handleClearCache(options = {}) {
+  const { nukeUnifiedCache = true } = options;
+
   // Clear all related cache keys for this playlist
   await clearCache(albumIdListCacheKey.value);
-  
+
   // Clear page caches for all sort modes and directions
   const totalPagesToClear = totalPages.value || 50; // Fallback number
   const sortModes = ['date', 'year', 'name', 'artist', 'loved'];
@@ -1057,7 +1064,7 @@ async function handleClearCache() {
       }
     }
   }
-  
+
   // Also clear albumDbData cache for all albums on the current page
   if (user.value && albumData.value && albumData.value.length) {
     for (const album of albumData.value) {
@@ -1066,9 +1073,9 @@ async function handleClearCache() {
       await clearCache(`albumRootData_${album.id}`);
     }
   }
-  
-  // Clear the playlist from unified track cache to force full rebuild
-  if (user.value && id.value) {
+
+  // Optionally clear the playlist from unified track cache to force full rebuild (e.g. manual Reload)
+  if (nukeUnifiedCache && user.value && id.value) {
     try {
       const cache = await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
       if (cache?.playlists[id.value]) {
@@ -1080,7 +1087,7 @@ async function handleClearCache() {
       logCache('Error removing playlist from unified cache:', error);
     }
   }
-  
+
   cacheCleared.value = true;
   albumData.value = [];
   albumsWithDates.value = [];
@@ -1598,15 +1605,25 @@ const handleRemoveAlbum = async (album) => {
     
     // Remove from Firebase collection
     await removeAlbumFromPlaylist(album.id, id.value);
-    
+
+    if (user.value) {
+      try {
+        await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+        await removeAlbumFromPlaylistInCache(id.value, album.id, user.value.uid);
+        logPlaylist(`Removed album ${album.id} from unified cache for playlist ${id.value}`);
+      } catch (error) {
+        logPlaylist('Error updating unified cache after remove:', error);
+      }
+    }
+
     successMessage.value = `"${album.name}" removed from playlist and collection successfully!`;
-    
-    // Clear cache and reload the playlist to reflect the removal
-    await handleClearCache();
-    
+
+    // Clear list/pagination caches and reload (surgical remove already updated unified cache)
+    await handleClearCache({ nukeUnifiedCache: false });
+
     // Update count of albums in database
     await countAlbumsInDatabase();
-    
+
     // Also clear the PlaylistView cache to update track counts
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
@@ -1769,8 +1786,8 @@ const handleUndoAlbum = async ({ album, previousPlaylistId }) => {
     await clearCache(`playlist_${previousSpotifyPlaylistId}_albumsWithDates`);
     logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${previousSpotifyPlaylistId}`);
     
-    // Clear cache and reload the current playlist to reflect the changes
-    await handleClearCache();
+    // Clear cache and reload the current playlist (surgical move already updated unified cache)
+    await handleClearCache({ nukeUnifiedCache: false });
     
     // Update count of albums in database
     await countAlbumsInDatabase();
@@ -2000,8 +2017,8 @@ const handleProcessAlbum = async ({ album, action }) => {
     await clearCache(`playlist_${targetSpotifyPlaylistId}_albumsWithDates`);
     logPlaylist(`Cleared album list cache for playlists: ${id.value} and ${targetSpotifyPlaylistId}`);
     
-    // Clear cache and reload the current playlist to reflect the changes
-    await handleClearCache();
+    // Clear cache and reload the current playlist (surgical move already updated unified cache)
+    await handleClearCache({ nukeUnifiedCache: false });
     
     // Update count of albums in database
     await countAlbumsInDatabase();
@@ -2170,10 +2187,9 @@ const batchAddAlbumsToDatabase = async () => {
     
     successMessage.value = `Successfully added ${albumsProcessed.value} of ${albumsToProcess.value} albums to the database!`;
     
-    // Keep modal open briefly to show completion, then auto-dismiss
+    // Keep modal open briefly to show completion, then auto-dismiss (no cache nuke - playlist contents unchanged)
     setTimeout(() => {
       showProgressModal.value = false;
-      handleClearCache();
     }, 2000);
     
   } catch (err) {
@@ -3000,7 +3016,7 @@ const handleUpdateYear = async (mismatch) => {
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
-      <ul class="album-grid">
+      <ul class="album-grid" :class="{ 'album-grid--start': paginatedAlbums.length === 1 }">
         <AlbumItem 
           v-for="album in paginatedAlbums" 
           :key="album.id" 
@@ -3112,9 +3128,17 @@ const handleUpdateYear = async (mismatch) => {
   justify-content: center;
 }
 
+.album-grid.album-grid--start {
+  justify-content: start;
+}
+
 .album-grid > * {
   max-width: 320px;
   justify-self: center;
+}
+
+.album-grid.album-grid--start > * {
+  justify-self: start;
 }
 
 @media (max-width: 550px) {
@@ -3125,6 +3149,10 @@ const handleUpdateYear = async (mismatch) => {
   .album-grid > * {
     max-width: 100%;
     justify-self: stretch;
+  }
+  
+  .album-grid.album-grid--start > * {
+    justify-self: start;
   }
 }
 

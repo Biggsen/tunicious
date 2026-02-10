@@ -968,6 +968,75 @@ export async function moveAlbumBetweenPlaylists(sourcePlaylistId, targetPlaylist
 }
 
 /**
+ * Remove an album from a playlist in the unified cache (surgical update).
+ * Caller must have loaded the cache via loadUnifiedTrackCache first.
+ * @param {string} playlistId - Playlist ID
+ * @param {string} albumId - Album ID to remove
+ * @param {string} userId - User ID
+ */
+export async function removeAlbumFromPlaylistInCache(playlistId, albumId, userId) {
+  const cache = getInMemoryCache(userId);
+  const playlist = cache?.playlists?.[playlistId];
+  const albumEntry = playlist?.albums?.[albumId];
+  if (!albumEntry) {
+    logCache(`Album ${albumId} not in playlist ${playlistId} in cache, skipping surgical remove`);
+    return;
+  }
+  const trackIds = albumEntry.trackIds || [];
+  delete cache.playlists[playlistId].albums[albumId];
+  const now = Date.now();
+  for (const trackId of trackIds) {
+    const track = cache.tracks[trackId];
+    if (!track) continue;
+    if (track.playlistIds) {
+      track.playlistIds = track.playlistIds.filter(pid => pid !== playlistId);
+    } else {
+      track.playlistIds = [];
+    }
+    track.lastAccessed = now;
+  }
+  await saveUnifiedTrackCache(userId);
+  logCache(`Removed album ${albumId} from playlist ${playlistId} in unified cache`);
+}
+
+/**
+ * Add an album to a playlist in the unified cache (surgical update).
+ * Tracks must already exist in cache (e.g. via addAlbumTracks). Caller must have loaded the cache first.
+ * @param {string} playlistId - Playlist ID
+ * @param {string} albumId - Album ID
+ * @param {string[]} trackIds - Spotify track IDs (strings)
+ * @param {string} addedAt - ISO date string
+ * @param {string} userId - User ID
+ */
+export async function addAlbumToPlaylistInCache(playlistId, albumId, trackIds, addedAt, userId) {
+  const cache = getInMemoryCache(userId);
+  const now = Date.now();
+  if (!cache.playlists[playlistId]) {
+    cache.playlists[playlistId] = {
+      albums: {},
+      lastUpdated: now,
+      playlistName: ''
+    };
+  }
+  const playlist = cache.playlists[playlistId];
+  playlist.lastUpdated = now;
+  playlist.albums[albumId] = {
+    trackIds: [...trackIds],
+    addedAt: addedAt || new Date().toISOString()
+  };
+  for (const trackId of trackIds) {
+    const track = cache.tracks[trackId];
+    if (!track) continue;
+    if (!track.playlistIds.includes(playlistId)) {
+      track.playlistIds.push(playlistId);
+    }
+    track.lastAccessed = now;
+  }
+  await saveUnifiedTrackCache(userId);
+  logCache(`Added album ${albumId} to playlist ${playlistId} in unified cache (${trackIds.length} tracks)`);
+}
+
+/**
  * Match loved tracks to cached tracks
  */
 async function matchLovedTracks(cache, lovedTracks, progressCallback) {
