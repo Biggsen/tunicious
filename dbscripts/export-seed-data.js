@@ -6,7 +6,7 @@
  *   npm run export:seed-data
  *   or: FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 node dbscripts/export-seed-data.js
  *
- * Output: dbscripts/seed-data/user.json, dbscripts/seed-data/playlists.json
+ * Output: dbscripts/seed-data/user.json, dbscripts/seed-data/playlists.json, dbscripts/seed-data/albums.json
  */
 
 import admin from 'firebase-admin';
@@ -74,8 +74,13 @@ async function exportData() {
   }
 
   const playlistsSnap = await db.collection('playlists').where('userId', '==', SEED_UID).get();
+  const albumsSnap = await db
+    .collection('albums')
+    .where(`userEntries.${SEED_UID}`, '!=', null)
+    .get();
   console.log('  User doc: found');
-  console.log('  Playlists:', playlistsSnap.size, 'documents\n');
+  console.log('  Playlists:', playlistsSnap.size, 'documents');
+  console.log('  Albums:', albumsSnap.size, 'documents\n');
 
   mkdirSync(OUT_DIR, { recursive: true });
 
@@ -86,6 +91,10 @@ async function exportData() {
   const playlists = playlistsSnap.docs.map((d) => ({ id: d.id, data: serializeValue(d.data()) }));
   writeFileSync(join(OUT_DIR, 'playlists.json'), JSON.stringify(playlists, null, 2), 'utf8');
   console.log('✓ Wrote playlists.json');
+
+  const albums = albumsSnap.docs.map((d) => ({ id: d.id, data: serializeValue(d.data()) }));
+  writeFileSync(join(OUT_DIR, 'albums.json'), JSON.stringify(albums, null, 2), 'utf8');
+  console.log('✓ Wrote albums.json');
 
   console.log('\n✅ Export complete.');
 }

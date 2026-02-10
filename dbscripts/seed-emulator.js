@@ -1,7 +1,7 @@
 /**
  * Seed the Firebase emulators (Auth + Firestore) with a dev user and minimal data.
- * If dbscripts/seed-data/user.json and playlists.json exist (from npm run export:seed-data),
- * loads and writes that data so the seed user gets full onboarding state and playlists.
+ * If dbscripts/seed-data/user.json, playlists.json, and albums.json exist (from npm run export:seed-data),
+ * loads and writes that data so the seed user gets full onboarding state, playlists, and albums.
  *
  * Usage:
  *   npm run seed:emulator
