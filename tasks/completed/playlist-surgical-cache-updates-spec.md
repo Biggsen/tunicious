@@ -1,6 +1,6 @@
 # Playlist Surgical Cache Updates Spec
 
-## Status: Pending
+## Status: Done
 
 ## Overview
 
