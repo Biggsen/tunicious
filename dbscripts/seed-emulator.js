@@ -102,6 +102,7 @@ async function seed() {
     const userRef = db.collection('users').doc(SEED_UID);
     const userJsonPath = join(SEED_DATA_DIR, 'user.json');
     const playlistsJsonPath = join(SEED_DATA_DIR, 'playlists.json');
+    const albumsJsonPath = join(SEED_DATA_DIR, 'albums.json');
     const hasSeedData = existsSync(userJsonPath) && existsSync(playlistsJsonPath);
 
     if (hasSeedData) {
@@ -114,6 +115,14 @@ async function seed() {
         await db.collection('playlists').doc(id).set(deserializeValue(data));
       }
       console.log('✓ Loaded', playlists.length, 'playlists from seed-data/playlists.json');
+
+      if (existsSync(albumsJsonPath)) {
+        const albums = JSON.parse(readFileSync(albumsJsonPath, 'utf8'));
+        for (const { id, data } of albums) {
+          await db.collection('albums').doc(id).set(deserializeValue(data));
+        }
+        console.log('✓ Loaded', albums.length, 'albums from seed-data/albums.json');
+      }
     } else {
       const userSnap = await userRef.get();
       if (userSnap.exists) {
