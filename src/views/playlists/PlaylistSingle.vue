@@ -1150,7 +1150,7 @@ async function handleClearCache(options = {}) {
   sortedAlbumIds.value = [];
   playlistName.value = '';
   albumsInDbCount.value = 0;
-  
+
   // Store tracklist preference before clearing
   const wasTracklistEnabled = showTracklists.value;
   
@@ -1341,6 +1341,13 @@ async function loadPlaylistPage() {
         logPlaylist('Playlist details fetched:', { name: playlistName.value, totalTracks: totalTracks.value });
       } else {
         logPlaylist('Playlist name loaded from cache, skipping API call');
+        try {
+          const playlistResponse = await getPlaylist(id.value);
+          totalTracks.value = playlistResponse.tracks?.total || 0;
+          logPlaylist('Track count refreshed from Spotify (name from unified cache):', totalTracks.value);
+        } catch (err) {
+          logPlaylist('Error refreshing track count from Spotify:', err);
+        }
       }
     }
     
@@ -1377,6 +1384,14 @@ async function loadPlaylistPage() {
         logPlaylist('Track count fetched from Spotify API:', totalTracks.value);
       } catch (error) {
         logPlaylist('Error fetching track count from Spotify API:', error);
+      }
+    } else {
+      try {
+        const playlistResponse = await getPlaylist(id.value);
+        totalTracks.value = playlistResponse.tracks?.total || 0;
+        logPlaylist('Track count refreshed from Spotify (name from playlist_name_ cache):', totalTracks.value);
+      } catch (err) {
+        logPlaylist('Error refreshing track count from Spotify:', err);
       }
     }
     
@@ -2246,7 +2261,7 @@ const batchAddAlbumsToDatabase = async () => {
     }
     
     if (missingAlbums.length === 0) {
-      successMessage.value = 'All albums are already in the database!';
+      showToast('All albums are already in the database!', 'success');
       showProgressModal.value = false;
       return;
     }
@@ -2293,13 +2308,24 @@ const batchAddAlbumsToDatabase = async () => {
       }
     }
     
-    successMessage.value = `Successfully added ${albumsProcessed.value} of ${albumsToProcess.value} albums to the database!`;
-    
-    // Keep modal open briefly to show completion, then auto-dismiss (no cache nuke - playlist contents unchanged)
+    showToast(`Successfully added ${albumsProcessed.value} of ${albumsToProcess.value} albums to the database!`, 'success');
+
+    await countAlbumsInDatabase();
+    const newDbData = await fetchAlbumsData(missingAlbums);
+    inCollectionMap.value = { ...inCollectionMap.value, ...newDbData };
+    for (const album of fullAlbums) {
+      albumRootDataMap.value[album.id] = {
+        ...albumRootDataMap.value[album.id],
+        albumCover: album.images?.[1]?.url || album.images?.[0]?.url || '',
+        artistId: album.artists?.[0]?.id || '',
+        releaseYear: album.release_date ? album.release_date.substring(0, 4) : ''
+      };
+    }
+    await updateNeedsUpdateMap();
+
     setTimeout(() => {
       showProgressModal.value = false;
     }, 2000);
-    
   } catch (err) {
     logPlaylist('Error batch processing albums:', err);
     error.value = err.message || 'Failed to batch process albums';
