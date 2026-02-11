@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { setCache, getCache, clearCache } from "@utils/cache";
+import { setCache, getCache, clearCache, updatePlaylistInCache } from "@utils/cache";
 import AlbumItem from "@components/AlbumItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistUpdates } from "@composables/usePlaylistUpdates";
@@ -969,15 +969,24 @@ async function countAlbumsInDatabase() {
     return;
   }
   
-  // Batch check all albums from the playlist
   const allAlbumIds = sortedAlbumIds.value;
   albumsInDbCount.value = 0;
+  const existingMap = albumDbDataMap.value || {};
   
-  // Process in batches to avoid overwhelming the database
   const batchSize = 50;
   for (let i = 0; i < allAlbumIds.length; i += batchSize) {
     const batch = allAlbumIds.slice(i, i + batchSize);
-    const batchData = await fetchAlbumsData(batch);
+    let batchData = {};
+    const toFetch = batch.filter(aid => existingMap[aid] === undefined);
+    for (const aid of batch) {
+      if (existingMap[aid] !== undefined) {
+        batchData[aid] = existingMap[aid];
+      }
+    }
+    if (toFetch.length > 0) {
+      const fetched = await fetchAlbumsData(toFetch);
+      Object.assign(batchData, fetched);
+    }
     const count = Object.values(batchData).filter(data => data !== null).length;
     albumsInDbCount.value += count;
   }
@@ -1298,6 +1307,20 @@ async function handleUpdateAlbumDetails(album) {
   }
 }
 
+async function syncTrackCountToPlaylistSummaries(playlistId, total) {
+  if (!user.value || !playlistId) return;
+  try {
+    const cacheKey = `playlist_summaries_${user.value.uid}`;
+    await updatePlaylistInCache(cacheKey, playlistId, { tracks: { total } });
+    logCache('Synced track count to playlist_summaries:', { playlistId, total });
+    window.dispatchEvent(new CustomEvent('playlists-updated', {
+      detail: { playlistIds: [playlistId] }
+    }));
+  } catch (err) {
+    logCache('Error syncing track count to playlist_summaries:', err);
+  }
+}
+
 async function loadPlaylistPage() {
   logPlaylist('Loading playlist page:', { playlistId: id.value });
   loading.value = true;
@@ -1338,12 +1361,14 @@ async function loadPlaylistPage() {
         playlistName.value = playlistResponse.name;
         if (playlistName.value) setCache(`playlist_name_${id.value}`, playlistName.value);
         totalTracks.value = playlistResponse.tracks?.total || 0;
+        await syncTrackCountToPlaylistSummaries(id.value, totalTracks.value);
         logPlaylist('Playlist details fetched:', { name: playlistName.value, totalTracks: totalTracks.value });
       } else {
         logPlaylist('Playlist name loaded from cache, skipping API call');
         try {
           const playlistResponse = await getPlaylist(id.value);
           totalTracks.value = playlistResponse.tracks?.total || 0;
+          await syncTrackCountToPlaylistSummaries(id.value, totalTracks.value);
           logPlaylist('Track count refreshed from Spotify (name from unified cache):', totalTracks.value);
         } catch (err) {
           logPlaylist('Error refreshing track count from Spotify:', err);
@@ -1381,18 +1406,13 @@ async function loadPlaylistPage() {
         logPlaylist('Track count not in cache, fetching from Spotify API');
         const playlistResponse = await getPlaylist(id.value);
         totalTracks.value = playlistResponse.tracks?.total || 0;
+        await syncTrackCountToPlaylistSummaries(id.value, totalTracks.value);
         logPlaylist('Track count fetched from Spotify API:', totalTracks.value);
       } catch (error) {
         logPlaylist('Error fetching track count from Spotify API:', error);
       }
     } else {
-      try {
-        const playlistResponse = await getPlaylist(id.value);
-        totalTracks.value = playlistResponse.tracks?.total || 0;
-        logPlaylist('Track count refreshed from Spotify (name from playlist_name_ cache):', totalTracks.value);
-      } catch (err) {
-        logPlaylist('Error refreshing track count from Spotify:', err);
-      }
+      logPlaylist('Track count loaded from cache, skipping Spotify refresh');
     }
     
     // The album data is already loaded by applySortingAndReload in fetchAlbumIdList
