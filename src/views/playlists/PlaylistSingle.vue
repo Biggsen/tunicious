@@ -39,7 +39,7 @@ const { user, userData, loading: userDataLoading } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { isAdmin } = useAdmin();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks, removeTracksFromPlaylist, addTracksToPlaylist } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAlbum, getAllArtistAlbums, getAllPlaylistTracks, removeTracksFromPlaylist, addTracksToPlaylist } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
@@ -1170,7 +1170,7 @@ async function handleClearCache(options = {}) {
   lovedTracksLoadingStarted.value = false;
   albumLovedData.value = {};
 
-  await loadPlaylistPage();
+  await loadPlaylistPage({ forceRefreshTrackCount: nukeUnifiedCache });
 
   // Restore tracklist if it was enabled before clearing
   if (wasTracklistEnabled && showTracklists.value && albumData.value.length > 0) {
@@ -1321,7 +1321,8 @@ async function syncTrackCountToPlaylistSummaries(playlistId, total) {
   }
 }
 
-async function loadPlaylistPage() {
+async function loadPlaylistPage(options = {}) {
+  const { forceRefreshTrackCount = false } = options;
   logPlaylist('Loading playlist page:', { playlistId: id.value });
   loading.value = true;
   error.value = null;
@@ -1376,8 +1377,8 @@ async function loadPlaylistPage() {
       }
     }
     
-    // Always try to get track count from playlist_summaries_ cache
-    if (user.value && totalTracks.value === 0) {
+    // Always try to get track count from playlist_summaries_ cache (skip when forcing refresh from Spotify)
+    if (!forceRefreshTrackCount && user.value && totalTracks.value === 0) {
       try {
         const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
         const playlistSummariesCache = await getCache(playlistViewCacheKey);
@@ -1400,8 +1401,8 @@ async function loadPlaylistPage() {
       }
     }
     
-    // If still no track count, fetch from Spotify API
-    if (totalTracks.value === 0) {
+    // If still no track count (or force refresh), fetch from Spotify API
+    if (forceRefreshTrackCount || totalTracks.value === 0) {
       try {
         logPlaylist('Track count not in cache, fetching from Spotify API');
         const playlistResponse = await getPlaylist(id.value);
@@ -1744,6 +1745,15 @@ const performRemoveAlbum = async () => {
         logPlaylist(`Removed album ${album.id} from unified cache for playlist ${id.value}`);
       } catch (error) {
         logPlaylist('Error updating unified cache after remove:', error);
+      }
+    }
+
+    if (trackCountToSubtract === 0) {
+      try {
+        const fullAlbum = await getAlbum(album.id);
+        trackCountToSubtract = fullAlbum?.total_tracks ?? 0;
+      } catch (err) {
+        logPlaylist('Could not fetch album track count for subtract:', err);
       }
     }
 
