@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { setCache, getCache, removePlaylistFromCache } from "@utils/cache";
+import { setCache, getCache, removePlaylistFromCache, primePlaylistNameCache } from "@utils/cache";
 import PlaylistItem from "@components/PlaylistItem.vue";
 import { useUserData } from "@composables/useUserData";
 import { usePlaylistData } from "@composables/usePlaylistData";
@@ -127,9 +127,11 @@ async function loadPlaylists() {
   logPlaylist('availableGroups:', availableGroups.value);
   logPlaylist('userPlaylists:', userPlaylists.value);
 
-  const cachedPlaylists = getCache(cacheKey.value);
+  const key = cacheKey.value;
+  const cachedPlaylists = key ? getCache(key) : null;
   if (cachedPlaylists) {
     logPlaylist('Using cached playlists (may be partial)');
+    primePlaylistNameCache(cachedPlaylists);
     playlists.value = cachedPlaylists;
   }
   const groupToLoad = activeTab.value || availableGroups.value[0];
@@ -139,6 +141,7 @@ async function loadPlaylists() {
       logPlaylist(`Loading active pipeline only: ${groupToLoad}`);
       const summaries = await loadPipelinePlaylists(groupToLoad);
       playlists.value = { ...playlists.value, [groupToLoad]: summaries };
+      primePlaylistNameCache(playlists.value);
       await setCache(cacheKey.value, playlists.value);
     } catch (e) {
       logPlaylist('Error loading playlists:', e);
@@ -202,6 +205,7 @@ watch(activeTab, async (newTab) => {
     const summaries = await loadPipelinePlaylists(newTab);
     if (summaries) {
       playlists.value = { ...playlists.value, [newTab]: summaries };
+      primePlaylistNameCache(playlists.value);
       await setCache(cacheKey.value, playlists.value);
     }
   } finally {
@@ -215,6 +219,7 @@ async function reloadPipeline(group) {
   try {
     const summaries = await loadPipelinePlaylists(group);
     playlists.value = { ...playlists.value, [group]: summaries };
+    primePlaylistNameCache(playlists.value);
     await setCache(cacheKey.value, playlists.value);
   } catch (e) {
     logPlaylist('Error reloading pipeline:', e);

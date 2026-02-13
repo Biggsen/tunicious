@@ -124,12 +124,10 @@ export function useAlbumsData() {
    */
   const fetchAlbumsData = async (albumIds) => {
     if (!user.value) return {};
+    if (!albumIds.length) return {};
 
-    const results = {};
-    for (const albumId of albumIds) {
-      results[albumId] = await fetchUserAlbumData(albumId);
-    }
-    return results;
+    const results = await Promise.all(albumIds.map(albumId => fetchUserAlbumData(albumId)));
+    return Object.fromEntries(albumIds.map((id, i) => [id, results[i]]));
   };
 
   /**

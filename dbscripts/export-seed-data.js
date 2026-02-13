@@ -4,7 +4,7 @@
  *
  * Usage:
  *   npm run export:seed-data
- *   or: FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node dbscripts/export-seed-data.js
+ *   or: FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 node dbscripts/export-seed-data.js
  *
  * Output: dbscripts/seed-data/user.json, dbscripts/seed-data/playlists.json
  */

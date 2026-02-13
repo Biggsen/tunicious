@@ -24,9 +24,9 @@ const prodProjectId = "audiofoodie-d5b2c";
 
 if (useEmulators && typeof window !== "undefined") {
   const hostname = window.location.hostname;
-  connectFirestoreEmulator(db, hostname, 8080);
-  connectAuthEmulator(auth, `http://${hostname}:9099`, { disableWarnings: true });
-  connectFunctionsEmulator(functions, hostname, 5001);
+  connectFirestoreEmulator(db, hostname, 8081);
+  connectAuthEmulator(auth, `http://${hostname}:9100`, { disableWarnings: true });
+  connectFunctionsEmulator(functions, hostname, 5002);
 }
 if (typeof window !== "undefined" && !useEmulators && projectId === prodProjectId) {
   console.warn("[Firebase] Production database is active.");

@@ -235,6 +235,8 @@ function createTrackObject(track, trackId, now, albumId = null, albumData = null
     lastAccessed: now,
     lastPlayedFromPlaylistId: null,
     lastPlayedFromPlaylistName: null,
+    lastPlayedFromAlbumId: null,
+    lastPlayedFromAlbumName: null,
     lastPlayedFromTimestamp: null,
     albumIds: [],
     playlistIds: []
@@ -681,6 +683,48 @@ export async function updateLastPlayedFromPlaylist(trackId, playlistId, playlist
   
   cache.tracks[actualTrackId].lastPlayedFromPlaylistId = playlistId;
   cache.tracks[actualTrackId].lastPlayedFromPlaylistName = playlistName;
+  cache.tracks[actualTrackId].lastPlayedFromAlbumId = null;
+  cache.tracks[actualTrackId].lastPlayedFromAlbumName = null;
+  cache.tracks[actualTrackId].lastPlayedFromTimestamp = Date.now();
+  updateTrackAccess(cache, actualTrackId);
+  
+  await saveUnifiedTrackCache(userId);
+  
+  return actualTrackId;
+}
+
+/**
+ * Update the last played album for a track
+ * @param {string} trackId - Spotify track ID
+ * @param {string} albumId - Spotify album ID
+ * @param {string} albumName - Album name
+ * @param {string} userId - User ID
+ * @param {string} trackName - Optional track name for fallback lookup
+ * @param {string} artistName - Optional artist name for fallback lookup
+ * @returns {string|null} - The actual track ID that was updated
+ */
+export async function updateLastPlayedFromAlbum(trackId, albumId, albumName, userId, trackName = null, artistName = null) {
+  const cache = getInMemoryCache(userId);
+  
+  let actualTrackId = trackId;
+  
+  if (!cache.tracks[trackId] && trackName && artistName) {
+    const foundTrackId = findTrackIdByNameAndArtist(trackName, artistName, userId);
+    if (foundTrackId) {
+      logCache(`Track ${trackId} not found by ID, but found by name+artist as ${foundTrackId}`);
+      actualTrackId = foundTrackId;
+    }
+  }
+  
+  if (!cache.tracks[actualTrackId]) {
+    logCache(`Track ${trackId} not found in cache, cannot update last played album`);
+    return null;
+  }
+  
+  cache.tracks[actualTrackId].lastPlayedFromPlaylistId = null;
+  cache.tracks[actualTrackId].lastPlayedFromPlaylistName = null;
+  cache.tracks[actualTrackId].lastPlayedFromAlbumId = albumId;
+  cache.tracks[actualTrackId].lastPlayedFromAlbumName = albumName;
   cache.tracks[actualTrackId].lastPlayedFromTimestamp = Date.now();
   updateTrackAccess(cache, actualTrackId);
   
@@ -705,33 +749,35 @@ export async function getLastPlayed(userId) {
   // Iterate through all tracks to find the most recently played one
   for (const trackId in cache.tracks) {
     const track = cache.tracks[trackId];
-    
-    // Only consider tracks that have been played from a playlist
-    if (track.lastPlayedFromPlaylistId && track.lastPlayedFromTimestamp) {
-      if (track.lastPlayedFromTimestamp > mostRecentTimestamp) {
-        mostRecentTimestamp = track.lastPlayedFromTimestamp;
-        mostRecentTrackId = trackId;
-        mostRecent = {
-          // Track info
-          trackId: trackId,
-          trackName: track.name,
-          trackUri: track.uri,
-          artistName: track.artists?.[0]?.name || 'Unknown Artist',
-          artists: track.artists || [],
-          albumName: track.album?.name || '',
-          albumId: track.album?.id || '',
-          duration_ms: track.duration_ms,
-          
-          // Playlist info
-          playlistId: track.lastPlayedFromPlaylistId,
-          playlistName: track.lastPlayedFromPlaylistName,
-          timestamp: track.lastPlayedFromTimestamp,
-          
-          // Additional track metadata
-          playcount: track.playcount || 0,
-          loved: track.loved || false
-        };
-      }
+    const hasPlaylistSource = track.lastPlayedFromPlaylistId && track.lastPlayedFromTimestamp;
+    const hasAlbumSource = track.lastPlayedFromAlbumId && track.lastPlayedFromTimestamp;
+
+    if ((hasPlaylistSource || hasAlbumSource) && track.lastPlayedFromTimestamp > mostRecentTimestamp) {
+      mostRecentTimestamp = track.lastPlayedFromTimestamp;
+      mostRecentTrackId = trackId;
+      mostRecent = {
+        // Track info
+        trackId: trackId,
+        trackName: track.name,
+        trackUri: track.uri,
+        artistName: track.artists?.[0]?.name || 'Unknown Artist',
+        artists: track.artists || [],
+        albumName: track.album?.name || '',
+        albumId: track.album?.id || '',
+        duration_ms: track.duration_ms,
+        timestamp: track.lastPlayedFromTimestamp,
+
+        // Source info (playlist or album)
+        sourceType: hasPlaylistSource ? 'playlist' : 'album',
+        sourceId: hasPlaylistSource ? track.lastPlayedFromPlaylistId : track.lastPlayedFromAlbumId,
+        sourceName: hasPlaylistSource ? track.lastPlayedFromPlaylistName : track.lastPlayedFromAlbumName,
+        playlistId: track.lastPlayedFromPlaylistId,
+        playlistName: track.lastPlayedFromPlaylistName,
+
+        // Additional track metadata
+        playcount: track.playcount || 0,
+        loved: track.loved || false
+      };
     }
   }
   
@@ -965,6 +1011,75 @@ export async function moveAlbumBetweenPlaylists(sourcePlaylistId, targetPlaylist
   await saveUnifiedTrackCache(userId);
   
   logCache(`Moved album ${albumId} from playlist ${sourcePlaylistId} to ${targetPlaylistId}`);
+}
+
+/**
+ * Remove an album from a playlist in the unified cache (surgical update).
+ * Caller must have loaded the cache via loadUnifiedTrackCache first.
+ * @param {string} playlistId - Playlist ID
+ * @param {string} albumId - Album ID to remove
+ * @param {string} userId - User ID
+ */
+export async function removeAlbumFromPlaylistInCache(playlistId, albumId, userId) {
+  const cache = getInMemoryCache(userId);
+  const playlist = cache?.playlists?.[playlistId];
+  const albumEntry = playlist?.albums?.[albumId];
+  if (!albumEntry) {
+    logCache(`Album ${albumId} not in playlist ${playlistId} in cache, skipping surgical remove`);
+    return;
+  }
+  const trackIds = albumEntry.trackIds || [];
+  delete cache.playlists[playlistId].albums[albumId];
+  const now = Date.now();
+  for (const trackId of trackIds) {
+    const track = cache.tracks[trackId];
+    if (!track) continue;
+    if (track.playlistIds) {
+      track.playlistIds = track.playlistIds.filter(pid => pid !== playlistId);
+    } else {
+      track.playlistIds = [];
+    }
+    track.lastAccessed = now;
+  }
+  await saveUnifiedTrackCache(userId);
+  logCache(`Removed album ${albumId} from playlist ${playlistId} in unified cache`);
+}
+
+/**
+ * Add an album to a playlist in the unified cache (surgical update).
+ * Tracks must already exist in cache (e.g. via addAlbumTracks). Caller must have loaded the cache first.
+ * @param {string} playlistId - Playlist ID
+ * @param {string} albumId - Album ID
+ * @param {string[]} trackIds - Spotify track IDs (strings)
+ * @param {string} addedAt - ISO date string
+ * @param {string} userId - User ID
+ */
+export async function addAlbumToPlaylistInCache(playlistId, albumId, trackIds, addedAt, userId) {
+  const cache = getInMemoryCache(userId);
+  const now = Date.now();
+  if (!cache.playlists[playlistId]) {
+    cache.playlists[playlistId] = {
+      albums: {},
+      lastUpdated: now,
+      playlistName: ''
+    };
+  }
+  const playlist = cache.playlists[playlistId];
+  playlist.lastUpdated = now;
+  playlist.albums[albumId] = {
+    trackIds: [...trackIds],
+    addedAt: addedAt || new Date().toISOString()
+  };
+  for (const trackId of trackIds) {
+    const track = cache.tracks[trackId];
+    if (!track) continue;
+    if (!track.playlistIds.includes(playlistId)) {
+      track.playlistIds.push(playlistId);
+    }
+    track.lastAccessed = now;
+  }
+  await saveUnifiedTrackCache(userId);
+  logCache(`Added album ${albumId} to playlist ${playlistId} in unified cache (${trackIds.length} tracks)`);
 }
 
 /**

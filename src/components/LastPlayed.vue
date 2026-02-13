@@ -181,20 +181,27 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Playlist and Timestamp -->
+      <!-- Played from and Timestamp -->
       <div class="pt-3 border-t border-delft-blue/20 space-y-2">
-        <!-- Playlist -->
+        <!-- Played from (playlist or album) -->
         <div>
-          <div class="text-sm text-delft-blue/50 mb-1">Playlist</div>
+          <div class="text-sm text-delft-blue/50 mb-1">Played from</div>
           <button
-            v-if="lastPlayed.playlistId"
-            @click="navigateToPlaylist(lastPlayed.playlistId)"
+            v-if="lastPlayed.sourceType === 'playlist' && lastPlayed.sourceId"
+            @click="navigateToPlaylist(lastPlayed.sourceId)"
             class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
           >
-            {{ lastPlayed.playlistName || 'Unknown Playlist' }}
+            {{ lastPlayed.sourceName || 'Unknown Playlist' }}
+          </button>
+          <button
+            v-else-if="lastPlayed.sourceType === 'album' && lastPlayed.sourceId"
+            @click="navigateToAlbum(lastPlayed.sourceId)"
+            class="text-base font-semibold text-delft-blue hover:underline cursor-pointer"
+          >
+            {{ lastPlayed.sourceName || 'Unknown Album' }}
           </button>
           <span v-else class="text-base font-semibold text-delft-blue">
-            {{ lastPlayed.playlistName || 'Unknown Playlist' }}
+            {{ lastPlayed.sourceName || lastPlayed.playlistName || 'Unknown' }}
           </span>
         </div>
 

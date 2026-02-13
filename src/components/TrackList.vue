@@ -532,11 +532,11 @@ const handleTrackClick = async (track) => {
           <span v-if="showTrackNumbers && track.track_number" class="-ml-1 mr-2 text-delft-blue flex-shrink-0 self-center w-6 text-right">
             {{ track.track_number }}.
           </span>
-          <span class="flex-1">{{ track.name }}</span>
-          <span v-if="showDuration && track.duration_ms" :class="['ml-2 text-gray-500 flex-shrink-0', largeElements ? 'text-sm' : 'text-xs']">
+          <span class="flex-1 min-w-0">{{ track.name }}</span>
+          <span v-if="showDuration && track.duration_ms" :class="['ml-4 text-gray-500 flex-shrink-0 min-w-[1.5rem] text-right tabular-nums', largeElements ? 'text-sm' : 'text-xs']">
             {{ formatDuration(track.duration_ms) }}
           </span>
-          <span v-if="lastFmUserName" :class="[showDuration ? 'ml-6' : 'ml-2', 'text-gray-500 flex-shrink-0', largeElements ? 'text-sm' : 'text-xs']">
+          <span v-if="lastFmUserName" :class="['ml-4', 'text-gray-500 flex-shrink-0 min-w-[1.5rem] text-right tabular-nums', largeElements ? 'text-sm' : 'text-xs']">
             {{ formatPlaycount(getTrackPlaycount(track)) }}
           </span>
         </span>

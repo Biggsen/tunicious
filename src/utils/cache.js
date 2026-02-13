@@ -174,6 +174,24 @@ function aggressiveCleanup() {
 }
 
 /**
+ * Prime per-playlist name cache so PlaylistSingle can read titles instantly.
+ * Call when saving playlist summaries (e.g. from Playlists page).
+ * @param {Object} playlistsState - { group: [{ id, name, ... }], ... }
+ */
+export function primePlaylistNameCache(playlistsState) {
+  if (!playlistsState || typeof playlistsState !== 'object') return;
+  for (const group of Object.keys(playlistsState)) {
+    const list = playlistsState[group];
+    if (!Array.isArray(list)) continue;
+    for (const p of list) {
+      if (p?.id && p?.name) {
+        setCache(`playlist_name_${p.id}`, p.name);
+      }
+    }
+  }
+}
+
+/**
  * Update a specific playlist in the cache without clearing the entire cache
  * @param {string} cacheKey - The cache key (e.g., 'playlist_summaries_userId')
  * @param {string} playlistId - The Spotify playlist ID to update
@@ -198,13 +216,16 @@ export async function updatePlaylistInCache(cacheKey, playlistId, playlistData) 
         );
         if (index !== -1) {
           logCache(`Found playlist ${playlistId} in group ${group} at index ${index}`);
-          cachedData[group][index] = {
+          const updatedPlaylist = {
             ...cachedData[group][index],
             ...playlistData,
             id: playlistData.id || cachedData[group][index].id,
             firebaseId: playlistData.firebaseId || cachedData[group][index].firebaseId
           };
-          // Playlists are already ordered by derivePipelineOrder in usePlaylistData
+          cachedData[group][index] = updatedPlaylist;
+          if (updatedPlaylist.name) {
+            setCache(`playlist_name_${updatedPlaylist.id}`, updatedPlaylist.name);
+          }
           updated = true;
         }
       }

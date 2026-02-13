@@ -9,6 +9,7 @@ import {
   updateTrackLoved,
   updateTrackPlaycount,
   updateLastPlayedFromPlaylist,
+  updateLastPlayedFromAlbum,
   getLastPlayed,
   addAlbumTracks,
   addPlaylistTracks,
@@ -424,6 +425,10 @@ export function useUnifiedTrackCache() {
     updateLastPlayedFromPlaylist: async (trackId, playlistId, playlistName, trackName = null, artistName = null) => {
       if (!user.value) return null;
       return await updateLastPlayedFromPlaylist(trackId, playlistId, playlistName, user.value.uid, trackName, artistName);
+    },
+    updateLastPlayedFromAlbum: async (trackId, albumId, albumName, trackName = null, artistName = null) => {
+      if (!user.value) return null;
+      return await updateLastPlayedFromAlbum(trackId, albumId, albumName, user.value.uid, trackName, artistName);
     },
     getLastPlayed: async () => {
       if (!user.value) return null;

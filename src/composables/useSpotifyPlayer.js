@@ -150,11 +150,15 @@ export function useSpotifyPlayer() {
             duration.value = state.duration;
 
             if (state.track_window?.current_track) {
+              const albumUri = state.track_window.current_track.album?.uri;
+              const artistUri = state.track_window.current_track.artists?.[0]?.uri;
               currentTrack.value = {
                 id: state.track_window.current_track.id,
                 name: state.track_window.current_track.name,
                 artists: state.track_window.current_track.artists.map(a => a.name),
+                artistUri,
                 album: state.track_window.current_track.album?.name || '',
+                albumUri,
                 image: state.track_window.current_track.album?.images?.[0]?.url || '',
                 uri: state.track_window.current_track.uri
               };

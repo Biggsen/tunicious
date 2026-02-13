@@ -1,5 +1,34 @@
 [
   {
+    "id": 16,
+    "title": "Faster Playlist Updates",
+    "date": "2026-02-13",
+    "types": ["IMPROVEMENT", "PERFORMANCE"],
+    "hidden": false,
+    "description": "Playlists are faster and more responsive when you add, move, or remove albums — no more waiting for everything to reload.",
+    "changes": [
+      "Adding, moving, or removing albums now updates quickly without rebuilding the whole playlist",
+      "Track counts stay accurate when you remove albums",
+      "Reload button brings in the latest data from Spotify, including albums you added elsewhere",
+      "Batch adding albums to the database no longer causes unnecessary reloads",
+      "Manual Reload still gives you a full refresh whenever you want one"
+    ]
+  },
+  {
+    "id": 15,
+    "title": "Player Bar Links & Last Played from Album",
+    "date": "2026-02-13",
+    "types": ["IMPROVEMENT", "UX"],
+    "hidden": false,
+    "description": "The player banner is now more useful with clickable links, and playing from the album page contributes to Last Played in Activity.",
+    "changes": [
+      "Album and artist in the player banner are now clickable — navigate to the album or artist page directly",
+      "Playing tracks from the album page (or using the Play album button) now updates Last Played in Activity",
+      "Last Played now shows 'Played from' with links to the album or playlist you played from",
+      "Fixed duration and playcount alignment in track lists when playcount has two digits"
+    ]
+  },
+  {
     "id": 14,
     "title": "Faster Playlists Page & Per-Tab Reload",
     "date": "2026-02-04",

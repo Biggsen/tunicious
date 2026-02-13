@@ -5,6 +5,11 @@ import { fileURLToPath, URL } from 'node:url';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  test: {
+    environment: 'node',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
+  },
   server: {
     host: '0.0.0.0', // Allow access from network (for mobile testing)
     port: 5173,

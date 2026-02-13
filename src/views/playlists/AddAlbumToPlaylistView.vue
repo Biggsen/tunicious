@@ -75,9 +75,10 @@ import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import AlbumSearch from '@components/AlbumSearch.vue';
-import { clearCache } from '@utils/cache';
+import { clearCache, getCache, setCache } from '@utils/cache';
 import { formatAlbumName } from '@utils/formatting';
 import { logPlaylist } from '@utils/logger';
+import { loadUnifiedTrackCache, addAlbumTracks, addAlbumToPlaylistInCache } from '@utils/unifiedTrackCache';
 
 const route = useRoute();
 const { userData } = useUserData();
@@ -88,7 +89,8 @@ const {
   addAlbumToPlaylist, 
   getUserPlaylists, 
   isTuniciousPlaylist,
-  getPlaylistAlbumsWithDates
+  getPlaylistAlbumsWithDates,
+  getAlbumTracks
 } = useUserSpotifyApi();
 
 const { addAlbumToCollection } = useAlbumsData();
@@ -156,48 +158,92 @@ const handleAddAlbum = async () => {
       return;
     }
     
+    const playlistId = albumForm.value.playlistId;
+    const album = selectedAlbum.value;
+    let trackCountToAdd = album.total_tracks ?? 0;
+
     // Add album to Spotify playlist
-    await addAlbumToPlaylist(albumForm.value.playlistId, selectedAlbum.value.id);
-    
+    await addAlbumToPlaylist(playlistId, album.id);
+
     // Add album to Firebase collection (let it fetch playlist data internally)
     await addAlbumToCollection({
-      album: selectedAlbum.value,
-      playlistId: albumForm.value.playlistId,
+      album,
+      playlistId,
       playlistData: null,
       spotifyAddedAt: new Date()
     });
-    
+
+    if (user.value) {
+      try {
+        let allTracks = [];
+        let offset = 0;
+        const limit = 50;
+        while (true) {
+          const response = await getAlbumTracks(album.id, limit, offset);
+          if (response?.items?.length) {
+            allTracks = [...allTracks, ...response.items];
+            if (response.items.length < limit) break;
+            offset += limit;
+          } else {
+            break;
+          }
+        }
+        if (allTracks.length > 0) {
+          trackCountToAdd = allTracks.length;
+          await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+          await addAlbumTracks(album.id, allTracks, album, user.value.uid);
+          await addAlbumToPlaylistInCache(
+            playlistId,
+            album.id,
+            allTracks.map(t => t.id),
+            new Date().toISOString(),
+            user.value.uid
+          );
+          logPlaylist(`Added album ${album.id} to unified cache for playlist ${playlistId}`);
+        }
+      } catch (cacheErr) {
+        logPlaylist('Error updating unified cache after add:', cacheErr);
+      }
+    }
+
     // Show success toast with formatted album name
-    const albumText = formatAlbumName(selectedAlbum.value);
+    const albumText = formatAlbumName(album);
     showToast({
       parts: [
         ...albumText.parts,
         { text: ' added to playlist and collection successfully!' }
       ]
     }, 'success');
-    
+
     // Reset form: clear album search, keep playlist if from query param
     selectedAlbum.value = null;
-    // Clear the AlbumSearch component's search field by resetting the model
-    // (AlbumSearch component should handle this when selectedAlbum becomes null)
-    
-    // Only clear playlist selection if it didn't come from query param
     if (!route.query.playlistId) {
       albumForm.value.playlistId = '';
     }
-    
-    // Clear cache to update track counts
+
     if (user.value) {
       const playlistViewCacheKey = `playlist_summaries_${user.value.uid}`;
-      await clearCache(playlistViewCacheKey);
-      
-      // Clear the specific playlist's album list cache so PlaylistSingle will refresh
-      const playlistAlbumListCacheKey = `playlist_${albumForm.value.playlistId}_albumsWithDates`;
+      const currentCacheState = getCache(playlistViewCacheKey);
+      if (currentCacheState && typeof currentCacheState === 'object') {
+        for (const group of Object.keys(currentCacheState)) {
+          const list = currentCacheState[group];
+          if (!Array.isArray(list)) continue;
+          const entry = list.find(p => p.id === playlistId);
+          if (entry) {
+            const prev = entry.tracks?.total ?? 0;
+            entry.tracks = { total: prev + trackCountToAdd };
+            await setCache(playlistViewCacheKey, currentCacheState);
+            logPlaylist('Updated playlist_summaries cache (optimistic) after add:', { playlistId, newTotal: entry.tracks.total });
+            break;
+          }
+        }
+      }
+
+      const playlistAlbumListCacheKey = `playlist_${playlistId}_albumsWithDates`;
       await clearCache(playlistAlbumListCacheKey);
-      
-      // Dispatch event to notify PlaylistSingle to reload if it's currently mounted
+
       window.dispatchEvent(new CustomEvent('playlist-albums-updated', {
-        detail: { playlistId: albumForm.value.playlistId }
+        detail: { playlistId }
       }));
     }
     
