@@ -2,6 +2,7 @@
 import { RouterLink } from "vue-router";
 import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
+import { useUpdatesBadge } from "@composables/useUpdatesBadge";
 import { 
   MusicalNoteIcon, 
   BoltIcon,
@@ -13,6 +14,7 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const { user, userData } = useUserData();
+const { showUpdatesDot } = useUpdatesBadge();
 const isMobileMenuOpen = ref(false);
 
 const toggleMobileMenu = () => {
@@ -111,7 +113,10 @@ const closeMobileMenu = () => {
             <li>
               <RouterLink to="/updates" class="flex items-center gap-1">
                 <RocketLaunchIcon class="w-4 h-4" />
-                <span>Updates</span>
+                <span class="relative">
+                  Updates
+                  <span v-if="showUpdatesDot" class="absolute top-0.5 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
+                </span>
               </RouterLink>
             </li>
           </ul>
@@ -211,7 +216,10 @@ const closeMobileMenu = () => {
                   @click="closeMobileMenu"
                 >
                   <RocketLaunchIcon class="w-6 h-6" />
-                  <span>Updates</span>
+                  <span class="relative">
+                    Updates
+                    <span v-if="showUpdatesDot" class="absolute top-0.5 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
+                  </span>
                 </RouterLink>
               </li>
             </ul>
