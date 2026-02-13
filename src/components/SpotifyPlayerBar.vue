@@ -1,5 +1,6 @@
 <script setup>
 import { computed, watch, onUnmounted, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
@@ -9,6 +10,7 @@ import { logPlayer, logCache } from '@utils/logger';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 
+const router = useRouter();
 const { 
   isReady, 
   isPlaying, 
@@ -17,6 +19,17 @@ const {
   duration, 
   togglePlayback
 } = useSpotifyPlayer();
+
+const albumId = computed(() => {
+  const uri = currentTrack.value?.albumUri;
+  if (!uri || !uri.startsWith('spotify:album:')) return null;
+  return uri.replace('spotify:album:', '');
+});
+
+const navigateToAlbum = () => {
+  const id = albumId.value;
+  if (id) router.push({ name: 'album', params: { id } });
+};
 
 const { userData, user } = useUserData();
 const { loveTrack, unloveTrack } = useLastFmApi();
@@ -433,7 +446,14 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           <p class="text-sm text-gray-300 truncate">
             {{ currentTrack?.artists?.join(', ') }}
           </p>
-          <p v-if="albumInfo.year || albumInfo.name" class="text-xs text-gray-400 truncate">
+          <button
+            v-if="(albumInfo.year || albumInfo.name) && albumId"
+            @click="navigateToAlbum"
+            class="text-xs text-gray-400 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer block w-full"
+          >
+            {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
+          </button>
+          <p v-else-if="albumInfo.year || albumInfo.name" class="text-xs text-gray-400 truncate">
             {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
           </p>
         </div>

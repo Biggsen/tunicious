@@ -819,7 +819,7 @@ onUnmounted(() => {
             <h1 class="h2 flex-1">{{ album.name }}</h1>
             <button
               v-if="playerReady"
-              @click="playAlbumTrack(`spotify:album:${album.id}`)"
+              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
               class="flex items-center gap-2 px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-mint/80 transition-colors font-semibold"
               title="Play album"
             >

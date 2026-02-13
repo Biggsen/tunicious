@@ -16,7 +16,7 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
   logPlayer('[PLAYCOUNT] Initializing playcount tracking composable');
   
   const { currentTrack, position, duration, isPlaying, playingFrom } = useSpotifyPlayer();
-  const { getPlaycountForTrack, updatePlaycountForTrack, updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
+  const { getPlaycountForTrack, updatePlaycountForTrack, updateLastPlayedFromPlaylist, updateLastPlayedFromAlbum } = useUnifiedTrackCache();
   const { user } = useUserData();
   
   // Track the current track being monitored
@@ -111,25 +111,33 @@ export function useWebPlayerPlaycountTracking(onPlaycountUpdate) {
       const playlistContext = track.playlistContext;
       logPlayer(`[PLAYCOUNT] Checking playlist context for last played update: ${playlistContext ? `${playlistContext.type}:${playlistContext.id} (${playlistContext.name})` : 'none'}`);
       
-      if (playlistContext && playlistContext.type === 'playlist' && playlistContext.id) {
+      if (playlistContext && playlistContext.id) {
         try {
-          await updateLastPlayedFromPlaylist(
-            finalTrackId,
-            playlistContext.id,
-            playlistContext.name || 'Unknown Playlist',
-            track.name,
-            artistName
-          );
-          logPlayer(`[PLAYCOUNT] Updated last played playlist for "${track.name}": ${playlistContext.name}`);
-          
-          // Emit global event to notify Last Played panel to refresh
-          logPlayer(`[PLAYCOUNT] Emitting last-played-updated event`);
+          if (playlistContext.type === 'playlist') {
+            await updateLastPlayedFromPlaylist(
+              finalTrackId,
+              playlistContext.id,
+              playlistContext.name || 'Unknown Playlist',
+              track.name,
+              artistName
+            );
+            logPlayer(`[PLAYCOUNT] Updated last played playlist for "${track.name}": ${playlistContext.name}`);
+          } else if (playlistContext.type === 'album') {
+            await updateLastPlayedFromAlbum(
+              finalTrackId,
+              playlistContext.id,
+              playlistContext.name || 'Unknown Album',
+              track.name,
+              artistName
+            );
+            logPlayer(`[PLAYCOUNT] Updated last played album for "${track.name}": ${playlistContext.name}`);
+          }
           window.dispatchEvent(new CustomEvent('last-played-updated'));
         } catch (error) {
-          logPlayer(`[PLAYCOUNT] Error updating last played playlist for "${track.name}":`, error);
+          logPlayer(`[PLAYCOUNT] Error updating last played for "${track.name}":`, error);
         }
       } else {
-        logPlayer(`[PLAYCOUNT] Skipping last played update - no valid playlist context (context: ${JSON.stringify(playlistContext)})`);
+        logPlayer(`[PLAYCOUNT] Skipping last played update - no valid context (context: ${JSON.stringify(playlistContext)})`);
       }
       
       // Notify listener for UI updates (use actual track ID if found)
