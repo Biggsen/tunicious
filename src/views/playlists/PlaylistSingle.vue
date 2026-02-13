@@ -30,7 +30,7 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useToast } from '@composables/useToast';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
-import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
+import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, addAlbumTracks, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
 const route = useRoute();
@@ -2065,15 +2065,22 @@ const handleProcessAlbum = async ({ album, action }) => {
         // Store track URIs for reuse in removal and addition
         albumTrackUris = allTracks.map(track => `spotify:track:${track.id}`);
         
+        // Ensure cache is loaded and tracks exist so updateLovedStatus can unlove them
+        if (user.value && allTracks.length > 0) {
+          await loadUnifiedTrackCache(user.value.uid, userData.value?.lastFmUserName || '');
+          await addAlbumTracks(album.id, allTracks, album, user.value.uid);
+        }
+        
         // Unlove each track
         for (const track of allTracks) {
           if (track.id) {
             try {
-              await updateLovedStatus(track.id, false);
+              const trackName = track.name;
+              const artistName = track.artists?.[0]?.name ?? '';
+              await updateLovedStatus(track.id, false, trackName, artistName);
               logPlaylist(`Unloved track ${track.id} from album ${album.id}`);
             } catch (error) {
               logPlaylist(`Error unloving track ${track.id}:`, error);
-              // Continue with other tracks even if one fails
             }
           }
         }
