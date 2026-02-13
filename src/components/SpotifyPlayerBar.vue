@@ -26,9 +26,20 @@ const albumId = computed(() => {
   return uri.replace('spotify:album:', '');
 });
 
+const artistId = computed(() => {
+  const uri = currentTrack.value?.artistUri;
+  if (!uri || !uri.startsWith('spotify:artist:')) return null;
+  return uri.replace('spotify:artist:', '');
+});
+
 const navigateToAlbum = () => {
   const id = albumId.value;
   if (id) router.push({ name: 'album', params: { id } });
+};
+
+const navigateToArtist = () => {
+  const id = artistId.value;
+  if (id) router.push({ name: 'artist', params: { id } });
 };
 
 const { userData, user } = useUserData();
@@ -443,7 +454,14 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         
         <div class="flex-1 min-w-0">
           <h3 class="font-semibold truncate track-title">{{ currentTrack?.name }}</h3>
-          <p class="text-sm text-gray-300 truncate">
+          <button
+            v-if="artistId"
+            @click="navigateToArtist"
+            class="text-sm text-gray-300 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer block w-full"
+          >
+            {{ currentTrack?.artists?.join(', ') }}
+          </button>
+          <p v-else class="text-sm text-gray-300 truncate">
             {{ currentTrack?.artists?.join(', ') }}
           </p>
           <button
