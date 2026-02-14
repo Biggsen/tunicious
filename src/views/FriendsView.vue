@@ -31,43 +31,6 @@
 
     <!-- Tab Content -->
     <div class="bg-mint p-6 rounded-xl">
-      <!-- Search Tab -->
-      <div v-if="activeTab === 'search'">
-        <div class="mb-6">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              @input="handleSearchInput"
-              type="text"
-              placeholder="Search by display name or email..."
-              class="w-full px-4 py-3 pl-10 rounded-lg border-2 border-delft-blue focus:outline-none focus:ring-2 focus:ring-delft-blue"
-            />
-            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          </div>
-        </div>
-
-        <LoadingMessage v-if="searchLoading" />
-        <ErrorMessage v-else-if="searchError" :message="searchError" />
-        <div v-else-if="searchResults.length > 0" class="space-y-3">
-          <UserCard
-            v-for="user in searchResults"
-            :key="user.id"
-            :user="user"
-            :status="user.relationshipStatus"
-            :loading="actionLoading[user.id]"
-            @send-request="handleSendRequest(user.id)"
-            @cancel-request="handleCancelRequest(user.id)"
-            @view-requests="activeTab = 'requests'"
-          />
-        </div>
-        <div v-else-if="searchQuery && !searchLoading" class="text-center py-8 text-gray-500">
-          No users found matching "{{ searchQuery }}"
-        </div>
-        <div v-else class="text-center py-8 text-gray-500">
-          Start typing to search for users...
-        </div>
-      </div>
-
       <!-- Requests Tab -->
       <div v-if="activeTab === 'requests'">
         <LoadingMessage v-if="requestsLoading" />
@@ -118,7 +81,7 @@
       <div v-if="activeTab === 'friends'">
         <LoadingMessage v-if="friendsLoading" />
         <ErrorMessage v-else-if="friendsError" :message="friendsError" />
-        <div v-else-if="friends.length > 0" class="space-y-3">
+        <div v-else-if="friends.length > 0" class="space-y-3 mb-8">
           <FriendCard
             v-for="friend in friends"
             :key="friend.id"
@@ -126,8 +89,42 @@
             @view-profile="handleViewFriendProfile(friend.id)"
           />
         </div>
-        <div v-else class="text-center py-8 text-gray-500">
-          No friends yet. Search for users to send friend requests!
+        <div v-else class="mb-8 text-center py-8 text-gray-500">
+          No friends yet. Search for users below to send friend requests!
+        </div>
+
+        <div class="border-t border-delft-blue/20 pt-6">
+          <h2 class="text-xl font-bold text-delft-blue mb-4">Add Friends</h2>
+          <div class="relative mb-4">
+            <input
+              v-model="searchQuery"
+              @input="handleSearchInput"
+              type="text"
+              placeholder="Search by display name or email..."
+              class="w-full px-4 py-3 pl-10 rounded-lg border-2 border-delft-blue focus:outline-none focus:ring-2 focus:ring-delft-blue"
+            />
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          </div>
+          <LoadingMessage v-if="searchLoading" />
+          <ErrorMessage v-else-if="searchError" :message="searchError" />
+          <div v-else-if="searchResults.length > 0" class="space-y-3">
+            <UserCard
+              v-for="user in searchResults"
+              :key="user.id"
+              :user="user"
+              :status="user.relationshipStatus"
+              :loading="actionLoading[user.id]"
+              @send-request="handleSendRequest(user.id)"
+              @cancel-request="handleCancelRequest(user.id)"
+              @view-requests="activeTab = 'requests'"
+            />
+          </div>
+          <div v-else-if="searchQuery && !searchLoading" class="text-center py-6 text-gray-500">
+            No users found matching "{{ searchQuery }}"
+          </div>
+          <div v-else class="text-center py-6 text-gray-500">
+            Start typing to search for users...
+          </div>
         </div>
       </div>
     </div>
@@ -166,7 +163,7 @@ const {
   getFriends
 } = useFriends();
 
-const activeTab = ref('search');
+const activeTab = ref('friends');
 const searchQuery = ref('');
 const searchResults = ref([]);
 const searchLoading = ref(false);
@@ -313,15 +310,21 @@ const handleViewFriendProfile = (friendId) => {
 
 const tabs = computed(() => {
   const incomingCount = incomingRequests.value.length;
-  return [
-    { id: 'search', label: 'Search' },
-    { 
-      id: 'requests', 
-      label: 'Requests',
-      badge: incomingCount > 0 ? incomingCount : null
-    },
-    { id: 'friends', label: 'Friends' }
+  const outgoingCount = outgoingRequests.value.length;
+  const hasRequests = incomingCount > 0 || outgoingCount > 0;
+
+  const allTabs = [
+    { id: 'friends', label: 'Friends' },
+    ...(hasRequests
+      ? [{
+          id: 'requests',
+          label: 'Requests',
+          badge: incomingCount > 0 ? incomingCount : null
+        }]
+      : [])
   ];
+
+  return allTabs;
 });
 
 // Watch for tab changes to load data
@@ -334,13 +337,24 @@ watch(activeTab, (newTab) => {
 });
 
 onMounted(() => {
-  // Load initial data based on active tab
-  if (activeTab.value === 'requests') {
-    loadRequests();
-  } else if (activeTab.value === 'friends') {
+  loadRequests();
+  if (activeTab.value === 'friends') {
     loadFriends();
   }
 });
+
+watch(
+  () => [incomingRequests.value.length, outgoingRequests.value.length],
+  () => {
+    if (
+      activeTab.value === 'requests' &&
+      incomingRequests.value.length === 0 &&
+      outgoingRequests.value.length === 0
+    ) {
+      activeTab.value = 'friends';
+    }
+  }
+);
 </script>
 
 <style scoped>
