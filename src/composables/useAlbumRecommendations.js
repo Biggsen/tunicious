@@ -17,8 +17,10 @@ import { useFriends } from './useFriends';
 import { useUserSpotifyApi } from './useUserSpotifyApi';
 import { useAlbumsData } from './useAlbumsData';
 import { useUserData } from './useUserData';
+import { useAlbumMappings } from './useAlbumMappings';
 import { loadUnifiedTrackCache, addAlbumTracks, addAlbumToPlaylistInCache } from '@utils/unifiedTrackCache';
 import { clearCache, getCache, setCache } from '@utils/cache';
+import { resolvePlaylistName } from '@utils/playlistNameResolver';
 import { logPlaylist } from '@utils/logger';
 
 /**
@@ -40,8 +42,9 @@ export function useAlbumRecommendations() {
   const user = useCurrentUser();
   const { isFriend } = useFriends();
   const { addAlbumToPlaylist, getAlbumTracks, getUserPlaylists, isTuniciousPlaylist, getPlaylist } = useUserSpotifyApi();
-  const { addAlbumToCollection } = useAlbumsData();
+  const { addAlbumToCollection, getCurrentPlaylistInfo } = useAlbumsData();
   const { userData } = useUserData();
+  const { resolveToPrimaryId } = useAlbumMappings();
   const loading = ref(false);
   const error = ref(null);
 
@@ -90,17 +93,23 @@ export function useAlbumRecommendations() {
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
         let fromDisplayName = '';
+        let fromProfileImageUrl = '';
         try {
           const userSnap = await getDoc(doc(db, 'users', data.fromUserId));
           if (userSnap.exists()) {
-            fromDisplayName = userSnap.data().displayName || userSnap.data().email || 'Unknown';
+            const d = userSnap.data();
+            fromDisplayName = d.displayName || d.email || 'Unknown';
+            fromProfileImageUrl = d.profileImageUrl || '';
           }
         } catch (_) {}
-        list.push({
-          id: docSnap.id,
-          ...data,
-          fromDisplayName
-        });
+        const rec = { id: docSnap.id, ...data, fromDisplayName, fromProfileImageUrl };
+        const primaryAlbumId = await resolveToPrimaryId(data.albumId);
+        const existingEntry = await getCurrentPlaylistInfo(primaryAlbumId);
+        if (existingEntry?.playlistId) {
+          rec.existingPlaylistId = existingEntry.playlistId;
+          rec.existingPlaylistName = await resolvePlaylistName(existingEntry.playlistId, user.value.uid, getPlaylist) || 'a playlist';
+        }
+        list.push(rec);
       }
       return list;
     } catch (e) {
@@ -119,6 +128,12 @@ export function useAlbumRecommendations() {
     const data = recSnap.data();
     if (data.toUserId !== user.value.uid) throw new Error('Not the recipient');
     if (data.status !== 'pending') throw new Error('Recommendation already responded to');
+
+    const primaryAlbumId = await resolveToPrimaryId(data.albumId);
+    const existingEntry = await getCurrentPlaylistInfo(primaryAlbumId);
+    if (existingEntry?.playlistId) {
+      throw new Error('You already have this album in a playlist');
+    }
 
     const album = albumFromRecommendation(data);
     await addAlbumToPlaylist(playlistId, data.albumId);

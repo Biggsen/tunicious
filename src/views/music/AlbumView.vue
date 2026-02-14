@@ -986,13 +986,26 @@ onUnmounted(() => {
               :key="friend.id"
               @click="selectedRecommendFriendId = friend.id"
               :class="[
-                'px-3 py-2 rounded-lg cursor-pointer border-2 transition-colors',
+                'rounded-lg border-2 py-2 px-3 cursor-pointer transition-colors flex items-center gap-3',
                 selectedRecommendFriendId === friend.id
                   ? 'border-delft-blue bg-mint'
-                  : 'border-gray-200 hover:border-delft-blue/50'
+                  : 'bg-white border-delft-blue hover:border-delft-blue/70'
               ]"
             >
-              {{ friend.displayName || friend.email || friend.id }}
+              <div class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-delft-blue flex items-center justify-center">
+                <img
+                  v-if="friend.profileImageUrl"
+                  :src="friend.profileImageUrl"
+                  :alt="friend.displayName || friend.email || ''"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else class="text-mindero text-sm font-semibold">
+                  {{ (friend.displayName || friend.email || '?').charAt(0).toUpperCase() }}
+                </span>
+              </div>
+              <span class="font-semibold text-delft-blue text-sm truncate">
+                {{ friend.displayName || friend.email || friend.id }}
+              </span>
             </li>
           </ul>
         </template>

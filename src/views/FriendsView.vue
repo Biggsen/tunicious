@@ -136,37 +136,68 @@
           <div
             v-for="rec in recommendations"
             :key="rec.id"
-            class="bg-white rounded-lg border-2 border-delft-blue/20 p-4 flex flex-wrap items-center justify-between gap-3"
+            class="bg-mindero rounded-lg border-2 border-delft-blue p-4 flex flex-wrap items-start gap-3"
           >
-            <div class="min-w-0">
-              <p class="font-semibold text-delft-blue">{{ rec.fromDisplayName || 'Someone' }}</p>
-              <p class="text-gray-700">
+            <div class="flex flex-col items-center gap-1 flex-shrink-0 w-14 self-center mr-4">
+              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-delft-blue/30 flex-shrink-0 bg-delft-blue/10">
+                <img
+                  v-if="rec.fromProfileImageUrl"
+                  :src="rec.fromProfileImageUrl"
+                  alt=""
+                  class="w-full h-full object-cover"
+                />
+                <div v-else class="w-full h-full flex items-center justify-center text-delft-blue text-sm font-semibold">
+                  {{ (rec.fromDisplayName || '?').charAt(0).toUpperCase() }}
+                </div>
+              </div>
+              <span class="text-xs text-delft-blue/80 text-center leading-tight">{{ rec.fromDisplayName || 'Someone' }}</span>
+            </div>
+            <img
+              :src="rec.albumCover || recAlbumFallback"
+              :alt="rec.albumTitle"
+              class="w-20 h-20 rounded-lg object-cover flex-shrink-0 border border-white shadow-sm"
+            />
+            <div class="flex-1 min-w-0">
+              <p v-if="rec.releaseYear" class="text-sm text-delft-blue">{{ rec.releaseYear }}</p>
+              <p class="font-semibold text-lg text-delft-blue leading-tight">
                 <router-link
                   v-if="rec.albumId"
                   :to="{ name: 'album', params: { id: rec.albumId } }"
-                  class="hover:underline text-delft-blue"
+                  class="hover:underline"
                 >
                   {{ rec.albumTitle }}
                 </router-link>
                 <span v-else>{{ rec.albumTitle }}</span>
-                <span class="text-gray-500"> · {{ rec.artistName }}</span>
               </p>
+              <p class="text-base text-delft-blue">{{ rec.artistName }}</p>
             </div>
-            <div class="flex gap-2">
-              <BaseButton
-                variant="primary"
-                :disabled="actionLoading[rec.id]"
-                @click="openAcceptRecommendationModal(rec)"
-              >
-                Accept
-              </BaseButton>
-              <BaseButton
-                variant="default"
-                :disabled="actionLoading[rec.id]"
-                @click="handleDeclineRecommendation(rec.id)"
-              >
-                Decline
-              </BaseButton>
+            <div class="flex flex-col items-end gap-2 flex-shrink-0 self-center">
+              <div v-if="rec.existingPlaylistId" class="flex items-center gap-2">
+                <span class="inline-flex items-center min-h-[2.5rem] text-sm text-amber-700">Already in {{ rec.existingPlaylistName }}</span>
+                <BaseButton
+                  variant="default"
+                  :disabled="actionLoading[rec.id]"
+                  @click="handleDeclineRecommendation(rec.id)"
+                >
+                  Dismiss
+                </BaseButton>
+              </div>
+              <div v-else class="flex gap-2">
+                <BaseButton
+                  variant="primary"
+                  :disabled="actionLoading[rec.id]"
+                  @click="openAcceptRecommendationModal(rec)"
+                >
+                  Accept
+                </BaseButton>
+                <BaseButton
+                  variant="default"
+                  :disabled="actionLoading[rec.id]"
+                  @click="handleDeclineRecommendation(rec.id)"
+                >
+                  Decline
+                </BaseButton>
+              </div>
             </div>
           </div>
         </div>
@@ -275,6 +306,7 @@ const acceptRecommendationPlaylistId = ref('');
 const acceptPlaylists = ref([]);
 const acceptPlaylistsLoading = ref(false);
 const acceptRecommendationSubmitting = ref(false);
+const recAlbumFallback = '/placeholder.png';
 
 // Debounce search
 let searchTimeout = null;
