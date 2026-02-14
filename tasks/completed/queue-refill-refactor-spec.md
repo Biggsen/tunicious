@@ -2,7 +2,7 @@
 
 **Status:** ✅ Implemented
 
-**Related:** [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md) (implemented). This spec describes refactoring opportunities identified after that work.
+**Related:** [Queue Refill and Loop Specification](queue-refill-and-loop-spec.md) (implemented). This spec describes refactoring opportunities identified after that work.
 
 ## Overview
 
@@ -12,17 +12,17 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 | Refill deliverable | Refactor opportunity |
 |--------------------|----------------------|
-| Initial queue fill in TrackList + top-up loop in useQueueSession | Same “add batch of albums to queue” logic in both places → extract shared helper. |
+| Initial queue fill in TrackList + top-up loop in useQueueSession | Same "add batch of albums to queue" logic in both places → extract shared helper. |
 | Session shape and selection options (`playlistId`, `playlistTrackIds`) | Same shape built from props (TrackList) and from session (useQueueSession) → shared type/helper. |
 | `albumIdFromUri()` in useQueueSession | Generic Spotify URI parsing → move to shared util for reuse. |
 | `fetchAllAlbumTracks()` in useQueueTrackSelection | Generic paginated album fetch → move to API layer (e.g. useUserSpotifyApi). |
 | handleTrackClick: clear session, play, initial fill, setSession | Playlist-play flow is a distinct concern → extract composable (e.g. usePlaylistPlay). |
 | Session documented only in comments | Add shared type (e.g. QueueSession) for refactors and onboarding. |
-| “First of first 3” in track selection | Simplify to “first after sort” if random-among-three is not required. |
+| "First of first 3" in track selection | Simplify to "first after sort" if random-among-three is not required. |
 
 ## Refactoring Considerations
 
-### 1. Extract shared “add album batch to queue”
+### 1. Extract shared "add album batch to queue"
 
 **Current state:**  
 - **TrackList.vue** (initial fill): loops over `remainingAlbums`, calls `selectNextTrackUriForAlbum(nextAlbum, selectionOpts)` then `addToQueue(nextTrackUri)`.  
@@ -31,7 +31,7 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 **Proposal:**  
 - Add a single helper used by both, e.g. `addAlbumBatchToQueue(albums, selectionOpts, { selectNextTrackUriForAlbum, addToQueue })`.  
 - Call it from TrackList after `playTrack()` for the initial batch, and from the useQueueSession watcher for top-up/loop.  
-- Keeps the “one track per album” rule in one place and avoids drift between initial fill and refill.
+- Keeps the "one track per album" rule in one place and avoids drift between initial fill and refill.
 
 **Files:**  
 - New: small helper (could live in `useQueueTrackSelection.js` as an exported function, or in a dedicated `queueBatchUtils.js`).  
@@ -45,7 +45,7 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 - `albumIdFromUri(albumUri)` in `useQueueSession.js` parses a Spotify album URI to return the ID.
 
 **Proposal:**  
-- Move to a shared util, e.g. `src/utils/spotify.js` (or existing spotify-related util), so any code that needs “ID from Spotify URI” can reuse it.  
+- Move to a shared util, e.g. `src/utils/spotify.js` (or existing spotify-related util), so any code that needs "ID from Spotify URI" can reuse it.  
 - useQueueSession (and any other consumer) imports from that util.
 
 **Files:**  
@@ -61,7 +61,7 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 - useQueueSession builds the same shape from `session` for `selectNextTrackUriForAlbum`.
 
 **Proposal:**  
-- Introduce a named shape (JSDoc type or shared constant) for “queue selection options,” e.g. `{ playlistId: string, playlistTrackIds: Record<string, Record<string, boolean>> }`.  
+- Introduce a named shape (JSDoc type or shared constant) for "queue selection options," e.g. `{ playlistId: string, playlistTrackIds: Record<string, Record<string, boolean>> }`.  
 - Optionally: a tiny helper that builds this from props or from session, so both call sites use the same contract and naming.
 
 **Files:**  
@@ -77,9 +77,9 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 **Proposal:**  
 - Extract a composable, e.g. `usePlaylistPlay()`, that takes the needed deps (playTrack, addToQueue, clearSession, setSession, selectNextTrackUriForAlbum, etc.) and exposes something like `playFromPlaylist(track, playlistContext)`.  
-- That function encapsulates: clear session, build play context, call playTrack, then “if playlist with albums” run initial batch add (via the shared batch helper from #1) and setSession.  
-- TrackList’s handleTrackClick becomes: play/pause branch, then a single call to `playFromPlaylist` (or equivalent) for the play path.  
-- Centralizes “when we set session” and “how we do initial queue fill” and relates clearly to the refill spec’s “clear on play; set session when playing from our playlist.”
+- That function encapsulates: clear session, build play context, call playTrack, then "if playlist with albums" run initial batch add (via the shared batch helper from #1) and setSession.  
+- TrackList's handleTrackClick becomes: play/pause branch, then a single call to `playFromPlaylist` (or equivalent) for the play path.  
+- Centralizes "when we set session" and "how we do initial queue fill" and relates clearly to the refill spec's "clear on play; set session when playing from our playlist."
 
 **Files:**  
 - New: `src/composables/usePlaylistPlay.js` (or similar name).  
@@ -95,7 +95,7 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 **Proposal:**  
 - Move to the Spotify API layer, e.g. `useUserSpotifyApi`, as something like `getAllAlbumTracks(albumId)` (or keep the same name).  
 - useQueueTrackSelection (or the shared batch helper) calls that API method instead of owning pagination.  
-- Keeps “fetch all pages” in the data layer and “choose next track” in the selection layer.
+- Keeps "fetch all pages" in the data layer and "choose next track" in the selection layer.
 
 **Files:**  
 - Update: `src/composables/useUserSpotifyApi.js` (add paginated album-tracks method).  
@@ -103,10 +103,10 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 ---
 
-### 6. Simplify “first of first 3” in track selection
+### 6. Simplify "first of first 3" in track selection
 
 **Current state:**  
-- In `useQueueTrackSelection.js`: `tracksWithMinPlaycount.slice(0, 3)` then take the first. The spec mentioned “first 3 then select the first one” (e.g. for future random among three).
+- In `useQueueTrackSelection.js`: `tracksWithMinPlaycount.slice(0, 3)` then take the first. The spec mentioned "first 3 then select the first one" (e.g. for future random among three).
 
 **Proposal:**  
 - If there is no plan to randomise among the first three, simplify to taking the first element after the sort (remove the slice).  
@@ -157,15 +157,15 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 | # | Item | Done |
 |---|------|------|
-| 1 | Shared “add album batch to queue” | `src/utils/queueBatchUtils.js` — `addAlbumBatchToQueue()`. Used by `useQueueSession` (top-up) and `usePlaylistPlay` (initial fill). |
+| 1 | Shared "add album batch to queue" | `src/utils/queueBatchUtils.js` — `addAlbumBatchToQueue()`. Used by `useQueueSession` (top-up) and `usePlaylistPlay` (initial fill). |
 | 2 | `albumIdFromUri` in shared util | `src/utils/spotify.js` — `albumIdFromUri()`. `useQueueSession` imports it. |
 | 3 | Selection options shape | `QueueSelectionOptions` JSDoc typedef in `useQueueTrackSelection.js`. |
 | 4 | Playlist-play composable | `src/composables/usePlaylistPlay.js` — `playFromPlaylist(track, playlistContext)`. TrackList `handleTrackClick` delegates to it; `findRemainingAlbums` removed from TrackList. |
 | 5 | `fetchAllAlbumTracks` in API | `useUserSpotifyApi.js` — `getAllAlbumTracks(albumId)`. `useQueueTrackSelection` uses it; local `fetchAllAlbumTracks` removed. |
-| 6 | Simplify “first of first 3” | Selection now uses first track after sort (no slice). |
+| 6 | Simplify "first of first 3" | Selection now uses first track after sort (no slice). |
 | 7 | QueueSession type | `src/types/queueSession.js` — JSDoc `QueueSession`; referenced from `useQueueSession`. |
 
-**Note:** `getAllAlbumTracks` does not catch per-page errors; on API failure the caller gets an exception (selection returns null for that album). Per-track “Added track to queue” logging was removed; errors are still logged by the batch helper.
+**Note:** `getAllAlbumTracks` does not catch per-page errors; on API failure the caller gets an exception (selection returns null for that album). Per-track "Added track to queue" logging was removed; errors are still logged by the batch helper.
 
 ## Out of scope
 
@@ -175,5 +175,5 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 ## References
 
-- [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md)  
+- [Queue Refill and Loop Specification](queue-refill-and-loop-spec.md)  
 - Implementation: `useQueueSession.js`, `useQueueTrackSelection.js`, `usePlaylistPlay.js`, `TrackList.vue`, `queueBatchUtils.js`, `spotify.js`, `types/queueSession.js`, `useUserSpotifyApi.js` (getAllAlbumTracks).
