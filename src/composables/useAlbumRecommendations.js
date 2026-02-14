@@ -103,6 +103,26 @@ export function useAlbumRecommendations() {
     }
   };
 
+  /**
+   * Returns the number of pending recommendations for the current user (lightweight count only).
+   * @returns {Promise<number>}
+   */
+  const getPendingRecommendationsCount = async () => {
+    if (!user.value) return 0;
+    try {
+      const col = collection(db, 'albumRecommendations');
+      const q = query(
+        col,
+        where('toUserId', '==', user.value.uid),
+        where('status', '==', 'pending')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (_) {
+      return 0;
+    }
+  };
+
   const getRecommendationsForMe = async (statusFilter = 'pending') => {
     if (!user.value) throw new Error('User must be authenticated');
     loading.value = true;
@@ -282,6 +302,7 @@ export function useAlbumRecommendations() {
     error,
     createRecommendation,
     getPendingRecommendationRecipientIds,
+    getPendingRecommendationsCount,
     getRecommendationsForMe,
     acceptRecommendation,
     declineRecommendation,
