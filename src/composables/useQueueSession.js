@@ -1,6 +1,8 @@
 import { ref, readonly, watch } from 'vue';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueTrackSelection } from './useQueueTrackSelection';
+import { addAlbumBatchToQueue } from '@utils/queueBatchUtils';
+import { albumIdFromUri } from '@utils/spotify';
 import { logPlayer } from '@utils/logger';
 
 const session = ref(null);
@@ -10,29 +12,23 @@ let loopAddedForAlbumId = null;
 
 const QUEUE_TOP_UP_THRESHOLD = 2;
 
-function albumIdFromUri(albumUri) {
-  if (!albumUri || typeof albumUri !== 'string') return null;
-  const parts = albumUri.split(':');
-  return parts.length >= 3 ? parts[2] : null;
-}
-
 /**
  * Queue session for playlist playback: tracks refill and loop.
  * Session is set when user starts play from a playlist (multi-album);
  * cleared on every play click.
- *
- * Session shape: {
- *   playlistId: string,
- *   playlistName: string,
- *   albumsList: Array<{ id: string, ... }>,
- *   playlistTrackIds: Record<albumId, Record<trackId, boolean>>,
- *   lastAlbumId: string
- * }
+ * Session shape: see QueueSession in @/types/queueSession.js
  */
 export function useQueueSession() {
   const { currentTrack, getQueue, addToQueue } = useSpotifyPlayer();
   const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
 
+  /**
+   * @param {Object} payload
+   * @param {string} payload.playlistId
+   * @param {string} [payload.playlistName]
+   * @param {Array<{id: string}>} payload.albumsList
+   * @param {Record<string, Record<string, boolean>>} [payload.playlistTrackIds]
+   */
   const setSession = (payload) => {
     if (!payload?.playlistId || !payload?.albumsList?.length) {
       session.value = null;
@@ -96,14 +92,10 @@ export function useQueueSession() {
             playlistTrackIds: s.playlistTrackIds
           };
 
-          for (const album of remainingAlbums) {
-            try {
-              const uri = await selectNextTrackUriForAlbum(album, selectionOpts);
-              if (uri) await addToQueue(uri);
-            } catch (err) {
-              logPlayer('Queue top-up failed for album:', album?.id, err);
-            }
-          }
+          await addAlbumBatchToQueue(remainingAlbums, selectionOpts, {
+            selectNextTrackUriForAlbum,
+            addToQueue
+          });
           if (isLastAlbum) {
             loopAddedForAlbumId = currentAlbumId;
           }

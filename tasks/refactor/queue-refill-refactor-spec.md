@@ -1,6 +1,6 @@
 # Queue Refill Post-Implementation Refactor Specification
 
-**Status:** 📋 Planning
+**Status:** ✅ Implemented
 
 **Related:** [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md) (implemented). This spec describes refactoring opportunities identified after that work.
 
@@ -153,6 +153,20 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 | New composable | usePlaylistPlay (or equivalent) if #4 is done. |
 | New helper / types | addAlbumBatchToQueue; QueueSession (and optionally selection options) type. |
 
+## Implementation summary (completed)
+
+| # | Item | Done |
+|---|------|------|
+| 1 | Shared “add album batch to queue” | `src/utils/queueBatchUtils.js` — `addAlbumBatchToQueue()`. Used by `useQueueSession` (top-up) and `usePlaylistPlay` (initial fill). |
+| 2 | `albumIdFromUri` in shared util | `src/utils/spotify.js` — `albumIdFromUri()`. `useQueueSession` imports it. |
+| 3 | Selection options shape | `QueueSelectionOptions` JSDoc typedef in `useQueueTrackSelection.js`. |
+| 4 | Playlist-play composable | `src/composables/usePlaylistPlay.js` — `playFromPlaylist(track, playlistContext)`. TrackList `handleTrackClick` delegates to it; `findRemainingAlbums` removed from TrackList. |
+| 5 | `fetchAllAlbumTracks` in API | `useUserSpotifyApi.js` — `getAllAlbumTracks(albumId)`. `useQueueTrackSelection` uses it; local `fetchAllAlbumTracks` removed. |
+| 6 | Simplify “first of first 3” | Selection now uses first track after sort (no slice). |
+| 7 | QueueSession type | `src/types/queueSession.js` — JSDoc `QueueSession`; referenced from `useQueueSession`. |
+
+**Note:** `getAllAlbumTracks` does not catch per-page errors; on API failure the caller gets an exception (selection returns null for that album). Per-track “Added track to queue” logging was removed; errors are still logged by the batch helper.
+
 ## Out of scope
 
 - Changing queue refill or loop behaviour (that stays as in the queue-refill spec).  
@@ -162,4 +176,4 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 ## References
 
 - [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md)  
-- Current implementation: `useQueueSession.js`, `useQueueTrackSelection.js`, `TrackList.vue` (handleTrackClick, initial queue fill), `useSpotifyPlayer.js` (getQueue, addToQueue).
+- Implementation: `useQueueSession.js`, `useQueueTrackSelection.js`, `usePlaylistPlay.js`, `TrackList.vue`, `queueBatchUtils.js`, `spotify.js`, `types/queueSession.js`, `useUserSpotifyApi.js` (getAllAlbumTracks).

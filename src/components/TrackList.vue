@@ -1,8 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
-import { useQueueSession } from '@composables/useQueueSession';
-import { useQueueTrackSelection } from '@composables/useQueueTrackSelection';
+import { usePlaylistPlay } from '@composables/usePlaylistPlay';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
@@ -99,15 +98,12 @@ const {
   isReady: playerReady,
   isPlaying,
   currentTrack: playerCurrentTrack,
-  playTrack,
   togglePlayback,
   isTrackPlaying,
-  addToQueue,
   error: playerError
 } = useSpotifyPlayer();
 
-const { clearSession, setSession } = useQueueSession();
-const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
+const { playFromPlaylist } = usePlaylistPlay();
 
 /**
  * Format playcount number for display
@@ -306,24 +302,6 @@ const handleHeartClick = async (track, event) => {
 };
 
 /**
- * Find all remaining albums in the playlist sequence (from current to end)
- */
-const findRemainingAlbums = () => {
-  if (!props.playlistId || !props.albumsList.length || !props.albumId) {
-    return [];
-  }
-
-  const currentIndex = props.albumsList.findIndex(album => album.id === props.albumId);
-  if (currentIndex === -1 || currentIndex === props.albumsList.length - 1) {
-    return [];
-  }
-
-  // Return all albums from current + 1 to the end
-  return props.albumsList.slice(currentIndex + 1);
-};
-
-
-/**
  * Handle track play/pause click
  */
 const handleTrackClick = async (track) => {
@@ -332,8 +310,6 @@ const handleTrackClick = async (track) => {
     return;
   }
 
-  clearSession();
-
   const trackUri = track.uri || `spotify:track:${track.id}`;
   const isCurrentlyPlaying = isTrackPlaying(trackUri);
 
@@ -341,49 +317,14 @@ const handleTrackClick = async (track) => {
     await togglePlayback();
   } else {
     try {
-      let context = null;
-      if (props.playlistId) {
-        context = {
-          type: 'playlist',
-          id: props.playlistId,
-          name: props.playlistName || 'Unknown Playlist'
-        };
-      } else if (props.albumId) {
-        context = {
-          type: 'album',
-          id: props.albumId,
-          name: props.albumTitle || 'Unknown Album'
-        };
-      }
-
-      await playTrack(trackUri, context);
-
-      if (props.playlistId && props.albumsList.length > 0 && props.albumId) {
-        const remainingAlbums = findRemainingAlbums();
-        const selectionOpts = {
-          playlistId: props.playlistId,
-          playlistTrackIds: props.playlistTrackIds
-        };
-
-        for (const nextAlbum of remainingAlbums) {
-          try {
-            const nextTrackUri = await selectNextTrackUriForAlbum(nextAlbum, selectionOpts);
-            if (nextTrackUri) {
-              await addToQueue(nextTrackUri);
-              logPlayer('Added track to queue:', nextTrackUri);
-            }
-          } catch (queueError) {
-            logPlayer('Failed to add track to queue:', queueError);
-          }
-        }
-
-        setSession({
-          playlistId: props.playlistId,
-          playlistName: props.playlistName,
-          albumsList: props.albumsList,
-          playlistTrackIds: props.playlistTrackIds
-        });
-      }
+      await playFromPlaylist(track, {
+        playlistId: props.playlistId,
+        playlistName: props.playlistName,
+        albumsList: props.albumsList,
+        playlistTrackIds: props.playlistTrackIds,
+        albumId: props.albumId,
+        albumTitle: props.albumTitle
+      });
     } catch (err) {
       logPlayer('Error playing track:', err);
     }
