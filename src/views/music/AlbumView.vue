@@ -23,6 +23,7 @@ import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
+import { BellIcon } from '@heroicons/vue/24/outline';
 
 import { clearCache } from '@utils/cache';
 import { logAlbum } from '@utils/logger';
@@ -45,13 +46,14 @@ const { showToast } = useToast();
 const { showModal: showLastFmSessionModal } = useLastFmSessionModal();
 
 const { getFriends, friends: friendsList } = useFriends();
-const { createRecommendation } = useAlbumRecommendations();
+const { createRecommendation, getPendingRecommendationRecipientIds } = useAlbumRecommendations();
 
 const showRecommendModal = ref(false);
 const recommendFriends = ref([]);
 const recommendFriendsLoading = ref(false);
 const selectedRecommendFriendId = ref(null);
 const creatingRecommend = ref(false);
+const recommendAlreadySentToIds = ref(new Set());
 
 const openRecommendModal = async () => {
   showRecommendModal.value = true;
@@ -60,8 +62,14 @@ const openRecommendModal = async () => {
     recommendFriendsLoading.value = true;
     await getFriends();
     recommendFriends.value = friendsList.value ? [...friendsList.value] : [];
+    if (album.value?.id) {
+      recommendAlreadySentToIds.value = await getPendingRecommendationRecipientIds(album.value.id);
+    } else {
+      recommendAlreadySentToIds.value = new Set();
+    }
   } catch (_) {
     recommendFriends.value = [];
+    recommendAlreadySentToIds.value = new Set();
   } finally {
     recommendFriendsLoading.value = false;
   }
@@ -795,9 +803,10 @@ onUnmounted(() => {
       <BackButton />
       <BaseButton
         v-if="user && album && !loading"
+        variant="secondary"
         @click="openRecommendModal"
-        customClass="btn-primary"
       >
+        <template #icon-left><BellIcon class="w-5 h-5" /></template>
         Recommend
       </BaseButton>
     </div>
@@ -963,7 +972,7 @@ onUnmounted(() => {
     </div>
     <BaseModal
       :visible="showRecommendModal"
-      title="Recommend to a friend"
+      :title="album ? `Recommend ${album.name} to a friend` : 'Recommend to a friend'"
       :show-cancel="true"
       :show-confirm="true"
       confirm-text="Send"
@@ -984,12 +993,17 @@ onUnmounted(() => {
             <li
               v-for="friend in recommendFriends"
               :key="friend.id"
-              @click="selectedRecommendFriendId = friend.id"
+              @click="recommendAlreadySentToIds.has(friend.id) ? null : (selectedRecommendFriendId = friend.id)"
               :class="[
-                'rounded-lg border-2 py-2 px-3 cursor-pointer transition-colors flex items-center gap-3',
-                selectedRecommendFriendId === friend.id
-                  ? 'border-delft-blue bg-mint'
-                  : 'bg-white border-delft-blue hover:border-delft-blue/70'
+                'rounded-lg border-2 py-2 px-3 transition-colors flex items-center gap-3',
+                recommendAlreadySentToIds.has(friend.id)
+                  ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-75'
+                  : [
+                      'cursor-pointer',
+                      selectedRecommendFriendId === friend.id
+                        ? 'border-delft-blue bg-mint'
+                        : 'bg-white border-delft-blue hover:border-delft-blue/70'
+                    ]
               ]"
             >
               <div class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-delft-blue flex items-center justify-center">
@@ -1003,8 +1017,11 @@ onUnmounted(() => {
                   {{ (friend.displayName || friend.email || '?').charAt(0).toUpperCase() }}
                 </span>
               </div>
-              <span class="font-semibold text-delft-blue text-sm truncate">
+              <span class="font-semibold text-delft-blue text-sm truncate flex-1 min-w-0">
                 {{ friend.displayName || friend.email || friend.id }}
+              </span>
+              <span v-if="recommendAlreadySentToIds.has(friend.id)" class="text-sm text-gray-500 flex-shrink-0">
+                Already recommended
               </span>
             </li>
           </ul>
@@ -1014,7 +1031,7 @@ onUnmounted(() => {
         <BaseButton variant="default" @click="showRecommendModal = false">Cancel</BaseButton>
         <BaseButton
           variant="primary"
-          :disabled="!selectedRecommendFriendId || creatingRecommend"
+          :disabled="!selectedRecommendFriendId || creatingRecommend || recommendAlreadySentToIds.has(selectedRecommendFriendId)"
           @click="handleRecommendConfirm"
         >
           {{ creatingRecommend ? 'Sending...' : 'Send' }}

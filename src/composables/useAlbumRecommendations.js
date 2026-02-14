@@ -76,6 +76,33 @@ export function useAlbumRecommendations() {
     await addDoc(col, payload);
   };
 
+  /**
+   * Returns the set of user IDs who already have a pending recommendation for this album from the current user.
+   * @param {string} albumId - Spotify album ID
+   * @returns {Promise<Set<string>>}
+   */
+  const getPendingRecommendationRecipientIds = async (albumId) => {
+    if (!user.value || !albumId) return new Set();
+    try {
+      const col = collection(db, 'albumRecommendations');
+      const q = query(
+        col,
+        where('fromUserId', '==', user.value.uid),
+        where('albumId', '==', albumId),
+        where('status', '==', 'pending')
+      );
+      const snapshot = await getDocs(q);
+      const ids = new Set();
+      snapshot.docs.forEach((d) => {
+        const toUserId = d.data().toUserId;
+        if (toUserId) ids.add(toUserId);
+      });
+      return ids;
+    } catch (_) {
+      return new Set();
+    }
+  };
+
   const getRecommendationsForMe = async (statusFilter = 'pending') => {
     if (!user.value) throw new Error('User must be authenticated');
     loading.value = true;
@@ -254,6 +281,7 @@ export function useAlbumRecommendations() {
     loading,
     error,
     createRecommendation,
+    getPendingRecommendationRecipientIds,
     getRecommendationsForMe,
     acceptRecommendation,
     declineRecommendation,
