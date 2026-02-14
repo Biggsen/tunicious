@@ -115,6 +115,20 @@ service cloud.firestore {
         resource.data.fromUserId == request.auth.uid;
     }
 
+    // Album Recommendations collection rules
+    match /albumRecommendations/{recommendationId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.toUserId == request.auth.uid ||
+         resource.data.fromUserId == request.auth.uid);
+      allow create: if isAuthenticated() &&
+        request.resource.data.fromUserId == request.auth.uid &&
+        request.resource.data.fromUserId != request.resource.data.toUserId &&
+        request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() &&
+        resource.data.toUserId == request.auth.uid;
+      allow delete: if false;
+    }
+
     // Friendships collection rules
     match /friendships/{friendshipId} {
       // Users can read friendships they are part of

@@ -416,7 +416,7 @@ export function useAlbumsData() {
         artistName: album.artists[0].name,
         artistNameLower: album.artists[0].name.toLowerCase(),
         artistId: album.artists[0].id,
-        albumCover: album.images && album.images.length > 0 ? album.images[1].url : '',
+        albumCover: album.images?.length > 0 ? (album.images[1]?.url ?? album.images[0]?.url ?? '') : '',
         releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
         userEntries: {
           [user.value.uid]: userAlbumData

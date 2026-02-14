@@ -127,7 +127,91 @@
           </div>
         </div>
       </div>
+
+      <!-- Recommendations Tab -->
+      <div v-if="activeTab === 'recommendations'">
+        <LoadingMessage v-if="recommendationsLoading" />
+        <ErrorMessage v-else-if="recommendationsError" :message="recommendationsError" />
+        <div v-else-if="recommendations.length > 0" class="space-y-3">
+          <div
+            v-for="rec in recommendations"
+            :key="rec.id"
+            class="bg-white rounded-lg border-2 border-delft-blue/20 p-4 flex flex-wrap items-center justify-between gap-3"
+          >
+            <div class="min-w-0">
+              <p class="font-semibold text-delft-blue">{{ rec.fromDisplayName || 'Someone' }}</p>
+              <p class="text-gray-700">
+                <router-link
+                  v-if="rec.albumId"
+                  :to="{ name: 'album', params: { id: rec.albumId } }"
+                  class="hover:underline text-delft-blue"
+                >
+                  {{ rec.albumTitle }}
+                </router-link>
+                <span v-else>{{ rec.albumTitle }}</span>
+                <span class="text-gray-500"> · {{ rec.artistName }}</span>
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <BaseButton
+                variant="primary"
+                :disabled="actionLoading[rec.id]"
+                @click="openAcceptRecommendationModal(rec)"
+              >
+                Accept
+              </BaseButton>
+              <BaseButton
+                variant="default"
+                :disabled="actionLoading[rec.id]"
+                @click="handleDeclineRecommendation(rec.id)"
+              >
+                Decline
+              </BaseButton>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-center py-8 text-gray-500">
+          No recommendations
+        </div>
+      </div>
     </div>
+
+    <!-- Accept recommendation: playlist picker modal -->
+    <BaseModal
+      :visible="showAcceptRecommendationModal"
+      title="Add to which playlist?"
+      :show-cancel="true"
+      :show-confirm="true"
+      confirm-text="Add & accept"
+      @close="showAcceptRecommendationModal = false"
+      @cancel="showAcceptRecommendationModal = false"
+      @confirm="handleAcceptRecommendationConfirm"
+    >
+      <template #default>
+        <p class="text-sm text-gray-600 mb-3">Choose a source playlist to add the album to:</p>
+        <select
+          v-model="acceptRecommendationPlaylistId"
+          class="w-full px-3 py-2 border-2 border-delft-blue rounded-lg focus:ring-2 focus:ring-delft-blue"
+        >
+          <option value="" disabled>Select a playlist</option>
+          <option v-for="p in acceptPlaylists" :key="p.id" :value="p.id">
+            {{ p.name }} ({{ p.tracks?.total ?? 0 }} tracks)
+          </option>
+        </select>
+        <p v-if="acceptPlaylistsLoading" class="text-gray-500 mt-2 text-sm">Loading playlists...</p>
+        <p v-else-if="acceptPlaylists.length === 0" class="text-gray-500 mt-2 text-sm">No source playlists found. Create a source playlist in Playlists first.</p>
+      </template>
+      <template #actions>
+        <BaseButton variant="default" @click="showAcceptRecommendationModal = false">Cancel</BaseButton>
+        <BaseButton
+          variant="primary"
+          :disabled="!acceptRecommendationPlaylistId || acceptRecommendationSubmitting"
+          @click="handleAcceptRecommendationConfirm"
+        >
+          {{ acceptRecommendationSubmitting ? 'Adding...' : 'Add & accept' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
   </BaseLayout>
 </template>
 
@@ -136,7 +220,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFriends } from '@/composables/useFriends';
 import { useToast } from '@/composables/useToast';
+import { useAlbumRecommendations } from '@/composables/useAlbumRecommendations';
+import { useUserData } from '@/composables/useUserData';
 import BaseLayout from '@components/common/BaseLayout.vue';
+import BaseButton from '@components/common/BaseButton.vue';
+import BaseModal from '@components/common/BaseModal.vue';
 import UserCard from '@/components/friends/UserCard.vue';
 import FriendRequestCard from '@/components/friends/FriendRequestCard.vue';
 import FriendCard from '@/components/friends/FriendCard.vue';
@@ -146,6 +234,13 @@ import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const { showToast } = useToast();
+const { userData } = useUserData();
+const {
+  getRecommendationsForMe,
+  acceptRecommendation,
+  declineRecommendation,
+  getSourcePlaylists
+} = useAlbumRecommendations();
 
 const {
   loading: friendsLoading,
@@ -171,6 +266,15 @@ const searchError = ref(null);
 const requestsLoading = ref(false);
 const requestsError = ref(null);
 const actionLoading = ref({});
+const recommendations = ref([]);
+const recommendationsLoading = ref(false);
+const recommendationsError = ref(null);
+const showAcceptRecommendationModal = ref(false);
+const acceptRecommendationRec = ref(null);
+const acceptRecommendationPlaylistId = ref('');
+const acceptPlaylists = ref([]);
+const acceptPlaylistsLoading = ref(false);
+const acceptRecommendationSubmitting = ref(false);
 
 // Debounce search
 let searchTimeout = null;
@@ -312,6 +416,7 @@ const tabs = computed(() => {
   const incomingCount = incomingRequests.value.length;
   const outgoingCount = outgoingRequests.value.length;
   const hasRequests = incomingCount > 0 || outgoingCount > 0;
+  const pendingRecCount = recommendations.value.length;
 
   const allTabs = [
     { id: 'friends', label: 'Friends' },
@@ -321,11 +426,74 @@ const tabs = computed(() => {
           label: 'Requests',
           badge: incomingCount > 0 ? incomingCount : null
         }]
-      : [])
+      : []),
+    { id: 'recommendations', label: 'Recommendations', badge: pendingRecCount > 0 ? pendingRecCount : null }
   ];
 
   return allTabs;
 });
+
+const loadRecommendations = async () => {
+  try {
+    recommendationsLoading.value = true;
+    recommendationsError.value = null;
+    recommendations.value = await getRecommendationsForMe('pending');
+  } catch (e) {
+    recommendationsError.value = e.message || 'Failed to load recommendations';
+    recommendations.value = [];
+  } finally {
+    recommendationsLoading.value = false;
+  }
+};
+
+const openAcceptRecommendationModal = async (rec) => {
+  acceptRecommendationRec.value = rec;
+  acceptRecommendationPlaylistId.value = '';
+  showAcceptRecommendationModal.value = true;
+  try {
+    acceptPlaylistsLoading.value = true;
+    acceptPlaylists.value = await getSourcePlaylists();
+    if (acceptPlaylists.value.length > 0 && !acceptRecommendationPlaylistId.value) {
+      acceptRecommendationPlaylistId.value = acceptPlaylists.value[0].id;
+    }
+  } catch (_) {
+    acceptPlaylists.value = [];
+  } finally {
+    acceptPlaylistsLoading.value = false;
+  }
+};
+
+const handleAcceptRecommendationConfirm = async () => {
+  const rec = acceptRecommendationRec.value;
+  const playlistId = acceptRecommendationPlaylistId.value;
+  if (!rec || !playlistId) return;
+  try {
+    acceptRecommendationSubmitting.value = true;
+    actionLoading.value[rec.id] = true;
+    await acceptRecommendation(rec.id, playlistId);
+    showToast('Album added to playlist and recommendation accepted.', 'success');
+    showAcceptRecommendationModal.value = false;
+    await loadRecommendations();
+  } catch (e) {
+    showToast(e.message || 'Failed to accept recommendation', 'error');
+  } finally {
+    acceptRecommendationSubmitting.value = false;
+    actionLoading.value[rec.id] = false;
+  }
+};
+
+const handleDeclineRecommendation = async (recommendationId) => {
+  try {
+    actionLoading.value[recommendationId] = true;
+    await declineRecommendation(recommendationId);
+    showToast('Recommendation declined', 'success');
+    await loadRecommendations();
+  } catch (e) {
+    showToast(e.message || 'Failed to decline recommendation', 'error');
+  } finally {
+    actionLoading.value[recommendationId] = false;
+  }
+};
 
 // Watch for tab changes to load data
 watch(activeTab, (newTab) => {
@@ -333,11 +501,14 @@ watch(activeTab, (newTab) => {
     loadRequests();
   } else if (newTab === 'friends') {
     loadFriends();
+  } else if (newTab === 'recommendations') {
+    loadRecommendations();
   }
 });
 
 onMounted(() => {
   loadRequests();
+  loadRecommendations();
   if (activeTab.value === 'friends') {
     loadFriends();
   }

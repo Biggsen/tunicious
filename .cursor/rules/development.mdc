@@ -116,6 +116,9 @@ src/
 - Input validation
 - Rate limiting on API calls
 
+#### SECURITY: Tunicious playlists only (critical)
+- **The app must under no circumstances load, display, or modify Spotify playlists that do not have the Tunicious tag.** Only playlists whose description includes the Tunicious tag (see `TUNICIOUS_TAG` / `isTuniciousPlaylist`) may be read or written. Do not add fallbacks, “by ID” fetches, or any path that operates on a playlist without verifying the tag first. Violating this would allow the app to touch users’ personal Spotify libraries.
+
 ### Testing
 - Components should have Storybook stories
 - Document component props and events
