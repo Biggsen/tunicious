@@ -49,8 +49,11 @@ Stores album recommendations sent from one user to another.
   fromUserId: string,           // User ID of the sender
   toUserId: string,              // User ID of the recipient
   albumId: string,               // Spotify album ID
-  albumTitle: string,            // Denormalized for display
-  artistName: string,            // Denormalized for display
+  albumTitle: string,            // Denormalized for display and accept payload
+  artistName: string,            // Denormalized for display and accept payload
+  artistId: string,              // Spotify artist ID (for addAlbumToCollection payload)
+  albumCover: string,            // Optional; cover URL for display / payload
+  releaseYear: string,           // Optional; e.g. "2024" for display / payload
   status: 'pending' | 'accepted' | 'declined',
   createdAt: Timestamp,
   updatedAt: Timestamp,
@@ -65,8 +68,11 @@ Stores album recommendations sent from one user to another.
 - `fromUserId` (string, required): Firebase Auth UID of the user sending the recommendation
 - `toUserId` (string, required): Firebase Auth UID of the friend receiving the recommendation
 - `albumId` (string, required): Spotify album ID (for add-to-collection and add-to-playlist)
-- `albumTitle` (string, required): Album name at time of recommendation (display in list)
-- `artistName` (string, required): Artist name at time of recommendation (display in list)
+- `albumTitle` (string, required): Album name at time of recommendation (display and accept payload)
+- `artistName` (string, required): Artist name at time of recommendation (display and accept payload)
+- `artistId` (string, required): Spotify artist ID (required for `addAlbumToCollection` payload on accept)
+- `albumCover` (string, optional): Album cover URL (for display; can be used in accept payload)
+- `releaseYear` (string, optional): Release year e.g. `"2024"` (for display; can be used in accept payload)
 - `status` (string, required): `'pending'` | `'accepted'` | `'declined'`
 - `createdAt` (Timestamp, required): Server timestamp when recommendation was created
 - `updatedAt` (Timestamp, required): Server timestamp of last update
@@ -74,13 +80,13 @@ Stores album recommendations sent from one user to another.
 - `acceptedAt` (Timestamp, optional): Server timestamp when the recommendation was accepted
 
 **Indexes Required:**
-- Composite index on `toUserId`, `status` (for "my pending recommendations")
-- Composite index on `toUserId`, `status`, `createdAt` (desc) for ordered list
+- One composite index on `toUserId`, `status`, `createdAt` (desc) — serves both "my recommendations" queries and ordered list.
 
 **Constraints:**
 - `fromUserId` and `toUserId` must be different (only recommend to friends, not self)
 - Sender must be friends with recipient (enforced in UI/composable by only showing friends list)
-- When creating, store sufficient album info so accept flow can call `addAlbumToCollection` (and optionally fetch full album from Spotify if needed)
+- When creating, store the minimal album snapshot (`albumId`, `albumTitle`, `artistName`, `artistId`, and optionally `albumCover`, `releaseYear`) so the accept flow can build the `album` payload for `addAlbumToCollection` without calling Spotify.
+- Optionally enforce one pending recommendation per (fromUserId, toUserId, albumId) in the composable (e.g. check before create and skip or surface a message if duplicate).
 
 ## Page Specifications
 
@@ -139,7 +145,7 @@ Stores album recommendations sent from one user to another.
 3. User selects a playlist and confirms.
 4. **Backend**:
    - Add album to Spotify playlist: `addAlbumToPlaylist(playlistId, albumId)` (from `useUserSpotifyApi`).
-   - Add album to collection: `addAlbumToCollection({ album, playlistId, ... })` (from `useAlbumsData`). Album payload: use stored `albumId` and either a minimal snapshot (albumTitle, artistName, etc.) stored on the recommendation doc or fetch album from Spotify by `albumId`.
+   - Add album to collection: `addAlbumToCollection({ album, playlistId, ... })` (from `useAlbumsData`). Build `album` from the recommendation doc: `{ id: albumId, name: albumTitle, artists: [{ name: artistName, id: artistId }], images: albumCover ? [{ url: albumCover }] : [], release_date: releaseYear ? `${releaseYear}-01-01` : '' }`. No Spotify fetch required.
    - Update recommendation document: `status: 'accepted'`, `acceptedPlaylistId`, `acceptedAt: serverTimestamp()`, `updatedAt: serverTimestamp()`.
 5. Toast: e.g. "Album added to [playlist] and recommendation accepted."
 6. Remove or update the recommendation in the list.
@@ -163,7 +169,7 @@ Stores album recommendations sent from one user to another.
 
 **Functions:**
 - `createRecommendation(album, toUserId)`  
-  - Current user is sender. Create document with `fromUserId`, `toUserId`, `albumId`, `albumTitle`, `artistName`, `status: 'pending'`, `createdAt`, `updatedAt`. Validate that `toUserId` is a friend (e.g. via `useFriends().isFriend(toUserId)` or only call from UI that lists friends).
+  - Current user is sender. Create document with `fromUserId`, `toUserId`, `albumId`, `albumTitle`, `artistName`, `artistId`, optional `albumCover` and `releaseYear`, `status: 'pending'`, `createdAt`, `updatedAt`. Validate that `toUserId` is a friend (e.g. via `useFriends().isFriend(toUserId)` or only call from UI that lists friends). Optionally check for existing pending (fromUserId, toUserId, albumId) and skip or prompt to avoid duplicates.
 
 - `getRecommendationsForMe(status?)`  
   - Query `albumRecommendations` where `toUserId === currentUser.uid`, optional filter by `status`, order by `createdAt` desc. Return list with sender info (join `users` for `fromUserId` to get display name).
@@ -174,7 +180,7 @@ Stores album recommendations sent from one user to another.
 - `declineRecommendation(recommendationId)`  
   - Ensure document exists, `toUserId === currentUser.uid`, `status === 'pending'`. Update doc: `status: 'declined'`, `updatedAt: serverTimestamp()`.
 
-**Album payload for accept:** Either store on the recommendation doc a minimal snapshot (e.g. `albumId`, `albumTitle`, `artistName`, `artistId`, `images`) when creating, or resolve album by `albumId` from Spotify when accepting. Storing a snapshot keeps accept flow simple and works if the album is later removed from Spotify.
+**Album payload for accept:** Build the `album` object from the recommendation document (id, name, artists, optional images/release_date) as specified in the Accept Flow. No Spotify fetch is required; the stored snapshot satisfies `addAlbumToCollection` and works if the album is later removed from Spotify.
 
 ## Security Rules
 
@@ -192,7 +198,7 @@ match /albumRecommendations/{recommendationId} {
     request.resource.data.fromUserId != request.resource.data.toUserId &&
     request.resource.data.status == 'pending';
   
-  // Only recipient can update (accept/decline); limit fields to status, acceptedPlaylistId, acceptedAt, updatedAt
+  // Only recipient can update (accept/decline). Client must only write status, acceptedPlaylistId, acceptedAt, updatedAt (Firestore rules cannot enforce which fields are updated).
   allow update: if request.auth != null &&
     resource.data.toUserId == request.auth.uid;
   
@@ -252,6 +258,6 @@ Add to `firestore.indexes.json`:
 | Item | Description |
 |------|-------------|
 | **Album page** | Recommend button same row as Back, right side; modal to pick friend; toast on success |
-| **Data** | `albumRecommendations` with fromUserId, toUserId, albumId, albumTitle, artistName, status, createdAt, updatedAt, acceptedPlaylistId, acceptedAt |
+| **Data** | `albumRecommendations` with fromUserId, toUserId, albumId, albumTitle, artistName, artistId, optional albumCover/releaseYear, status, createdAt, updatedAt, acceptedPlaylistId, acceptedAt |
 | **Friends page** | New "Recommendations" tab; list pending; Accept (with playlist picker → add album + set acceptedAt/acceptedPlaylistId) and Decline |
 | **Reuse** | useFriends (friends list), useToast, BaseModal, addAlbumToPlaylist + addAlbumToCollection + cache updates |
