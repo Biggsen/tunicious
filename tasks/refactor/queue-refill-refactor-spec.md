@@ -2,7 +2,7 @@
 
 **Status:** 📋 Planning
 
-**Related:** [Queue Refill and Loop Specification](../queue-refill-and-loop-spec.md) (implemented). This spec describes refactoring opportunities identified after that work.
+**Related:** [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md) (implemented). This spec describes refactoring opportunities identified after that work.
 
 ## Overview
 
@@ -161,5 +161,5 @@ The queue refill and loop feature introduced `useQueueSession`, `useQueueTrackSe
 
 ## References
 
-- [Queue Refill and Loop Specification](../queue-refill-and-loop-spec.md)  
+- [Queue Refill and Loop Specification](../completed/queue-refill-and-loop-spec.md)  
 - Current implementation: `useQueueSession.js`, `useQueueTrackSelection.js`, `TrackList.vue` (handleTrackClick, initial queue fill), `useSpotifyPlayer.js` (getQueue, addToQueue).

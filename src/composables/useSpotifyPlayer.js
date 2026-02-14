@@ -480,6 +480,51 @@ export function useSpotifyPlayer() {
   };
 
   /**
+   * Get the user's current queue (tracks coming up next).
+   * Returns { queue: [...] }; queue is empty if no active device or no player.
+   */
+  const getQueue = async () => {
+    if (!player.value || !isReady.value) {
+      return { queue: [] };
+    }
+
+    try {
+      const tokens = await getUserTokens();
+      const accessToken = tokens.accessToken;
+
+      const url = deviceId.value
+        ? `https://api.spotify.com/v1/me/player/queue?device_id=${deviceId.value}`
+        : 'https://api.spotify.com/v1/me/player/queue';
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (response.status === 204 || response.status === 404) {
+        return { queue: [] };
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        logPlayer('getQueue failed:', response.status, errorData);
+        return { queue: [] };
+      }
+
+      const data = await response.json();
+      const queue = Array.isArray(data.queue) ? data.queue : [];
+      return {
+        queue,
+        currently_playing: data.currently_playing ?? null
+      };
+    } catch (err) {
+      logPlayer('Error getting queue:', err);
+      return { queue: [] };
+    }
+  };
+
+  /**
    * Check if a specific track is currently playing
    */
   const isTrackPlaying = (trackUri) => {
@@ -747,6 +792,7 @@ export function useSpotifyPlayer() {
     seek,
     setVolume,
     addToQueue,
+    getQueue,
     isTrackPlaying,
     disconnect
   };

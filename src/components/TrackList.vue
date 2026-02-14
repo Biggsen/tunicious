@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
+import { useQueueSession } from '@composables/useQueueSession';
+import { useQueueTrackSelection } from '@composables/useQueueTrackSelection';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
-import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
@@ -94,9 +95,9 @@ const { getPlaycountForTrack } = useUnifiedTrackCache();
 const { isTrackCurrentlyPlaying } = useCurrentPlayingTrack();
 
 // Spotify player functionality
-const { 
-  isReady: playerReady, 
-  isPlaying, 
+const {
+  isReady: playerReady,
+  isPlaying,
   currentTrack: playerCurrentTrack,
   playTrack,
   togglePlayback,
@@ -105,8 +106,8 @@ const {
   error: playerError
 } = useSpotifyPlayer();
 
-// Spotify API for fetching next album tracks
-const { getAlbumTracks } = useUserSpotifyApi();
+const { clearSession, setSession } = useQueueSession();
+const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
 
 /**
  * Format playcount number for display
@@ -323,102 +324,6 @@ const findRemainingAlbums = () => {
 
 
 /**
- * Fetch all tracks from an album (handles pagination)
- */
-const fetchAllAlbumTracks = async (albumId) => {
-  let allTracks = [];
-  let offset = 0;
-  const limit = 50; // Maximum allowed by Spotify API
-  
-  while (true) {
-    try {
-      const response = await getAlbumTracks(albumId, limit, offset);
-      if (response.items && response.items.length > 0) {
-        allTracks = [...allTracks, ...response.items];
-        
-        if (response.items.length < limit) {
-          break; // No more tracks to fetch
-        }
-        
-        offset += limit;
-      } else {
-        break; // No more tracks
-      }
-    } catch (error) {
-      logPlayer(`Failed to fetch tracks for album ${albumId} at offset ${offset}:`, error);
-      break; // Stop fetching on error
-    }
-  }
-  
-  return allTracks;
-};
-
-/**
- * Select the next track to queue from the next album
- */
-const selectNextTrackToQueue = async (nextAlbum) => {
-  if (!nextAlbum) {
-    return null;
-  }
-
-  try {
-    // Fetch all tracks from the next album (handles pagination)
-    const nextAlbumTracks = await fetchAllAlbumTracks(nextAlbum.id);
-
-    if (nextAlbumTracks.length === 0) {
-      return null;
-    }
-
-    // Get playcounts for all tracks from cache
-    const tracksWithPlaycounts = nextAlbumTracks.map(track => {
-      const playcount = getPlaycountForTrack(track.id);
-      if (playcount === undefined) {
-        // Track not in cache - this indicates a cache issue
-        throw new Error(`Track ${track.id} not found in cache`);
-      }
-      return {
-        ...track,
-        playcount: playcount || 0,
-        uri: track.uri || `spotify:track:${track.id}`
-      };
-    });
-
-    // Filter to only include tracks that are in the playlist for this next album
-    const playlistTracksForNextAlbum = props.playlistTrackIds[nextAlbum.id] || {};
-    const tracksInPlaylist = tracksWithPlaycounts.filter(track => {
-      if (!props.playlistId || Object.keys(playlistTracksForNextAlbum).length === 0) {
-        return true; // If no playlist context, include all tracks
-      }
-      return !!playlistTracksForNextAlbum[track.id];
-    });
-
-    if (tracksInPlaylist.length === 0) {
-      return null; // No tracks from this album are in the playlist
-    }
-
-    // Find the minimum playcount (lowest, including 0) from tracks in playlist
-    const minPlaycount = Math.min(...tracksInPlaylist.map(t => t.playcount));
-    
-    // Filter tracks with the minimum playcount and sort by track number
-    const tracksWithMinPlaycount = tracksInPlaylist
-      .filter(t => t.playcount === minPlaycount)
-      .sort((a, b) => {
-        // Sort by track number (preserve album order)
-        return a.track_number - b.track_number;
-      });
-
-    // Take the first 3 tracks with minimum playcount, then select the first one
-    const first3Tracks = tracksWithMinPlaycount.slice(0, 3);
-    const selectedTrack = first3Tracks[0];
-    
-    return selectedTrack ? selectedTrack.uri : null;
-  } catch (error) {
-    logPlayer('Error selecting next track to queue:', error);
-    return null;
-  }
-};
-
-/**
  * Handle track play/pause click
  */
 const handleTrackClick = async (track) => {
@@ -427,17 +332,15 @@ const handleTrackClick = async (track) => {
     return;
   }
 
+  clearSession();
+
   const trackUri = track.uri || `spotify:track:${track.id}`;
   const isCurrentlyPlaying = isTrackPlaying(trackUri);
 
   if (isCurrentlyPlaying && isPlaying.value) {
-    // If this track is playing, toggle pause
     await togglePlayback();
   } else {
-    // Play this track
     try {
-      // Create context if playing from a playlist or album
-      // Priority: playlist context takes precedence over album context
       let context = null;
       if (props.playlistId) {
         context = {
@@ -452,26 +355,34 @@ const handleTrackClick = async (track) => {
           name: props.albumTitle || 'Unknown Album'
         };
       }
-      
+
       await playTrack(trackUri, context);
-      
-      // After playing, try to add tracks from all remaining albums to queue
+
       if (props.playlistId && props.albumsList.length > 0 && props.albumId) {
         const remainingAlbums = findRemainingAlbums();
-        
-        // Queue tracks from all remaining albums
+        const selectionOpts = {
+          playlistId: props.playlistId,
+          playlistTrackIds: props.playlistTrackIds
+        };
+
         for (const nextAlbum of remainingAlbums) {
           try {
-            const nextTrackUri = await selectNextTrackToQueue(nextAlbum);
+            const nextTrackUri = await selectNextTrackUriForAlbum(nextAlbum, selectionOpts);
             if (nextTrackUri) {
               await addToQueue(nextTrackUri);
               logPlayer('Added track to queue:', nextTrackUri);
             }
           } catch (queueError) {
-            // Continue with next album even if one fails - don't interrupt playback
             logPlayer('Failed to add track to queue:', queueError);
           }
         }
+
+        setSession({
+          playlistId: props.playlistId,
+          playlistName: props.playlistName,
+          albumsList: props.albumsList,
+          playlistTrackIds: props.playlistTrackIds
+        });
       }
     } catch (err) {
       logPlayer('Error playing track:', err);

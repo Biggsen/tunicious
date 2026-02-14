@@ -1,6 +1,6 @@
 # Queue Refill and Loop Specification
 
-**Status:** 📋 Planning
+**Status:** ✅ Done
 
 ## Overview
 
@@ -19,7 +19,7 @@ When playing from a playlist, the app queues one track per remaining album so pl
 ### Desired Behaviour
 
 1. When the queue is **short** (e.g. ≤ 2 tracks), automatically add the next batch (one track per remaining album, same selection rules).
-2. When the **last** track/album in the playlist starts playing, treat “remaining” as the **full album list** and queue the next round (loop).
+2. When the **last** track/album in the playlist starts playing, treat “remaining” as the **full** album list and queue the next round (loop).
 3. Session is cleared whenever the user clicks play on any track; a new session is set only when playing from our playlist.
 4. No loop or refill for album-only playback (no `albumsList`); only for playlist (multi-album) mode.
 
@@ -124,13 +124,13 @@ Track change (session composable):
 
 ## Acceptance Criteria
 
-- [ ] When user plays from a playlist (multi-album), a queue session is set and the initial queue is filled as today.
-- [ ] When the queue has ≤ 2 tracks and the track changes (same session), a new batch (one track per remaining album) is added automatically.
-- [ ] When the now-playing track is from the **last** album in the session, the next batch is the **full** album list (one track per album from the start), i.e. loop.
-- [ ] Clicking play on any track clears the previous session; playing from the playlist sets a new one.
-- [ ] Playing from a single album (no playlist / no albumsList) does not set a session and does not trigger refill or loop.
-- [ ] Rapid track skips do not cause duplicate batches (re-entrancy guard).
-- [ ] If the user plays from another source (e.g. different playlist or Spotify elsewhere), the session can be cleared when we detect “current track not in session” (optional but recommended).
+- [x] When user plays from a playlist (multi-album), a queue session is set and the initial queue is filled as today.
+- [x] When the queue has ≤ 2 tracks and the track changes (same session), a new batch (one track per remaining album) is added automatically.
+- [x] When the now-playing track is from the **last** album in the session, the next batch is the **full** album list (one track per album from the start), i.e. loop.
+- [x] Clicking play on any track clears the previous session; playing from the playlist sets a new one.
+- [x] Playing from a single album (no playlist / no albumsList) does not set a session and does not trigger refill or loop.
+- [x] Rapid track skips do not cause duplicate batches (re-entrancy guard).
+- [x] If the user plays from another source (e.g. different playlist or Spotify elsewhere), the session can be cleared when we detect “current track not in session” (optional but recommended).
 
 ## Out of Scope
 
