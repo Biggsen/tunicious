@@ -1,5 +1,31 @@
 [
   {
+    "id": 18,
+    "title": "Album Recommendations",
+    "date": "2026-02-15",
+    "types": ["FEATURE", "UX"],
+    "hidden": false,
+    "description": "You can now recommend albums to friends from the album page. They see your recommendations on the Friends page and can add the album to a playlist or decline.",
+    "changes": [
+      "Recommend button on the album page lets you send an album to a friend",
+      "Friends see incoming recommendations in a new Recommendations tab",
+      "Accept adds the album to a source playlist of their choice; decline dismisses it",
+      "Header shows a dot when you have pending recommendations"
+    ]
+  },
+  {
+    "id": 17,
+    "title": "Queue Refill & Loop",
+    "date": "2026-02-15",
+    "types": ["IMPROVEMENT", "UX"],
+    "hidden": false,
+    "description": "Playlist playback now keeps the queue topped up and loops from the end back to the start so you can listen in order without it stopping.",
+    "changes": [
+      "Queue refills automatically when it runs low",
+      "Reaching the end of the playlist starts the next round from the beginning"
+    ]
+  },
+  {
     "id": 16,
     "title": "Faster Playlist Updates",
     "date": "2026-02-13",
