@@ -11,14 +11,11 @@ const ALLOWED_ENDPOINTS = [
   // User endpoints
   "/me",
   "/me/playlists",
-  
-  // User playlists (POST to create)
-  "/users/{userId}/playlists",
-  
+  "/me/library",
+
   // Playlist endpoints
   "/playlists/{playlistId}",
-  "/playlists/{playlistId}/tracks",
-  "/playlists/{playlistId}/followers",
+  "/playlists/{playlistId}/items",
   
   // Album endpoints
   "/albums",

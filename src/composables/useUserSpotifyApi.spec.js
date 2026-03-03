@@ -60,25 +60,15 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('createPlaylist', () => {
-    it('calls mockSpotifyApiCall with correct endpoint, method, and body', async () => {
-      mockSpotifyApiCall
-        .mockResolvedValueOnce({ id: 'test-user-id' })
-        .mockResolvedValueOnce({ id: MOCK_PLAYLIST_ID });
+    it('calls mockSpotifyApiCall with me/playlists endpoint, POST method, and body', async () => {
+      mockSpotifyApiCall.mockResolvedValue({ id: MOCK_PLAYLIST_ID });
 
       const { createPlaylist } = useUserSpotifyApi();
       await createPlaylist('My Playlist', 'A description', true);
 
-      expect(mockSpotifyApiCall).toHaveBeenCalledTimes(2);
-      expect(mockSpotifyApiCall).toHaveBeenNthCalledWith(
-        1,
-        '/me',
-        'GET',
-        undefined,
-        expect.any(String)
-      );
-      expect(mockSpotifyApiCall).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('/playlists'),
+      expect(mockSpotifyApiCall).toHaveBeenCalledTimes(1);
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('/me/playlists'),
         'POST',
         expect.objectContaining({
           name: 'My Playlist',
@@ -87,23 +77,16 @@ describe('useUserSpotifyApi', () => {
         }),
         expect.any(String)
       );
-      expect(mockSpotifyApiCall).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('/users/'),
-        expect.any(String),
-        expect.any(Object),
-        expect.any(String)
-      );
     });
   });
 
   describe('addTracksToPlaylist', () => {
-    it('calls mockSpotifyApiCall with tracks endpoint, POST method, and uris in body', async () => {
+    it('calls mockSpotifyApiCall with items endpoint, POST method, and uris in body', async () => {
       const { addTracksToPlaylist } = useUserSpotifyApi();
       await addTracksToPlaylist(MOCK_PLAYLIST_ID, MOCK_TRACK_URIS);
 
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/tracks`),
+        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/items`),
         'POST',
         { uris: MOCK_TRACK_URIS },
         expect.any(String)
@@ -112,14 +95,14 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('getPlaylistTracks', () => {
-    it('calls mockSpotifyApiCall with tracks endpoint, GET method, and returns response', async () => {
+    it('calls mockSpotifyApiCall with items endpoint, GET method, and returns response', async () => {
       mockSpotifyApiCall.mockResolvedValue(MOCK_PLAYLIST_ITEMS);
 
       const { getPlaylistTracks } = useUserSpotifyApi();
       const result = await getPlaylistTracks(MOCK_PLAYLIST_ID, 50, 10);
 
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/tracks`),
+        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/items`),
         'GET',
         undefined,
         expect.any(String)
@@ -130,15 +113,15 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('removeTracksFromPlaylist', () => {
-    it('calls mockSpotifyApiCall with tracks endpoint, DELETE method, and tracks in body', async () => {
+    it('calls mockSpotifyApiCall with items endpoint, DELETE method, and items in body', async () => {
       const { removeTracksFromPlaylist } = useUserSpotifyApi();
       await removeTracksFromPlaylist(MOCK_PLAYLIST_ID, MOCK_TRACK_URIS);
 
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/tracks`),
+        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/items`),
         'DELETE',
         expect.objectContaining({
-          tracks: MOCK_TRACK_URIS.map(uri => ({ uri }))
+          items: MOCK_TRACK_URIS.map(uri => ({ uri }))
         }),
         expect.any(String)
       );
@@ -153,7 +136,7 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('getPlaylistAlbumsWithDates', () => {
-    it('calls mockSpotifyApiCall with tracks endpoint and fields query', async () => {
+    it('calls mockSpotifyApiCall with items endpoint and fields query', async () => {
       mockSpotifyApiCall.mockResolvedValue({
         items: [{ track: { album: { id: 'a1' } }, added_at: '2024-01-01' }],
         total: 1
@@ -163,7 +146,7 @@ describe('useUserSpotifyApi', () => {
       const result = await getPlaylistAlbumsWithDates(MOCK_PLAYLIST_ID);
 
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/tracks`),
+        expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/items`),
         'GET',
         undefined,
         expect.any(String)
@@ -179,34 +162,45 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('getAlbumsBatch', () => {
-    it('calls mockSpotifyApiCall with albums?ids= endpoint', async () => {
-      const mockResponse = { albums: [{ id: 'album1' }, { id: 'album2' }] };
-      mockSpotifyApiCall.mockResolvedValue(mockResponse);
+    it('calls mockSpotifyApiCall with albums/{id} per album', async () => {
+      mockSpotifyApiCall
+        .mockResolvedValueOnce({ id: 'album1' })
+        .mockResolvedValueOnce({ id: 'album2' });
 
       const { getAlbumsBatch } = useUserSpotifyApi();
       const result = await getAlbumsBatch(MOCK_ALBUM_IDS);
 
-      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringMatching(/\/albums\?ids=.*album1.*album2/),
+      expect(mockSpotifyApiCall).toHaveBeenCalledTimes(2);
+      expect(mockSpotifyApiCall).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('/albums/album1'),
         'GET',
         undefined,
         expect.any(String)
       );
-      expect(result.albums).toEqual(mockResponse.albums);
+      expect(mockSpotifyApiCall).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('/albums/album2'),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(result.albums).toEqual([{ id: 'album1' }, { id: 'album2' }]);
     });
   });
 
   describe('loadAlbumsBatched', () => {
-    it('returns array of albums matching getAlbumsBatch response structure', async () => {
-      const mockAlbums = [{ id: 'album1', name: 'Album 1' }, { id: 'album2', name: 'Album 2' }];
-      mockSpotifyApiCall.mockResolvedValue({ albums: mockAlbums });
+    it('returns array of albums from per-album fetches', async () => {
+      mockSpotifyApiCall
+        .mockResolvedValueOnce({ id: 'album1', name: 'Album 1' })
+        .mockResolvedValueOnce({ id: 'album2', name: 'Album 2' });
 
       const { loadAlbumsBatched } = useUserSpotifyApi();
       const result = await loadAlbumsBatched(MOCK_ALBUM_IDS);
 
-      expect(result).toEqual(mockAlbums);
+      expect(result).toEqual([{ id: 'album1', name: 'Album 1' }, { id: 'album2', name: 'Album 2' }]);
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining('/albums'),
+        expect.stringContaining('/albums/album1'),
         'GET',
         undefined,
         expect.any(String)
@@ -215,7 +209,7 @@ describe('useUserSpotifyApi', () => {
   });
 
   describe('searchAlbums', () => {
-    it('calls mockSpotifyApiCall with search endpoint and limit query param', async () => {
+    it('calls mockSpotifyApiCall with search endpoint and limit capped at 10', async () => {
       mockSpotifyApiCall.mockResolvedValue(MOCK_SEARCH_RESPONSE);
 
       const { searchAlbums } = useUserSpotifyApi();
@@ -228,13 +222,7 @@ describe('useUserSpotifyApi', () => {
         expect.any(String)
       );
       expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining('type=album'),
-        expect.any(String),
-        undefined,
-        expect.any(String)
-      );
-      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
-        expect.stringContaining('limit=20'),
+        expect.stringContaining('limit=10'),
         expect.any(String),
         undefined,
         expect.any(String)

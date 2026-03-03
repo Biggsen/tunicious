@@ -11,13 +11,17 @@ describe('deleteSpotifyPlaylist', () => {
     makeUserRequest = vi.fn().mockResolvedValue(undefined);
   });
 
-  it('calls makeUserRequest with endpoint containing playlists/{id}/followers and method DELETE', async () => {
+  it('calls makeUserRequest with me/library endpoint and playlist URI in query', async () => {
     await deleteSpotifyPlaylist(MOCK_PLAYLIST_ID, makeUserRequest);
 
     expect(makeUserRequest).toHaveBeenCalledTimes(1);
     expect(makeUserRequest).toHaveBeenCalledWith(
-      expect.stringContaining(`/playlists/${MOCK_PLAYLIST_ID}/followers`),
+      expect.stringContaining('/me/library'),
       expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(makeUserRequest).toHaveBeenCalledWith(
+      expect.stringMatching(/uris=.*playlist/),
+      expect.any(Object)
     );
   });
 

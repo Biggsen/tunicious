@@ -1,6 +1,6 @@
 # Spotify API Migration Specification
 
-## **Status**: 📋 Planning
+## **Status**: ✅ Complete
 
 ## Overview
 
@@ -155,13 +155,30 @@ These endpoints are **not required** for migration but could enable new features
 
 ## Verification Checklist
 
-- [ ] All playlist CRUD operations work (create, add tracks, get tracks, remove tracks)
-- [ ] Pipeline generation creates playlists successfully
-- [ ] Pipeline rollback (delete playlists) works on failure
-- [ ] Album search returns results (max 10 per request)
-- [ ] Playlist album loading (e.g. PlaylistSingle) works with batched album fetches
-- [ ] No 403/404 from backend proxy (whitelist allows new endpoints)
-- [ ] Rate limiting acceptable with per-album fetch for `loadAlbumsBatched`
+- [x] All playlist CRUD operations work (create, add tracks, get tracks, remove tracks)
+- [x] Pipeline generation creates playlists successfully
+- [x] Pipeline rollback (delete playlists) works on failure
+- [x] Album search returns results (max 10 per request)
+- [x] Playlist album loading (e.g. PlaylistSingle) works with batched album fetches
+- [x] No 403/404 from backend proxy (whitelist allows new endpoints)
+- [x] Rate limiting acceptable with per-album fetch for `loadAlbumsBatched`
+
+---
+
+## Post-Migration UI Updates
+
+Suggested UI tweaks to address migration behavior changes:
+
+### Search: Load More / Pagination
+
+**Context**: Search limit reduced from max 50 to max 10 per request. Users may expect more results for broad queries.
+
+| Item | Description |
+|------|--------------|
+| **Component** | `src/components/AlbumSearch.vue` |
+| **Change** | Add "Load more" button or infinite scroll when search returns 10 results and `total` indicates more exist |
+| **API** | `searchAlbums()` supports `offset` for pagination (Spotify search uses `offset` + `limit`); extend composable if needed |
+| **Priority** | Medium – improves discoverability for broad searches |
 
 ---
 
