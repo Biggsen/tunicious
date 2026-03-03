@@ -15,7 +15,7 @@ import DropdownMenu from '@components/common/DropdownMenu.vue';
 
 import { useAlbumsData } from "@composables/useAlbumsData";
 import { useAlbumMappings } from "@composables/useAlbumMappings";
-import { ArrowPathIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon, PlusIcon } from '@heroicons/vue/24/solid'
+import { ArrowPathIcon, BarsArrowUpIcon, BarsArrowDownIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, HeartIcon, PlusIcon, PlayIcon, PauseIcon } from '@heroicons/vue/24/solid'
 import { MusicalNoteIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@components/common/BaseButton.vue';
 import ToggleSwitch from '@components/common/ToggleSwitch.vue';
@@ -28,6 +28,7 @@ import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
+import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useToast } from '@composables/useToast';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, addAlbumTracks, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
@@ -53,9 +54,12 @@ const {
   refreshPlaycountsForTracks,
   getPlaylistTracklistPreference,
   setPlaylistTracklistPreference,
+  getPlaycountForTrack,
   loading: cacheLoading,
   buildProgress: cacheBuildProgress
 } = useUnifiedTrackCache();
+
+const { isReady: playerReady, isPlaying, playingFrom, playTrack, addToQueue, togglePlayback } = useSpotifyPlayer();
 
 // Initialize current playing track tracking (singleton)
 const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack();
@@ -273,6 +277,70 @@ watch(id, (newId) => {
     }
   }
 }, { immediate: true });
+
+const isPlaylistContext = computed(() =>
+  playingFrom.value?.type === 'playlist' && playingFrom.value.id === id.value
+);
+
+const isPlaylistCurrentlyPlaying = computed(() =>
+  isPlaying.value && isPlaylistContext.value
+);
+
+const playPlaylistLoading = ref(false);
+const handlePlayPlaylist = async () => {
+  if (!playerReady.value || playPlaylistLoading.value) return;
+
+  if (isPlaylistContext.value) {
+    await togglePlayback();
+    return;
+  }
+
+  if (!id.value || !sortedAlbumsList.value?.length) return;
+
+  playPlaylistLoading.value = true;
+  try {
+    const context = { type: 'playlist', id: id.value, name: playlistName.value || 'Unknown Playlist' };
+
+    const selectLeastPlayedTrack = async (album) => {
+      const tracks = await getAlbumTracksForPlaylist(id.value, album.id);
+      if (tracks.length === 0) return null;
+      const tracksWithPlaycount = tracks.map(t => ({
+        ...t,
+        playcount: t.playcount ?? getPlaycountForTrack(t.id) ?? 0,
+        uri: t.uri || `spotify:track:${t.id}`
+      }));
+      const minPlaycount = Math.min(...tracksWithPlaycount.map(t => t.playcount));
+      const leastPlayed = tracksWithPlaycount
+        .filter(t => t.playcount === minPlaycount)
+        .sort((a, b) => (a.track_number || 0) - (b.track_number || 0));
+      return leastPlayed[0]?.uri ?? null;
+    };
+
+    const firstAlbum = sortedAlbumsList.value[0];
+    const firstTrackUri = await selectLeastPlayedTrack(firstAlbum);
+    if (!firstTrackUri) {
+      showToast('No tracks found to play', 'error');
+      return;
+    }
+
+    await playTrack(firstTrackUri, context);
+
+    const remainingAlbums = sortedAlbumsList.value.slice(1);
+    for (const album of remainingAlbums) {
+      try {
+        const trackUri = await selectLeastPlayedTrack(album);
+        if (trackUri) await addToQueue(trackUri);
+      } catch {
+        // Continue with next album
+      }
+    }
+  } catch (err) {
+    logPlaylist('Error playing playlist:', err);
+    showToast(err.message || 'Failed to play playlist', 'error');
+  } finally {
+    playPlaylistLoading.value = false;
+  }
+};
 
 // Handle track loving/unloving with unified cache
 const handleTrackLoved = async ({ album, track }) => {
@@ -2830,12 +2898,11 @@ const handleUpdateYear = async (mismatch) => {
       </div>
     </div>
 
-    <div class="min-h-[40px] md:min-h-[64px] mb-4">
+    <div class="min-h-[40px] md:min-h-[64px] mb-2">
       <h1 class="h2">{{ playlistName }}</h1>
     </div>
     
-    <p class="text-lg mb-2"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span v-if="isAdmin"> ({{ albumsInDbCount }} in db)</span></p>
-    <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</p>
+    <p class="text-lg mb-4"><span class="text-2xl font-bold">{{ totalAlbums }}</span> albums<span class="ml-4"><span class="text-2xl font-bold">{{ totalTracks }}</span> tracks</span></p>
     
     <div v-if="albumData.length > 0" class="mb-4 flex flex-row max-[500px]:flex-col max-[500px]:gap-3 gap-4 max-[500px]:items-start items-center">
       <div class="flex items-center gap-3">
@@ -2843,6 +2910,24 @@ const handleUpdateYear = async (mismatch) => {
         <span class="text-delft-blue font-medium">
           Tracklist
         </span>
+        <BaseButton
+          v-if="showTracklists && playerReady && sortedAlbumsList?.length > 0"
+          variant="primary"
+          :disabled="tracksLoading || playPlaylistLoading"
+          custom-class="px-3 py-1.5 ml-6"
+          :title="tracksLoading ? 'Loading tracklist...' : (isPlaylistCurrentlyPlaying ? 'Pause' : 'Play playlist from least played track')"
+          @click="handlePlayPlaylist"
+        >
+          <template #icon-left>
+            <span
+              v-if="playPlaylistLoading"
+              class="animate-spin h-5 w-5 border-2 border-t-transparent rounded-full border-white"
+            />
+            <PauseIcon v-else-if="isPlaylistCurrentlyPlaying" class="w-5 h-5" />
+            <PlayIcon v-else class="w-5 h-5" />
+          </template>
+          {{ isPlaylistCurrentlyPlaying ? 'Pause' : 'Play' }}
+        </BaseButton>
       </div>
       <div class="flex max-[500px]:flex-col max-[500px]:items-start items-center gap-2 max-[500px]:ml-0 ml-auto">
         <span class="text-delft-blue font-medium uppercase text-xs tracking-wide max-[500px]:mb-1">Sort by:</span>
