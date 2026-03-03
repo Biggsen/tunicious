@@ -70,6 +70,10 @@ const handleVolumeChange = (value) => {
 const isMuted = computed(() => volume.value === 0);
 
 const toggleMute = () => {
+  if (volumeThrottleTimer) {
+    clearTimeout(volumeThrottleTimer);
+    volumeThrottleTimer = null;
+  }
   if (volume.value > 0) {
     volumeBeforeMute.value = volume.value;
     setVolume(0);
