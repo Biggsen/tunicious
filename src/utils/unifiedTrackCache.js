@@ -441,6 +441,15 @@ export function getTrackPlaycount(trackId, userId) {
 }
 
 /**
+ * Get last played timestamp for a track (when it was last played in Tunicious)
+ * @returns {number|null} Timestamp or null if never played
+ */
+export function getLastPlayedTimestampForTrack(trackId, userId) {
+  const cache = getInMemoryCache(userId);
+  return cache.tracks[trackId]?.lastPlayedFromTimestamp ?? null;
+}
+
+/**
  * Find track ID by name and artist (fallback when track ID doesn't match)
  */
 export function findTrackIdByNameAndArtist(trackName, artistName, userId) {

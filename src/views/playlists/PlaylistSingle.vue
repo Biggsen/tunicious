@@ -312,7 +312,12 @@ const handlePlayPlaylist = async () => {
       const minPlaycount = Math.min(...tracksWithPlaycount.map(t => t.playcount));
       const leastPlayed = tracksWithPlaycount
         .filter(t => t.playcount === minPlaycount)
-        .sort((a, b) => (a.track_number || 0) - (b.track_number || 0));
+        .sort((a, b) => {
+          const tsA = a.lastPlayedFromTimestamp || 0;
+          const tsB = b.lastPlayedFromTimestamp || 0;
+          if (tsA !== tsB) return tsA - tsB;
+          return (a.track_number || 0) - (b.track_number || 0);
+        });
       return leastPlayed[0]?.uri ?? null;
     };
 

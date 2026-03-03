@@ -14,7 +14,7 @@ import { logPlayer } from '@utils/logger';
  * Used by usePlaylistPlay for initial queue fill and by useQueueSession for top-up/loop.
  */
 export function useQueueTrackSelection() {
-  const { getPlaycountForTrack } = useUnifiedTrackCache();
+  const { getPlaycountForTrack, getLastPlayedTimestampForTrack } = useUnifiedTrackCache();
   const { getAllAlbumTracks } = useUserSpotifyApi();
 
   /**
@@ -38,6 +38,7 @@ export function useQueueTrackSelection() {
         return {
           ...track,
           playcount: playcount ?? 0,
+          lastPlayedFromTimestamp: getLastPlayedTimestampForTrack(track.id),
           uri: track.uri || `spotify:track:${track.id}`
         };
       });
@@ -55,7 +56,12 @@ export function useQueueTrackSelection() {
       const minPlaycount = Math.min(...tracksInPlaylist.map((t) => t.playcount));
       const tracksWithMinPlaycount = tracksInPlaylist
         .filter((t) => t.playcount === minPlaycount)
-        .sort((a, b) => a.track_number - b.track_number);
+        .sort((a, b) => {
+          const tsA = a.lastPlayedFromTimestamp || 0;
+          const tsB = b.lastPlayedFromTimestamp || 0;
+          if (tsA !== tsB) return tsA - tsB;
+          return (a.track_number || 0) - (b.track_number || 0);
+        });
 
       const selectedTrack = tracksWithMinPlaycount[0];
       return selectedTrack ? selectedTrack.uri : null;

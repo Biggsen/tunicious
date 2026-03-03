@@ -6,6 +6,7 @@ import {
   getPlaylistAlbumTracks,
   isTrackLoved,
   getTrackPlaycount,
+  getLastPlayedTimestampForTrack as getLastPlayedTimestampForTrackFn,
   updateTrackLoved,
   updateTrackPlaycount,
   updateLastPlayedFromPlaylist,
@@ -138,6 +139,15 @@ export function useUnifiedTrackCache() {
       return getTrackPlaycount(trackId, user.value.uid);
     } catch (err) {
       return 0;
+    }
+  };
+
+  const getLastPlayedTimestampForTrack = (trackId) => {
+    if (!user.value) return null;
+    try {
+      return getLastPlayedTimestampForTrackFn(trackId, user.value.uid);
+    } catch (err) {
+      return null;
     }
   };
 
@@ -410,6 +420,7 @@ export function useUnifiedTrackCache() {
     getTracksForPlaylist,
     checkTrackLoved,
     getPlaycountForTrack,
+    getLastPlayedTimestampForTrack,
     updatePlaycountForTrack,
     updateLovedStatus,
     buildCacheForPlaylist,
