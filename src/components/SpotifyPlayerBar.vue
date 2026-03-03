@@ -511,7 +511,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
             v-if="canLoveTracks"
             @click="handleHeartClick"
             :disabled="isLoving"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
             :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
           >
             <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
@@ -525,25 +525,6 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
             <PauseIcon v-if="isPlaying" class="w-6 h-6" />
             <PlayIcon v-else class="w-6 h-6" />
           </button>
-          <div class="hidden sm:flex items-center gap-2 volume-control" title="Volume">
-            <button
-              type="button"
-              @click="toggleMute"
-              class="p-2 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 control-button"
-              :title="isMuted ? 'Unmute' : 'Mute'"
-            >
-              <SpeakerXMarkIcon v-if="isMuted" class="w-5 h-5 text-gray-300" />
-              <SpeakerWaveIcon v-else class="w-5 h-5 text-gray-300" />
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              :value="volume"
-              @input="handleVolumeChange($event.target.value)"
-              class="w-20 h-1.5 accent-mindero bg-white/20 rounded-full appearance-none cursor-pointer volume-slider"
-            />
-          </div>
         </div>
         
         <div class="flex-shrink-0 text-sm text-gray-300 duration-display">
@@ -551,6 +532,37 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           <span class="mx-2">/</span>
           <span>{{ formatTime(duration) }}</span>
         </div>
+        
+        <div class="hidden sm:flex items-center gap-2 volume-control flex-shrink-0" title="Volume">
+          <button
+            type="button"
+            @click="toggleMute"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 control-button"
+            :title="isMuted ? 'Unmute' : 'Mute'"
+          >
+<SpeakerXMarkIcon v-if="isMuted" class="w-6 h-6 text-gray-300" />
+              <SpeakerWaveIcon v-else class="w-6 h-6 text-gray-300" />
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            :value="volume"
+            @input="handleVolumeChange($event.target.value)"
+            class="w-20 h-1.5 accent-mindero bg-white/20 rounded-full appearance-none cursor-pointer volume-slider"
+          />
+        </div>
+        
+        <button
+          v-if="canLoveTracks"
+          @click="handleHeartClick"
+          :disabled="isLoving"
+          class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button flex-shrink-0 items-center justify-center"
+          :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
+        >
+          <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+          <HeartIconOutline v-else class="w-6 h-6" />
+        </button>
       </div>
       
       <div class="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
