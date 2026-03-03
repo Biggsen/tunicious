@@ -687,14 +687,14 @@ export function useUserSpotifyApi() {
   };
 
   /**
-   * Fetches multiple albums (one request per album; batch endpoint deprecated)
+   * Fetches multiple albums in parallel (one request per album; batch endpoint deprecated)
    */
   const getAlbumsBatch = async (albumIds) => {
-    const albums = [];
-    for (const albumId of albumIds) {
-      const album = await makeUserRequest(`https://api.spotify.com/v1/albums/${albumId}`);
-      albums.push(album);
-    }
+    const albums = await Promise.all(
+      albumIds.map((albumId) =>
+        makeUserRequest(`https://api.spotify.com/v1/albums/${albumId}`)
+      )
+    );
     return { albums };
   };
 
