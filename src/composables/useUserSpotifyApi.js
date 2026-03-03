@@ -6,6 +6,12 @@ import { useBackendApi } from '@/composables/useBackendApi';
 import { logSpotify } from '@utils/logger';
 import { TUNICIOUS_TAG } from '@/constants';
 
+/**
+ * SECURITY: Tunicious playlists only.
+ * Do not load, display, or modify any Spotify playlist that does not have the Tunicious tag
+ * (isTuniciousPlaylist). No fallbacks, no "get by ID without tag check", no exceptions.
+ */
+
 // Module-level cache for connection status checks (shared across all instances)
 let connectionStatusCache = null;
 let connectionStatusCacheTime = 0;
@@ -480,25 +486,17 @@ export function useUserSpotifyApi() {
     let currentOffset = 0;
     const pageLimit = 50;
     let hasMore = true;
-    
-    // Paginate through all playlists to find Tunicious ones
+    // Fetch all playlist pages from Spotify first, then filter to Tunicious (do not stop early)
     while (hasMore) {
       const response = await makeUserRequest(`https://api.spotify.com/v1/me/playlists?limit=${pageLimit}&offset=${currentOffset}`);
-      
-      // Filter to only return Tunicious playlists
+
       const filteredItems = response.items.filter(playlist => isTuniciousPlaylist(playlist));
       allTuniciousPlaylists = allTuniciousPlaylists.concat(filteredItems);
-      
-      // Check if there are more pages
+
       hasMore = response.items.length === pageLimit && (currentOffset + pageLimit < response.total);
       currentOffset += pageLimit;
-      
-      // If we've found enough playlists for the requested limit and offset is 0, stop
-      if (allTuniciousPlaylists.length >= limit && offset === 0) {
-        break;
-      }
     }
-    
+
     // Apply limit and offset to the filtered results
     const startIndex = offset;
     const endIndex = offset + limit;
@@ -734,6 +732,30 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Fetches all tracks from an album (handles pagination).
+   * @param {string} albumId
+   * @returns {Promise<Array>} All track objects from the album
+   */
+  const getAllAlbumTracks = async (albumId) => {
+    let allTracks = [];
+    let offset = 0;
+    const limit = 50;
+
+    while (true) {
+      const response = await getAlbumTracks(albumId, limit, offset);
+      if (response?.items?.length > 0) {
+        allTracks = allTracks.concat(response.items);
+        if (response.items.length < limit) break;
+        offset += limit;
+      } else {
+        break;
+      }
+    }
+
+    return allTracks;
+  };
+
+  /**
    * Fetches albums by an artist
    */
   const getArtistAlbums = async (artistId, limit = 50, offset = 0) => {
@@ -800,6 +822,7 @@ export function useUserSpotifyApi() {
     loadAlbumsBatched,
     getAlbum,
     getAlbumTracks,
+    getAllAlbumTracks,
     getArtistAlbums,
     getAllArtistAlbums,
     getArtist

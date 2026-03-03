@@ -3,6 +3,7 @@ import { RouterLink } from "vue-router";
 import { ref } from "vue";
 import { useUserData } from "@composables/useUserData";
 import { useUpdatesBadge } from "@composables/useUpdatesBadge";
+import { useRecommendationsBadge } from "@composables/useRecommendationsBadge";
 import { 
   MusicalNoteIcon, 
   BoltIcon,
@@ -15,6 +16,7 @@ import {
 
 const { user, userData } = useUserData();
 const { showUpdatesDot } = useUpdatesBadge();
+const { showRecommendationsDot } = useRecommendationsBadge();
 const isMobileMenuOpen = ref(false);
 
 const toggleMobileMenu = () => {
@@ -107,7 +109,10 @@ const closeMobileMenu = () => {
             <li>
               <RouterLink to="/friends" class="flex items-center gap-1">
                 <UserGroupIcon class="w-4 h-4" />
-                <span>Friends</span>
+                <span class="relative">
+                  Friends
+                  <span v-if="showRecommendationsDot" class="absolute top-0.5 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
+                </span>
               </RouterLink>
             </li>
             <li>
@@ -206,7 +211,10 @@ const closeMobileMenu = () => {
                   @click="closeMobileMenu"
                 >
                   <UserGroupIcon class="w-6 h-6" />
-                  <span>Friends</span>
+                  <span class="relative">
+                    Friends
+                    <span v-if="showRecommendationsDot" class="absolute top-0.5 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
+                  </span>
                 </RouterLink>
               </li>
               <li>

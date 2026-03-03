@@ -43,7 +43,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (value) => ['primary', 'celadon', 'raspberry', 'delft-blue', 'primary-on-celadon'].includes(value)
+    validator: (value) => ['primary', 'celadon', 'raspberry', 'delft-blue', 'primary-on-celadon', 'primary-on-mindero'].includes(value)
   },
   label: {
     type: String,
@@ -74,20 +74,22 @@ const activeClasses = computed(() => {
       return 'bg-delft-blue';
     case 'primary-on-celadon':
       return 'bg-delft-blue';
+    case 'primary-on-mindero':
+      return 'bg-delft-blue';
     default:
       return 'bg-mint';
   }
 });
 
 const inactiveClasses = computed(() => {
-  if (props.variant === 'primary-on-celadon') {
+  if (props.variant === 'primary-on-celadon' || props.variant === 'primary-on-mindero') {
     return 'bg-white';
   }
   return 'bg-gray-300';
 });
 
 const thumbColorClasses = computed(() => {
-  if (props.variant === 'primary-on-celadon' && !props.modelValue) {
+  if ((props.variant === 'primary-on-celadon' || props.variant === 'primary-on-mindero') && !props.modelValue) {
     return 'bg-gray-300';
   }
   return 'bg-white';

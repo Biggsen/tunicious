@@ -1,6 +1,7 @@
 <script setup>
 import { computed, watch, onUnmounted, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useQueueSession } from '@composables/useQueueSession';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
 import { useLastFmApi } from '@composables/useLastFmApi';
@@ -11,12 +12,13 @@ import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon } fro
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
-const { 
-  isReady, 
-  isPlaying, 
-  currentTrack, 
-  position, 
-  duration, 
+useQueueSession();
+const {
+  isReady,
+  isPlaying,
+  currentTrack,
+  position,
+  duration,
   volume,
   togglePlayback,
   setVolume
