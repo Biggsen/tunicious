@@ -180,7 +180,6 @@ import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
-import { useSpotifySessionModal, isSpotifyReconnectError } from '@composables/useSpotifySessionModal';
 import { logPlaylist } from '@utils/logger';
 import { removeTuniciousTag } from '@utils/formatting';
 
@@ -195,16 +194,6 @@ const {
   updatePlaylist,
   isTuniciousPlaylist
 } = useUserSpotifyApi();
-
-const { showModal: showSpotifySessionModal } = useSpotifySessionModal();
-
-watch(spotifyError, (newError) => {
-  const msg = newError?.message || newError;
-  if (msg && isSpotifyReconnectError(msg)) {
-    spotifyError.value = null;
-    showSpotifySessionModal(msg);
-  }
-});
 
 const userPlaylists = ref([]);
 const successMessage = ref('');
@@ -240,12 +229,7 @@ const handleRemoveAlbum = async (playlistId, album) => {
     
   } catch (err) {
     logPlaylist('Error removing album:', err);
-    if (isSpotifyReconnectError(err.message)) {
-      spotifyError.value = null;
-      showSpotifySessionModal(err.message);
-    } else {
-      spotifyError.value = err.message || 'Failed to remove album from playlist';
-    }
+    spotifyError.value = err.message || 'Failed to remove album from playlist';
   }
 };
 
@@ -263,12 +247,7 @@ const loadUserPlaylists = async () => {
     
      } catch (err) {
      logPlaylist('Error loading playlists:', err);
-     if (isSpotifyReconnectError(err.message)) {
-       spotifyError.value = null;
-       showSpotifySessionModal(err.message);
-     } else {
-       spotifyError.value = err.message || 'Failed to load playlists';
-     }
+     spotifyError.value = err.message || 'Failed to load playlists';
    }
 };
 
@@ -317,12 +296,7 @@ const handleRenamePlaylist = async () => {
     
   } catch (err) {
     logPlaylist('Error renaming playlist:', err);
-    if (isSpotifyReconnectError(err.message)) {
-      spotifyError.value = null;
-      showSpotifySessionModal(err.message);
-    } else {
-      spotifyError.value = err.message || 'Failed to rename playlist';
-    }
+    spotifyError.value = err.message || 'Failed to rename playlist';
   }
 };
 

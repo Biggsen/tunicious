@@ -4,7 +4,6 @@ import TheHeader from "./components/TheHeader.vue";
 import SpotifyPlayerBar from "./components/SpotifyPlayerBar.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import LastFmSessionExpiredModal from "./components/LastFmSessionExpiredModal.vue";
-import SpotifySessionExpiredModal from "./components/SpotifySessionExpiredModal.vue";
 import { useSpotifyPlayer } from "@composables/useSpotifyPlayer";
 import { useWebPlayerPlaycountTracking } from "@composables/useWebPlayerPlaycountTracking";
 import { enableDebug } from "@utils/logger";
@@ -22,7 +21,6 @@ useWebPlayerPlaycountTracking();
   <TheHeader></TheHeader>
   <ToastContainer />
   <LastFmSessionExpiredModal />
-  <SpotifySessionExpiredModal />
   <div class="container mx-auto pb-24">
     <RouterView />
   </div>
