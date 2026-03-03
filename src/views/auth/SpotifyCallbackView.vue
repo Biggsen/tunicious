@@ -102,8 +102,15 @@ onMounted(async () => {
       success.value = true;
       loading.value = false;
     } else {
-      // Redirect to account page
-      router.push('/account');
+      // Redirect to originating page if stored, otherwise to account page
+      const returnPath = sessionStorage.getItem('spotify_return_path');
+      sessionStorage.removeItem('spotify_return_path');
+
+      if (returnPath && returnPath !== '/spotify-callback') {
+        router.push(returnPath);
+      } else {
+        router.push('/account');
+      }
     }
   } catch (err) {
     logSpotify('Spotify callback error:', err);

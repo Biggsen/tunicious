@@ -295,6 +295,7 @@ import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import ErrorMessage from '@components/common/ErrorMessage.vue';
+import { useSpotifySessionModal, isSpotifyReconnectError } from '@composables/useSpotifySessionModal';
 import { logPlaylist } from '@utils/logger';
 
 const { user, userData, loading: userLoading, error: userError } = useUserData();
@@ -306,6 +307,16 @@ const {
   loading: spotifyLoading,
   error: spotifyError
 } = useUserSpotifyApi();
+
+const { showModal: showSpotifySessionModal } = useSpotifySessionModal();
+
+watch(spotifyError, (newError) => {
+  const msg = newError?.message || newError;
+  if (msg && isSpotifyReconnectError(msg)) {
+    spotifyError.value = null;
+    showSpotifySessionModal(msg);
+  }
+});
 
 // Initialize form with all required fields
 const initialFormData = {

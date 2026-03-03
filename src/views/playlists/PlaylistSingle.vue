@@ -30,6 +30,7 @@ import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useToast } from '@composables/useToast';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
+import { useSpotifySessionModal, isSpotifyReconnectError } from '@composables/useSpotifySessionModal';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, addAlbumTracks, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
 import { logPlaylist, logCache, enableDebug } from '@utils/logger';
 
@@ -65,6 +66,7 @@ const { showToast } = useToast();
 
 // Initialize Last.fm session modal
 const { showModal: showLastFmSessionModal } = useLastFmSessionModal();
+const { showModal: showSpotifySessionModal } = useSpotifySessionModal();
 
 /**
  * Update track playcount in UI when playcount changes (called via global event)
@@ -1428,11 +1430,13 @@ async function loadPlaylistPage(options = {}) {
     logPlaylist('Playlist page loaded successfully');
   } catch (e) {
     logPlaylist("Error loading playlist page:", e);
-    if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
+    if (isSpotifyReconnectError(e.message)) {
+      spotifyError.value = null;
+      showSpotifySessionModal(e.message);
+    } else if (e.name === 'QuotaExceededError' || e.message?.includes('quota') || e.message?.includes('QuotaExceededError')) {
       error.value = "Browser storage is full. Please go to Account > Cache Management to clear some cache data, then try again.";
     } else if (e.message?.includes('permission') || e.message?.includes('not found')) {
       error.value = e.message || "You do not have permission to view this playlist.";
-      // Redirect to playlists page after a delay
       setTimeout(() => {
         router.push({ name: 'playlists' });
       }, 2000);
@@ -1785,7 +1789,12 @@ const performRemoveAlbum = async () => {
     }
   } catch (err) {
     logPlaylist('Error removing album:', err);
-    spotifyError.value = err.message || 'Failed to remove album from playlist';
+    if (isSpotifyReconnectError(err.message)) {
+      spotifyError.value = null;
+      showSpotifySessionModal(err.message);
+    } else {
+      spotifyError.value = err.message || 'Failed to remove album from playlist';
+    }
   } finally {
     removingAlbumId.value = null;
   }
@@ -2256,7 +2265,12 @@ const handleProcessAlbum = async ({ album, action }) => {
 
   } catch (err) {
     logPlaylist('Error processing album:', err);
-    showToast(err.message || 'Failed to process album', 'error');
+    if (isSpotifyReconnectError(err.message)) {
+      spotifyError.value = null;
+      showSpotifySessionModal(err.message);
+    } else {
+      showToast(err.message || 'Failed to process album', 'error');
+    }
   } finally {
     processingAlbum.value = null;
   }
