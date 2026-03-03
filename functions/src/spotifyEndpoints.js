@@ -12,10 +12,13 @@ const ALLOWED_ENDPOINTS = [
   "/me",
   "/me/playlists",
   "/me/library",
+  "/users/{userId}/playlists",
 
   // Playlist endpoints
   "/playlists/{playlistId}",
   "/playlists/{playlistId}/items",
+  "/playlists/{playlistId}/tracks",
+  "/playlists/{playlistId}/followers",
   
   // Album endpoints
   "/albums",
