@@ -14,6 +14,7 @@ const currentTrack = ref(null);
 const playingFrom = ref(null);
 const position = ref(0);
 const duration = ref(0);
+const volume = ref(50);
 const loading = ref(false);
 const error = ref(null);
 let initializationPromise = null;
@@ -432,15 +433,28 @@ export function useSpotifyPlayer() {
   };
 
   /**
-   * Set volume (0-1)
+   * Set volume (0-100) via Spotify Web API
    */
-  const setVolume = async (volume) => {
-    if (!player.value || !isReady.value) {
+  const setVolume = async (volumePercent) => {
+    if (!player.value || !isReady.value || !deviceId.value) {
       return;
     }
 
+    const clamped = Math.max(0, Math.min(100, Math.round(volumePercent)));
+    volume.value = clamped;
+
     try {
-      await player.value.setVolume(volume);
+      const tokens = await getUserTokens();
+      const response = await fetch(
+        `https://api.spotify.com/v1/me/player/volume?volume_percent=${clamped}&device_id=${deviceId.value}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokens.accessToken}` }
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to set volume: ${response.status}`);
+      }
     } catch (err) {
       logPlayer('Error setting volume:', err);
       error.value = err.message || 'Failed to set volume';
@@ -781,6 +795,7 @@ export function useSpotifyPlayer() {
     playingFrom,
     position,
     duration,
+    volume,
     loading,
     error,
     initializePlayer,

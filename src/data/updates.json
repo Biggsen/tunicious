@@ -1,5 +1,20 @@
 [
   {
+    "id": 19,
+    "title": "Release 0.1.0",
+    "date": "2026-03-03",
+    "types": ["FEATURE", "IMPROVEMENT", "UX"],
+    "hidden": false,
+    "description": "Release 0.1.0 introduces playlist playback controls, desktop volume management, and platform updates to support Spotify's latest Web API changes.",
+    "changes": [
+      "Play button on Playlist page — starts playback from the least-played track and queues remaining albums in the same smart order",
+      "Desktop volume control — volume slider and mute toggle added to the player bar",
+      "Player bar refinement (desktop) — heart moved after volume for a more natural control flow",
+      "Spotify API migration — updated for February 2026 Web API changes with a backward-compatible proxy",
+      "Updates badge — red dot indicator on the Updates navigation link when you have unseen updates"
+    ]
+  },
+  {
     "id": 18,
     "title": "Album Recommendations",
     "date": "2026-02-15",

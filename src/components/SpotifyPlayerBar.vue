@@ -8,7 +8,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
-import { PlayIcon, PauseIcon, HeartIcon } from '@heroicons/vue/24/solid';
+import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -19,7 +19,9 @@ const {
   currentTrack,
   position,
   duration,
-  togglePlayback
+  volume,
+  togglePlayback,
+  setVolume
 } = useSpotifyPlayer();
 
 const albumId = computed(() => {
@@ -53,6 +55,34 @@ const optimisticLovedStatus = ref(null); // Track optimistic loved status for cu
 
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
+
+let volumeThrottleTimer = null;
+const volumeBeforeMute = ref(null);
+
+const handleVolumeChange = (value) => {
+  const clamped = Math.max(0, Math.min(100, Math.round(Number(value))));
+  volume.value = clamped;
+  volumeBeforeMute.value = null;
+  if (volumeThrottleTimer) clearTimeout(volumeThrottleTimer);
+  volumeThrottleTimer = setTimeout(() => setVolume(clamped), 100);
+};
+
+const isMuted = computed(() => volume.value === 0);
+
+const toggleMute = () => {
+  if (volumeThrottleTimer) {
+    clearTimeout(volumeThrottleTimer);
+    volumeThrottleTimer = null;
+  }
+  if (volume.value > 0) {
+    volumeBeforeMute.value = volume.value;
+    setVolume(0);
+  } else {
+    const restore = volumeBeforeMute.value ?? 50;
+    volumeBeforeMute.value = null;
+    setVolume(restore);
+  }
+};
 
 let positionInterval = null;
 
@@ -90,6 +120,10 @@ watch(position, (newPosition) => {
 
 onUnmounted(() => {
   stopPositionTracking();
+  if (volumeThrottleTimer) {
+    clearTimeout(volumeThrottleTimer);
+    volumeThrottleTimer = null;
+  }
 });
 
 const formatTime = (ms) => {
@@ -483,7 +517,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
             v-if="canLoveTracks"
             @click="handleHeartClick"
             :disabled="isLoving"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
             :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
           >
             <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
@@ -504,6 +538,37 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           <span class="mx-2">/</span>
           <span>{{ formatTime(duration) }}</span>
         </div>
+        
+        <div class="hidden sm:flex items-center gap-2 volume-control flex-shrink-0" title="Volume">
+          <button
+            type="button"
+            @click="toggleMute"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 control-button"
+            :title="isMuted ? 'Unmute' : 'Mute'"
+          >
+<SpeakerXMarkIcon v-if="isMuted" class="w-6 h-6 text-gray-300" />
+              <SpeakerWaveIcon v-else class="w-6 h-6 text-gray-300" />
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            :value="volume"
+            @input="handleVolumeChange($event.target.value)"
+            class="w-20 h-1.5 accent-mindero bg-white/20 rounded-full appearance-none cursor-pointer volume-slider"
+          />
+        </div>
+        
+        <button
+          v-if="canLoveTracks"
+          @click="handleHeartClick"
+          :disabled="isLoving"
+          class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button flex-shrink-0 items-center justify-center"
+          :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
+        >
+          <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+          <HeartIconOutline v-else class="w-6 h-6" />
+        </button>
       </div>
       
       <div class="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
@@ -550,5 +615,29 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   .track-title {
     font-size: 0.875rem;
   }
+}
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: theme('colors.mindero');
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: theme('colors.mindero');
+  cursor: pointer;
+  border: none;
 }
 </style>

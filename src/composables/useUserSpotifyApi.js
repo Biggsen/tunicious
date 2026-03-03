@@ -432,19 +432,14 @@ export function useUserSpotifyApi() {
    * Creates a new playlist for the user
    */
   const createPlaylist = async (name, description = '', isPublic = false) => {
-    // First get the user's Spotify profile to get their user ID
-    const profile = await getUserProfile();
-    
-    // Add Tunicious identifier to description at the beginning
     const tuniciousDescription = formatTuniciousDescription(description);
-    
     const playlistData = {
       name,
       description: tuniciousDescription,
       public: isPublic
     };
 
-    return makeUserRequest(`https://api.spotify.com/v1/users/${profile.id}/playlists`, {
+    return makeUserRequest(`https://api.spotify.com/v1/me/playlists`, {
       method: 'POST',
       body: playlistData
     });
@@ -454,7 +449,7 @@ export function useUserSpotifyApi() {
    * Adds tracks to a playlist
    */
   const addTracksToPlaylist = async (playlistId, trackUris) => {
-    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
       method: 'POST',
       body: {
         uris: trackUris
@@ -543,7 +538,7 @@ export function useUserSpotifyApi() {
    * Gets tracks from a playlist
    */
   const getPlaylistTracks = async (playlistId, limit = 100, offset = 0) => {
-    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`);
+    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/items?limit=${limit}&offset=${offset}`);
   };
 
   /**
@@ -633,14 +628,13 @@ export function useUserSpotifyApi() {
       throw new Error('No track URIs provided for removal');
     }
     
-    // According to Spotify API docs, we need to use the tracks array format
     const requestBody = {
-      tracks: trackUris.map(uri => ({ uri }))
+      items: trackUris.map(uri => ({ uri }))
     };
-    
+
     logSpotify('DEBUG: Request body for removal:', JSON.stringify(requestBody, null, 2));
-    
-    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+
+    return makeUserRequest(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
       method: 'DELETE',
       body: requestBody
     });
@@ -648,10 +642,12 @@ export function useUserSpotifyApi() {
 
   /**
    * Searches for albums by query (artist name or album title)
+   * Max limit is 10 per Spotify API change
    */
-  const searchAlbums = async (query, limit = 20) => {
+  const searchAlbums = async (query, limit = 10) => {
+    const cappedLimit = Math.min(Math.max(1, limit), 10);
     const encodedQuery = encodeURIComponent(query);
-    return makeUserRequest(`https://api.spotify.com/v1/search?q=${encodedQuery}&type=album&limit=${limit}`);
+    return makeUserRequest(`https://api.spotify.com/v1/search?q=${encodedQuery}&type=album&limit=${cappedLimit}`);
   };
 
   /**
@@ -667,7 +663,7 @@ export function useUserSpotifyApi() {
 
     do {
       const data = await makeUserRequest(
-        `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(added_at,track(album(id))),total&limit=${limit}&offset=${offset}`
+        `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(added_at,track(album(id))),total&limit=${limit}&offset=${offset}`
       );
 
       data.items.forEach((item) => {
@@ -691,30 +687,31 @@ export function useUserSpotifyApi() {
   };
 
   /**
-   * Fetches multiple albums in a batch
+   * Fetches multiple albums in parallel (one request per album; batch endpoint deprecated)
    */
   const getAlbumsBatch = async (albumIds) => {
-    // Spotify allows up to 20 albums per request
-    return makeUserRequest(
-      `https://api.spotify.com/v1/albums?ids=${albumIds.join(',')}`
+    const albums = await Promise.all(
+      albumIds.map((albumId) =>
+        makeUserRequest(`https://api.spotify.com/v1/albums/${albumId}`)
+      )
     );
+    return { albums };
   };
 
   /**
-   * Loads albums in batches with rate limiting
+   * Loads albums with rate limiting (parallel requests in small batches)
    */
   const loadAlbumsBatched = async (albumIds) => {
-    const batchSize = 20;
+    const batchSize = 5;
     const albums = [];
-    
     for (let i = 0; i < albumIds.length; i += batchSize) {
       const batch = albumIds.slice(i, i + batchSize);
       const response = await getAlbumsBatch(batch);
       albums.push(...response.albums);
-      // Add small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (i + batchSize < albumIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
-
     return albums;
   };
 
