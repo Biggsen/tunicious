@@ -212,7 +212,7 @@ export async function generateCompletePipelines(userId) {
  * @param {string} playlistId - Spotify playlist ID
  * @param {Function} makeUserRequest - Function to make authenticated Spotify API requests
  */
-async function deleteSpotifyPlaylist(playlistId, makeUserRequest) {
+export async function deleteSpotifyPlaylist(playlistId, makeUserRequest) {
   // Spotify doesn't have a direct delete endpoint, but we can unfollow it
   // which effectively removes it from the user's playlists
   try {

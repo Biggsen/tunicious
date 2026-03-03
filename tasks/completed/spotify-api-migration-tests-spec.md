@@ -1,6 +1,8 @@
 # Spotify API Migration – Test Specification
 
-## **Status**: 📋 Planning
+## **Status**: ✅ Complete
+
+**Completed**: Pre-migration test baseline implemented. All 12 tests pass. Ready for migration phase.
 
 ## Overview
 
@@ -125,15 +127,15 @@ const MOCK_PLAYLIST_ITEMS = { items: [{ track: { id: 't1', album: { id: 'a1' } }
 
 ## Verification Checklist
 
-- [ ] `useUserSpotifyApi.spec.js` exists and all tests pass
-- [ ] `usePipelineGeneration.spec.js` exists and all tests pass
-- [ ] No real API calls or emulators required
-- [ ] Tests are fast (mocks only)
-- [ ] After migration, updated tests still pass
+- [x] `useUserSpotifyApi.spec.js` exists and all tests pass
+- [x] `usePipelineGeneration.spec.js` exists and all tests pass
+- [x] No real API calls or emulators required
+- [x] Tests are fast (mocks only)
+- [ ] After migration, update test expectations and re-run (migration phase)
 
 ---
 
 ## References
 
-- [spotify-api-migration-spec.md](./spotify-api-migration-spec.md) – Migration changes
-- [unifiedTrackCache.spec.js](../src/utils/unifiedTrackCache.spec.js) – Mocking pattern reference
+- [spotify-api-migration-spec.md](../spotify-api-migration-spec.md) – Migration changes
+- [unifiedTrackCache.spec.js](../../src/utils/unifiedTrackCache.spec.js) – Mocking pattern reference
