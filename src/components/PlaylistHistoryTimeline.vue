@@ -65,9 +65,9 @@ function playlistName(playlistId) {
 <template>
   <div class="playlist-history-timeline">
     <h3 class="h4 font-semibold text-delft-blue mb-4">Listening history</h3>
-    <div class="relative pl-4">
+    <div class="relative">
       <div
-        class="absolute left-[30px] top-3 bottom-5 w-1 bg-mint"
+        class="absolute left-4 top-3 bottom-5 w-1 bg-mint -translate-x-1/2"
         aria-hidden="true"
       />
       <div

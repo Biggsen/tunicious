@@ -825,13 +825,31 @@ onUnmounted(() => {
             </div>
           </div>
 
-        <!-- listen: listening history (directly below head on desktop) -->
+        <!-- listen: listening history in tabbed section -->
         <div class="album-listen">
-          <PlaylistHistoryTimeline
-            v-if="albumExists && playlistHistoryEntries.length > 0"
-            :entries="playlistHistoryEntries"
-            :playlist-names="playlistNamesMap"
-          />
+          <div v-if="albumExists">
+            <nav class="-mb-px flex space-x-2 ml-[20px]">
+              <button
+                :class="[
+                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
+                  'text-delft-blue bg-mint'
+                ]"
+                aria-current="page"
+              >
+                History
+              </button>
+            </nav>
+            <div class="bg-mint p-4 rounded-xl">
+              <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
+                <PlaylistHistoryTimeline
+                  v-if="playlistHistoryEntries.length > 0"
+                  :entries="playlistHistoryEntries"
+                  :playlist-names="playlistNamesMap"
+                />
+                <p v-else class="text-center py-6 text-stone-500">No listening history for this album.</p>
+              </div>
+            </div>
+          </div>
         </div>
         </div>
 
