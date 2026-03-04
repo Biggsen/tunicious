@@ -24,7 +24,7 @@ import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
-import { BellIcon } from '@heroicons/vue/24/outline';
+import { MegaphoneIcon } from '@heroicons/vue/24/outline';
 
 import { clearCache } from '@utils/cache';
 import { logAlbum } from '@utils/logger';
@@ -784,7 +784,7 @@ onUnmounted(() => {
         variant="secondary"
         @click="openRecommendModal"
       >
-        <template #icon-left><BellIcon class="w-5 h-5" /></template>
+        <template #icon-left><MegaphoneIcon class="w-5 h-5" /></template>
         Recommend
       </BaseButton>
     </div>
@@ -798,25 +798,73 @@ onUnmounted(() => {
     </div>
 
     <div v-else>
-      <div class="flex flex-col md:flex-row gap-8">
-        <!-- Album Cover -->
-        <div class="md:w-1/2">
-          <img 
-            :src="album.images[0].url" 
-            :alt="album.name"
-            class="w-full rounded-xl shadow-lg"
-          />
-          
-                     <!-- Playlist history timeline (when album is in collection) -->
+      <!-- Desktop: two columns (cover+tracks | head+listen). Mobile: display:contents + order for head, cover, tracks, listen -->
+      <div class="album-layout-grid">
+        <div class="album-right-column">
+        <!-- head: album title, artist (year, play, links) -->
+        <div class="album-head">
+            <p class="text-xl text-delft-blue font-bold mb-0">{{ album.release_date.substring(0, 4) }}</p>
+            <h1 class="h2 mb-0.5">{{ album.name }}</h1>
+            <p
+              class="text-xl md:text-2xl text-delft-blue cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200 mb-6"
+              @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
+            >
+              {{ album.artists[0].name }}
+            </p>
+            <BaseButton
+              v-if="playerReady"
+              variant="primary"
+              title="Play album"
+              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
+            >
+              <template #icon-left><PlayIcon class="w-5 h-5" /></template>
+              Play
+            </BaseButton>
+            <div v-if="playerError && playerReady" class="text-sm text-red-500 mb-2">
+              {{ playerError }}
+            </div>
+          </div>
+
+        <!-- listen: listening history (directly below head on desktop) -->
+        <div class="album-listen">
           <PlaylistHistoryTimeline
             v-if="albumExists && playlistHistoryEntries.length > 0"
-            class="mt-6"
             :entries="playlistHistoryEntries"
             :playlist-names="playlistNamesMap"
           />
-          
-          <!-- Album Details Update (when in collection but missing details) -->
-          <div v-if="albumExists && needsUpdate" class="mt-6">
+        </div>
+        </div>
+
+        <div class="album-left-column">
+        <!-- cover: album cover -->
+        <div class="album-cover">
+          <img
+            :src="album.images[0].url"
+            :alt="album.name"
+            class="w-full rounded-xl shadow-lg"
+          />
+        </div>
+
+        <!-- tracks: tracklist + update/mapping -->
+        <div class="album-tracks flex flex-col gap-4">
+          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
+            <TrackList
+              :tracks="tracks"
+              :albumArtist="album.artists[0]?.name || ''"
+              :albumId="album.id"
+              :albumTitle="album.name"
+              :lastFmUserName="userData?.lastFmUserName || ''"
+              :sortByPlaycount="false"
+              :showTrackNumbers="true"
+              :sessionKey="userData?.lastFmSessionKey || ''"
+              :allowLoving="userData?.lastFmAuthenticated || false"
+              :largeElements="true"
+              :showDuration="true"
+              @track-loved="handleTrackLoved"
+              @track-unloved="handleTrackUnloved"
+            />
+          </div>
+          <div v-if="albumExists && needsUpdate">
             <div class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
               <p class="text-yellow-700 mb-2">
                 This album is missing some details.
@@ -826,8 +874,6 @@ onUnmounted(() => {
               </BaseButton>
             </div>
           </div>
-
-          <!-- Album Mapping UI -->
           <AlbumMappingManager
             v-if="album && !albumExists"
             :search-results="searchResults"
@@ -843,105 +889,60 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Album Info -->
-        <div class="md:w-1/2">
-          <div class="flex items-center gap-3 mb-2">
-            <h1 class="h2 flex-1">{{ album.name }}</h1>
-            <button
-              v-if="playerReady"
-              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
-              class="flex items-center gap-2 px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-mint/80 transition-colors font-semibold"
-              title="Play album"
+        <div class="album-links flex flex-col gap-2">
+          <div class="flex gap-4 items-center flex-wrap">
+            <a
+              v-if="userData?.lastFmUserName"
+              :href="lastFmLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
             >
-              <PlayIcon class="w-5 h-5" />
-              <span>Play</span>
+              Last.fm
+            </a>
+            <a
+              :href="rymLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+            >
+              RYM
+            </a>
+            <button
+              v-if="albumExists"
+              @click="handleEditRymLink"
+              class="text-xs text-gray-500 hover:text-gray-700 underline"
+              title="Edit RYM link"
+            >
+              Edit RYM Link
             </button>
           </div>
-          <p 
-            class="text-2xl text-delft-blue mb-4 cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-            @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
-          >{{ album.artists[0].name }}</p>
-          <p class="text-xl text-delft-blue mb-4 font-bold">{{ album.release_date.substring(0, 4) }}</p>
-          <div v-if="playerError && playerReady" class="mb-4 text-sm text-red-500">
-            {{ playerError }}
-          </div>
-          
-          <!-- Music Service Links -->
-          <div class="mb-6">
-            <div class="flex gap-4 items-center mb-2">
-              <a
-                v-if="userData?.lastFmUserName"
-                :href="lastFmLink"
-                target="_blank"
-                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-              >
-                Last.fm
-              </a>
-              <a
-                :href="rymLink"
-                target="_blank"
-                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-              >
-                RYM
-              </a>
-              <button
-                v-if="albumExists"
-                @click="handleEditRymLink"
-                class="text-xs text-gray-500 hover:text-gray-700 underline"
-                title="Edit RYM link"
-              >
-                Edit RYM Link
-              </button>
-            </div>
-            
-            <!-- RYM Link Editor -->
-            <div v-if="editingRymLink" class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                RYM Link (leave empty to use auto-generated)
-              </label>
-              <input
-                v-model="rymLinkInput"
-                type="text"
-                placeholder="https://rateyourmusic.com/release/album/artist/album-name/"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-delft-blue focus:border-delft-blue"
-              />
-              <div class="mt-2 flex gap-2">
-                <BaseButton
-                  @click="handleSaveRymLink"
-                  :disabled="savingRymLink"
-                  customClass="btn-primary text-sm px-3 py-1"
-                >
-                  {{ savingRymLink ? 'Saving...' : 'Save' }}
-                </BaseButton>
-                <BaseButton
-                  @click="handleCancelEditRymLink"
-                  :disabled="savingRymLink"
-                  customClass="btn-secondary text-sm px-3 py-1"
-                >
-                  Cancel
-                </BaseButton>
-              </div>
-            </div>
-          </div>
-
-          
-          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
-            <TrackList 
-              :tracks="tracks" 
-              :albumArtist="album.artists[0]?.name || ''"
-              :albumId="album.id"
-              :albumTitle="album.name"
-              :lastFmUserName="userData?.lastFmUserName || ''"
-              :sortByPlaycount="false"
-              :showTrackNumbers="true"
-              :sessionKey="userData?.lastFmSessionKey || ''"
-              :allowLoving="userData?.lastFmAuthenticated || false"
-              :largeElements="true"
-              :showDuration="true"
-              @track-loved="handleTrackLoved"
-              @track-unloved="handleTrackUnloved"
+          <div v-if="editingRymLink" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              RYM Link (leave empty to use auto-generated)
+            </label>
+            <input
+              v-model="rymLinkInput"
+              type="text"
+              placeholder="https://rateyourmusic.com/release/album/artist/album-name/"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-delft-blue focus:border-delft-blue"
             />
+            <div class="mt-2 flex gap-2">
+              <BaseButton
+                @click="handleSaveRymLink"
+                :disabled="savingRymLink"
+                customClass="btn-primary text-sm px-3 py-1"
+              >
+                {{ savingRymLink ? 'Saving...' : 'Save' }}
+              </BaseButton>
+              <BaseButton
+                @click="handleCancelEditRymLink"
+                :disabled="savingRymLink"
+                customClass="btn-secondary text-sm px-3 py-1"
+              >
+                Cancel
+              </BaseButton>
+            </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -1019,4 +1020,44 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.album-layout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.album-right-column,
+.album-left-column {
+  display: contents;
+}
+.album-head { order: 1; }
+.album-cover { order: 2; }
+.album-tracks { order: 3; }
+.album-listen { order: 4; }
+.album-links { order: 5; }
+@media (min-width: 768px) {
+  .album-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .album-right-column,
+  .album-left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .album-right-column { grid-column: 2; }
+  .album-left-column { grid-column: 1; grid-row: 1; }
+  .album-head,
+  .album-cover,
+  .album-tracks,
+  .album-listen,
+  .album-links { order: unset; }
+}
+@media (min-width: 1024px) {
+  .album-layout-grid {
+    grid-template-columns: minmax(0, 500px) 1fr;
+  }
+}
 </style> 
