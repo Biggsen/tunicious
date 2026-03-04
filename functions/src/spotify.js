@@ -6,8 +6,8 @@ const {corsConfig} = require("./cors");
 const {isEndpointAllowed} = require("./spotifyEndpoints");
 const {getRateLimitIdentifier, rateLimit} = require("./rateLimit");
 
-// Rate limit: 500 requests per hour per user for Spotify
-const SPOTIFY_RATE_LIMIT = 500;
+// Rate limit: 1000 requests per hour per user for Spotify
+const SPOTIFY_RATE_LIMIT = 1000;
 const SPOTIFY_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const {
   validateRequestSize,
