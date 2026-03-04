@@ -14,11 +14,12 @@ import { useToast } from '@composables/useToast';
 import { useFriends } from '@composables/useFriends';
 import { useAlbumRecommendations } from '@composables/useAlbumRecommendations';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
+import { resolvePlaylistNames } from '@utils/playlistNameResolver';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import TrackList from '@components/TrackList.vue';
-import PlaylistStatus from '@components/PlaylistStatus.vue';
+import PlaylistHistoryTimeline from '@components/PlaylistHistoryTimeline.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
@@ -33,8 +34,8 @@ const router = useRouter();
 const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
-const { fetchUserAlbumData, getCurrentPlaylistInfo, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
-const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
+const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails } = useAlbumsData();
+const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
 const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
@@ -93,8 +94,8 @@ const album = ref(null);
 const tracks = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const saving = ref(false);
-const currentPlaylistInfo = ref(null);
+const playlistHistoryEntries = ref([]);
+const playlistNamesMap = ref({});
 const updating = ref(false);
 const needsUpdate = ref(false);
 const searchResults = ref([]);
@@ -124,8 +125,6 @@ const checkIfNeedsUpdate = async () => {
 
 
 
-const playlistId = computed(() => route.query.playlistId);
-const isFromPlaylist = computed(() => !!playlistId.value);
 
 const fetchAllTracks = async (albumId) => {
   let allTracks = [];
@@ -164,25 +163,18 @@ const fetchAllTracks = async (albumId) => {
   return allTracks;
 };
 
-const saveAlbum = async () => {
-  if (!user.value || !album.value || !playlistId.value) return;
-  try {
-    saving.value = true;
-    error.value = null;
-    await addAlbumToCollection({
-      album: album.value,
-      playlistId: playlistId.value
-    });
-    currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-  } catch (err) {
-    logAlbum('Error saving album:', err);
-    error.value = err.message || 'Failed to save album';
-  } finally {
-    saving.value = false;
+const refreshPlaylistHistory = async () => {
+  if (!album.value?.id || !user.value) return;
+  const userAlbumData = await fetchUserAlbumData(album.value.id);
+  if (userAlbumData?.playlistHistory?.length) {
+    playlistHistoryEntries.value = userAlbumData.playlistHistory;
+    const ids = [...new Set(userAlbumData.playlistHistory.map(e => e.playlistId).filter(Boolean))];
+    playlistNamesMap.value = await resolvePlaylistNames(ids, user.value.uid, getPlaylist);
+  } else {
+    playlistHistoryEntries.value = [];
+    playlistNamesMap.value = {};
   }
 };
-
-
 
 
 
@@ -649,23 +641,14 @@ onMounted(async () => {
       primaryAlbumId.value = await getPrimaryId(albumId);
     }
     
-    // Try to load tracks from unified cache first (if coming from PlaylistSingle)
+    // Try to load tracks from unified cache first
     let tracksData = [];
     let albumData = null;
     
     if (user.value) {
       try {
-        // If coming from a playlist, try playlist context first
-        if (playlistId.value) {
-          tracksData = await getAlbumTracksForPlaylist(playlistId.value, albumId);
-          logAlbum('Loaded tracks from playlist cache:', { albumId, playlistId: playlistId.value, trackCount: tracksData.length });
-        }
-        
-        // If not found in playlist context, try album context
-        if (tracksData.length === 0) {
-          tracksData = await getAlbumTracksForAlbum(albumId);
-          logAlbum('Loaded tracks from album cache:', { albumId, trackCount: tracksData.length });
-        }
+        tracksData = await getAlbumTracksForAlbum(albumId);
+        logAlbum('Loaded tracks from album cache:', { albumId, trackCount: tracksData.length });
       } catch (err) {
         logAlbum('Error loading tracks from cache:', err);
       }
@@ -703,9 +686,8 @@ onMounted(async () => {
     albumExists.value = !!details;
     storedRymLink.value = details?.rymLink ?? null;
     
-    // Fetch current playlist info if available
-    if (albumId) {
-      currentPlaylistInfo.value = await getCurrentPlaylistInfo(albumId);
+    if (albumId && user.value) {
+      await refreshPlaylistHistory();
       await checkIfNeedsUpdate();
     }
     
@@ -754,11 +736,7 @@ onMounted(async () => {
           // Reload tracks from cache to get updated playcount/loved data
           let reloadedTracks = [];
           try {
-            if (playlistId.value) {
-              reloadedTracks = await getAlbumTracksForPlaylist(playlistId.value, albumId);
-            } else {
-              reloadedTracks = await getAlbumTracksForAlbum(albumId);
-            }
+            reloadedTracks = await getAlbumTracksForAlbum(albumId);
           } catch (reloadErr) {
             logAlbum('Error reloading tracks from cache:', reloadErr);
           }
@@ -829,19 +807,16 @@ onUnmounted(() => {
             class="w-full rounded-xl shadow-lg"
           />
           
-                     <!-- Playlist Status -->
-           <PlaylistStatus
-             v-if="isFromPlaylist"
-             :current-playlist-info="currentPlaylistInfo"
-             :needs-update="needsUpdate"
-             :updating="updating"
-             :saving="saving"
-             @update="handleUpdateAlbumDetails"
-             @save="saveAlbum"
-           />
+                     <!-- Playlist history timeline (when album is in collection) -->
+          <PlaylistHistoryTimeline
+            v-if="albumExists && playlistHistoryEntries.length > 0"
+            class="mt-6"
+            :entries="playlistHistoryEntries"
+            :playlist-names="playlistNamesMap"
+          />
           
-          <!-- Album Details Update for non-playlist albums -->
-          <div v-if="!isFromPlaylist && albumExists && needsUpdate" class="mt-6">
+          <!-- Album Details Update (when in collection but missing details) -->
+          <div v-if="albumExists && needsUpdate" class="mt-6">
             <div class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
               <p class="text-yellow-700 mb-2">
                 This album is missing some details.
