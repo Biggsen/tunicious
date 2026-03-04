@@ -308,6 +308,99 @@ export function useAlbumsData() {
     }
   };
 
+  const normalizeYear = (yearStr) => {
+    const n = parseInt(yearStr, 10);
+    return yearStr.length <= 2 ? (n >= 50 ? 1900 + n : 2000 + n) : n;
+  };
+
+  const mapAlbumDoc = (doc, seenIds) => {
+    if (seenIds.has(doc.id)) return null;
+    seenIds.add(doc.id);
+    const d = doc.data();
+    return {
+      id: doc.id,
+      albumTitle: d.albumTitle,
+      artistName: d.artistName,
+      albumCover: d.albumCover || '',
+      releaseYear: d.releaseYear || '',
+      artistId: d.artistId || ''
+    };
+  };
+
+  /**
+   * Searches for albums by release year (exact match). Handles both string and number storage.
+   * @param {string} yearStr - The year to search for (e.g. "1994" or "94")
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByYear = async (yearStr) => {
+    if (!user.value || !yearStr || !/^\d{2,4}$/.test(yearStr)) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const normalizedYear = normalizeYear(yearStr);
+      const albumsRef = collection(db, 'albums');
+      const [numSnapshot, strSnapshot] = await Promise.all([
+        getDocs(query(albumsRef, where('releaseYear', '==', normalizedYear))),
+        getDocs(query(albumsRef, where('releaseYear', '==', String(normalizedYear))))
+      ]);
+      const seenIds = new Set();
+      const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+      const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+      return [...fromNum, ...fromStr];
+    } catch (e) {
+      logAlbum('Error searching albums by year:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Searches for albums by release year range (inclusive). Handles both string and number storage.
+   * @param {number} startYear - Start year (inclusive)
+   * @param {number} endYear - End year (inclusive)
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByYearRange = async (startYear, endYear) => {
+    if (!user.value || startYear == null || endYear == null || startYear > endYear) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const albumsRef = collection(db, 'albums');
+      const startStr = String(startYear);
+      const endStr = String(endYear);
+      const [numSnapshot, strSnapshot] = await Promise.all([
+        getDocs(query(
+          albumsRef,
+          where('releaseYear', '>=', startYear),
+          where('releaseYear', '<=', endYear)
+        )),
+        getDocs(query(
+          albumsRef,
+          where('releaseYear', '>=', startStr),
+          where('releaseYear', '<=', endStr)
+        ))
+      ]);
+      const seenIds = new Set();
+      const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+      const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+      const combined = [...fromNum, ...fromStr];
+      combined.sort((a, b) => {
+        const ya = parseInt(a.releaseYear, 10) || 0;
+        const yb = parseInt(b.releaseYear, 10) || 0;
+        return ya - yb;
+      });
+      return combined;
+    } catch (e) {
+      logAlbum('Error searching albums by year range:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   /**
    * Adds an album to the user's collection and playlist history
    * @param {Object} params
@@ -694,6 +787,8 @@ export function useAlbumsData() {
     removeAlbumFromPlaylist,
     searchAlbumsByTitlePrefix,
     searchAlbumsByArtistPrefix,
+    searchAlbumsByYear,
+    searchAlbumsByYearRange,
     fetchAlbumDetails,
     getAlbumDetails,
     getAlbumsDetailsBatch,
