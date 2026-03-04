@@ -2238,11 +2238,13 @@ const handleProcessAlbum = async ({ album, action }) => {
       }
     }
 
+    const playlistName = targetPlaylistData?.name ?? 'playlist';
     const albumText = formatAlbumName(album);
     showToast({
       parts: [
         ...albumText.parts,
-        { text: ' moved to new playlist' }
+        { text: ' moved to ' },
+        { text: playlistName, bold: true }
       ]
     }, 'success');
 
