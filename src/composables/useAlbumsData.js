@@ -696,6 +696,34 @@ export function useAlbumsData() {
   };
 
   /**
+   * For a given album, returns each friend's current playlist (the one that has this album, not removed).
+   * @param {string} albumId - The Spotify album ID
+   * @param {string[]} friendIds - Array of friend user IDs
+   * @returns {Promise<Array<{ friendId: string, playlistId: string }>>}
+   */
+  const getFriendsCurrentPlaylistForAlbum = async (albumId, friendIds) => {
+    if (!user.value || !albumId || !friendIds?.length) return [];
+    try {
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
+      if (!albumDoc.exists()) return [];
+      const data = albumDoc.data();
+      const userEntries = data.userEntries || {};
+      const result = [];
+      for (const friendId of friendIds) {
+        const entry = userEntries[friendId];
+        if (!entry || !Array.isArray(entry.playlistHistory)) continue;
+        const current = entry.playlistHistory.find(e => !e.removedAt);
+        if (current?.playlistId) result.push({ friendId, playlistId: current.playlistId });
+      }
+      return result;
+    } catch (e) {
+      logAlbum('Error fetching friends playlist for album:', e);
+      return [];
+    }
+  };
+
+  /**
    * Removes an album from a playlist by marking the current entry as removed.
    * Resolves alternate IDs to primary before lookup so users with deduplicated albums can remove them.
    * @param {string} albumId - The Spotify album ID
@@ -793,6 +821,7 @@ export function useAlbumsData() {
     getAlbumDetails,
     getAlbumsDetailsBatch,
     updateAlbumDetails,
-    getAlbumRatingData
+    getAlbumRatingData,
+    getFriendsCurrentPlaylistForAlbum
   };
 } 

@@ -14,7 +14,7 @@ import { useToast } from '@composables/useToast';
 import { useFriends } from '@composables/useFriends';
 import { useAlbumRecommendations } from '@composables/useAlbumRecommendations';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
-import { resolvePlaylistNames } from '@utils/playlistNameResolver';
+import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameResolver';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
@@ -34,7 +34,7 @@ const router = useRouter();
 const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
-const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails } = useAlbumsData();
+const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails, getFriendsCurrentPlaylistForAlbum } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
@@ -96,6 +96,10 @@ const loading = ref(true);
 const error = ref(null);
 const playlistHistoryEntries = ref([]);
 const playlistNamesMap = ref({});
+const ALBUM_LISTEN_TAB_KEY = 'album_listen_tab';
+const activeListenTab = ref(sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY) || 'history');
+const friendsWithAlbum = ref([]);
+const friendsTabLoading = ref(false);
 const updating = ref(false);
 const needsUpdate = ref(false);
 const searchResults = ref([]);
@@ -176,7 +180,36 @@ const refreshPlaylistHistory = async () => {
   }
 };
 
-
+const loadFriendsAlbumData = async () => {
+  if (!album.value?.id || !user.value) return;
+  friendsTabLoading.value = true;
+  friendsWithAlbum.value = [];
+  try {
+    await getFriends();
+    const friendIds = (friendsList.value || []).map(f => f.id).filter(Boolean);
+    if (friendIds.length === 0) {
+      friendsWithAlbum.value = [];
+      return;
+    }
+    const raw = await getFriendsCurrentPlaylistForAlbum(album.value.id, friendIds);
+    const friendsById = new Map((friendsList.value || []).map(f => [f.id, f]));
+    const rows = await Promise.all(
+      raw.map(async ({ friendId, playlistId }) => {
+        const friend = friendsById.get(friendId);
+        const friendDisplayName = friend?.displayName || friend?.email || 'Unknown';
+        const friendProfileImageUrl = friend?.profileImageUrl ?? null;
+        const playlistName = await resolvePlaylistName(playlistId, friendId, getPlaylist);
+        return { friendId, friendDisplayName, friendProfileImageUrl, playlistId, playlistName };
+      })
+    );
+    friendsWithAlbum.value = rows;
+  } catch (e) {
+    logAlbum('Error loading friends album data:', e);
+    friendsWithAlbum.value = [];
+  } finally {
+    friendsTabLoading.value = false;
+  }
+};
 
 const handleUpdateAlbumDetails = async () => {
   if (!user.value || !album.value) return;
@@ -606,6 +639,10 @@ watch([tracks], async () => {
   }
 });
 
+watch(activeListenTab, (newVal) => {
+  sessionStorage.setItem(ALBUM_LISTEN_TAB_KEY, newVal);
+});
+
 // Computed properties for music service links
 const lastFmLink = computed(() => {
   if (!userData.value?.lastFmUserName || !album.value) return '#';
@@ -689,6 +726,9 @@ onMounted(async () => {
     if (albumId && user.value) {
       await refreshPlaylistHistory();
       await checkIfNeedsUpdate();
+      if (activeListenTab.value === 'friends') {
+        await loadFriendsAlbumData();
+      }
     }
     
     // Calculate loved percentage from cache (fast, no API call)
@@ -830,23 +870,62 @@ onUnmounted(() => {
           <div v-if="albumExists">
             <nav class="-mb-px flex space-x-2 ml-[20px]">
               <button
+                @click="activeListenTab = 'history'"
                 :class="[
                   'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
-                  'text-delft-blue bg-mint'
+                  activeListenTab === 'history' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
                 ]"
-                aria-current="page"
+                :aria-current="activeListenTab === 'history' ? 'page' : undefined"
               >
                 History
+              </button>
+              <button
+                @click="activeListenTab = 'friends'; loadFriendsAlbumData()"
+                :class="[
+                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
+                  activeListenTab === 'friends' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                ]"
+                :aria-current="activeListenTab === 'friends' ? 'page' : undefined"
+              >
+                Friends
               </button>
             </nav>
             <div class="bg-mint p-4 rounded-xl">
               <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
-                <PlaylistHistoryTimeline
-                  v-if="playlistHistoryEntries.length > 0"
-                  :entries="playlistHistoryEntries"
-                  :playlist-names="playlistNamesMap"
-                />
-                <p v-else class="text-center py-6 text-stone-500">No listening history for this album.</p>
+                <template v-if="activeListenTab === 'history'">
+                  <PlaylistHistoryTimeline
+                    v-if="playlistHistoryEntries.length > 0"
+                    :entries="playlistHistoryEntries"
+                    :playlist-names="playlistNamesMap"
+                  />
+                  <p v-else class="text-base">No listening history for this album.</p>
+                </template>
+                <template v-else>
+                  <p v-if="friendsTabLoading" class="text-base">Loading…</p>
+                  <p v-else-if="friendsWithAlbum.length === 0" class="text-base">None of your friends have this album in a playlist.</p>
+                  <ul v-else class="space-y-3">
+                    <li
+                      v-for="row in friendsWithAlbum"
+                      :key="row.friendId"
+                      class="flex flex-wrap items-center gap-x-2 gap-y-1"
+                    >
+                      <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <img
+                          v-if="row.friendProfileImageUrl"
+                          :src="row.friendProfileImageUrl"
+                          alt=""
+                          class="w-full h-full object-cover"
+                        />
+                        <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-xs font-semibold">
+                          {{ row.friendDisplayName?.charAt(0)?.toUpperCase() || '?' }}
+                        </div>
+                      </div>
+                      <span class="font-semibold text-delft-blue">{{ row.friendDisplayName }}</span>
+                      <span class="text-stone-500">–</span>
+                      <span class="text-delft-blue">{{ row.playlistName }}</span>
+                    </li>
+                  </ul>
+                </template>
               </div>
             </div>
           </div>
