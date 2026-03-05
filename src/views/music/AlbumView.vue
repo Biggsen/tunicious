@@ -39,7 +39,7 @@ const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, 
 const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
-const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
+const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
 
 // Initialize toast
 const { showToast } = useToast();
@@ -98,12 +98,21 @@ const error = ref(null);
 const playlistHistoryEntries = ref([]);
 const playlistNamesMap = ref({});
 const ALBUM_LISTEN_TAB_KEY = 'album_listen_tab';
-const VALID_LISTEN_TABS = ['history', 'friends', 'notes'];
+const LISTEN_TABS = [
+  { id: 'history', label: 'History' },
+  { id: 'friends', label: 'Friends' },
+  { id: 'notes', label: 'Notes' }
+];
 const activeListenTab = ref(
-  VALID_LISTEN_TABS.includes(sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY))
+  LISTEN_TABS.some(t => t.id === sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY))
     ? sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY)
     : 'history'
 );
+
+function handleListenTabClick(tab) {
+  activeListenTab.value = tab.id;
+  if (tab.id === 'friends') loadFriendsAlbumData();
+}
 const friendsWithAlbum = ref([]);
 const friendsTabLoading = ref(false);
 const updating = ref(false);
@@ -942,34 +951,17 @@ onUnmounted(() => {
           <div v-if="albumExists">
             <nav class="-mb-px flex space-x-2 ml-[20px]">
               <button
-                @click="activeListenTab = 'history'"
+                v-for="tab in LISTEN_TABS"
+                :key="tab.id"
+                type="button"
+                @click="handleListenTabClick(tab)"
                 :class="[
                   'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
-                  activeListenTab === 'history' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                  activeListenTab === tab.id ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
                 ]"
-                :aria-current="activeListenTab === 'history' ? 'page' : undefined"
+                :aria-current="activeListenTab === tab.id ? 'page' : undefined"
               >
-                History
-              </button>
-              <button
-                @click="activeListenTab = 'friends'; loadFriendsAlbumData()"
-                :class="[
-                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
-                  activeListenTab === 'friends' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
-                ]"
-                :aria-current="activeListenTab === 'friends' ? 'page' : undefined"
-              >
-                Friends
-              </button>
-              <button
-                @click="activeListenTab = 'notes'"
-                :class="[
-                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
-                  activeListenTab === 'notes' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
-                ]"
-                :aria-current="activeListenTab === 'notes' ? 'page' : undefined"
-              >
-                Notes
+                {{ tab.label }}
               </button>
             </nav>
             <div class="bg-mint p-4 rounded-xl">

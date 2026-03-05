@@ -335,6 +335,19 @@ export function useAlbumsData() {
   };
 
   /**
+   * Merges two album query snapshots into a deduped array of mapped album objects.
+   * @param {import('firebase/firestore').QuerySnapshot} numSnapshot
+   * @param {import('firebase/firestore').QuerySnapshot} strSnapshot
+   * @returns {Array<{id: string, albumTitle: string, artistName: string, albumCover: string, releaseYear: string, artistId: string}>}
+   */
+  const mergeAlbumSnapshots = (numSnapshot, strSnapshot) => {
+    const seenIds = new Set();
+    const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+    const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+    return [...fromNum, ...fromStr];
+  };
+
+  /**
    * Searches for albums by release year (exact match). Handles both string and number storage.
    * @param {string} yearStr - The year to search for (e.g. "1994" or "94")
    * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
@@ -350,10 +363,7 @@ export function useAlbumsData() {
         getDocs(query(albumsRef, where('releaseYear', '==', normalizedYear))),
         getDocs(query(albumsRef, where('releaseYear', '==', String(normalizedYear))))
       ]);
-      const seenIds = new Set();
-      const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
-      const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
-      return [...fromNum, ...fromStr];
+      return mergeAlbumSnapshots(numSnapshot, strSnapshot);
     } catch (e) {
       logAlbum('Error searching albums by year:', e);
       error.value = 'Failed to search albums';
@@ -389,10 +399,7 @@ export function useAlbumsData() {
           where('releaseYear', '<=', endStr)
         ))
       ]);
-      const seenIds = new Set();
-      const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
-      const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
-      const combined = [...fromNum, ...fromStr];
+      const combined = mergeAlbumSnapshots(numSnapshot, strSnapshot);
       combined.sort((a, b) => {
         const ya = parseInt(a.releaseYear, 10) || 0;
         const yb = parseInt(b.releaseYear, 10) || 0;
@@ -859,4 +866,3 @@ export function useAlbumsData() {
     getFriendsCurrentPlaylistForAlbum
   };
 }
- 

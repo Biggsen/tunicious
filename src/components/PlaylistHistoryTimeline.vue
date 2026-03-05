@@ -25,10 +25,15 @@ const sortedEntries = computed(() => {
     const dateB = b.addedAt?.toDate ? b.addedAt.toDate() : new Date(b.addedAt || 0);
     return dateA - dateB;
   });
-  return list.map((entry, index) => ({
-    ...entry,
-    isCurrent: index === list.length - 1 && !entry.removedAt
-  }));
+  return list.map((entry, index) => {
+    const d = entry.addedAt?.toDate ? entry.addedAt.toDate() : new Date(entry.addedAt || 0);
+    const ts = isNaN(d.getTime()) ? index : d.getTime();
+    return {
+      ...entry,
+      isCurrent: index === list.length - 1 && !entry.removedAt,
+      entryKey: `${entry.playlistId ?? 'none'}-${ts}-${index}`
+    };
+  });
 });
 
 function getRoleIcon(role) {
@@ -71,8 +76,8 @@ function playlistName(playlistId) {
         aria-hidden="true"
       />
       <div
-        v-for="(entry, index) in sortedEntries"
-        :key="index"
+        v-for="entry in sortedEntries"
+        :key="entry.entryKey"
         class="relative flex items-start gap-4 pb-6 last:pb-0"
       >
         <div
