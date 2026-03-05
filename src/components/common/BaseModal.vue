@@ -67,7 +67,7 @@ const props = defineProps({
   },
   cancelVariant: {
     type: String,
-    default: 'default'
+    default: 'tertiary'
   },
   closeOnBackdrop: {
     type: Boolean,

@@ -681,6 +681,35 @@ export function useAlbumsData() {
   };
 
   /**
+   * Updates the current user's notes for an album. Requires an existing user entry (album in collection).
+   * @param {string} albumId - The Spotify album ID
+   * @param {string} notes - Plain text notes (supports line breaks)
+   * @returns {Promise<void>}
+   */
+  const updateAlbumNotes = async (albumId, notes) => {
+    if (!user.value || !albumId) throw new Error('Missing user or album ID');
+    const targetAlbumId = await resolveToPrimaryId(albumId);
+    const albumRef = doc(db, 'albums', targetAlbumId);
+    const albumDoc = await getDoc(albumRef);
+    if (!albumDoc.exists()) throw new Error('Album not found');
+    const data = albumDoc.data();
+    const userEntry = data.userEntries?.[user.value.uid];
+    if (!userEntry) throw new Error('Album not in your collection');
+    await setDoc(albumRef, {
+      userEntries: {
+        [user.value.uid]: {
+          ...userEntry,
+          notes: notes ?? '',
+          updatedAt: serverTimestamp()
+        }
+      }
+    }, { merge: true });
+    const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
+    if (targetAlbumId !== albumId) cacheKeys.push(`albumDbData_${targetAlbumId}_${user.value.uid}`);
+    cacheKeys.forEach(k => clearCache(k));
+  };
+
+  /**
    * Gets the rating data (type, playlistId) for the current playlist entry of an album
    * @param {string} albumId - The Spotify album ID
    * @returns {Promise<{type: string, playlistId: string} | null>}
@@ -821,7 +850,9 @@ export function useAlbumsData() {
     getAlbumDetails,
     getAlbumsDetailsBatch,
     updateAlbumDetails,
+    updateAlbumNotes,
     getAlbumRatingData,
     getFriendsCurrentPlaylistForAlbum
   };
-} 
+}
+ 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
@@ -18,13 +18,14 @@ import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameRe
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
+import IconButton from '@components/common/IconButton.vue';
 import TrackList from '@components/TrackList.vue';
 import PlaylistHistoryTimeline from '@components/PlaylistHistoryTimeline.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
-import { MegaphoneIcon } from '@heroicons/vue/24/outline';
+import { MegaphoneIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 import { clearCache } from '@utils/cache';
 import { logAlbum } from '@utils/logger';
@@ -34,7 +35,7 @@ const router = useRouter();
 const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
-const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails, getFriendsCurrentPlaylistForAlbum } = useAlbumsData();
+const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails, updateAlbumNotes, getFriendsCurrentPlaylistForAlbum } = useAlbumsData();
 const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
@@ -97,7 +98,12 @@ const error = ref(null);
 const playlistHistoryEntries = ref([]);
 const playlistNamesMap = ref({});
 const ALBUM_LISTEN_TAB_KEY = 'album_listen_tab';
-const activeListenTab = ref(sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY) || 'history');
+const VALID_LISTEN_TABS = ['history', 'friends', 'notes'];
+const activeListenTab = ref(
+  VALID_LISTEN_TABS.includes(sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY))
+    ? sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY)
+    : 'history'
+);
 const friendsWithAlbum = ref([]);
 const friendsTabLoading = ref(false);
 const updating = ref(false);
@@ -112,6 +118,12 @@ const storedRymLink = ref(null);
 const editingRymLink = ref(false);
 const rymLinkInput = ref('');
 const savingRymLink = ref(false);
+const albumNotes = ref('');
+const editingNotes = ref(false);
+const notesInput = ref('');
+const savingNotes = ref(false);
+const deletingNotes = ref(false);
+const showDeleteNoteModal = ref(false);
 
 // Last.fm loved tracks data (using unified cache)
 const lovedTracksCount = ref(0);
@@ -170,6 +182,7 @@ const fetchAllTracks = async (albumId) => {
 const refreshPlaylistHistory = async () => {
   if (!album.value?.id || !user.value) return;
   const userAlbumData = await fetchUserAlbumData(album.value.id);
+  albumNotes.value = userAlbumData?.notes ?? '';
   if (userAlbumData?.playlistHistory?.length) {
     playlistHistoryEntries.value = userAlbumData.playlistHistory;
     const ids = [...new Set(userAlbumData.playlistHistory.map(e => e.playlistId).filter(Boolean))];
@@ -345,6 +358,65 @@ const handleSaveRymLink = async () => {
     error.value = err.message || 'Failed to save RYM link';
   } finally {
     savingRymLink.value = false;
+  }
+};
+
+const notesTextarea = ref(null);
+const MIN_NOTES_HEIGHT = 100;
+
+const resizeNotesTextarea = () => {
+  const el = notesTextarea.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${Math.max(MIN_NOTES_HEIGHT, el.scrollHeight)}px`;
+};
+
+const startEditNotes = () => {
+  editingNotes.value = true;
+  notesInput.value = albumNotes.value;
+  nextTick(resizeNotesTextarea);
+};
+
+const cancelEditNotes = () => {
+  editingNotes.value = false;
+  notesInput.value = albumNotes.value;
+};
+
+const saveNotes = async () => {
+  if (!user.value || !album.value) return;
+  try {
+    savingNotes.value = true;
+    error.value = null;
+    await updateAlbumNotes(album.value.id, notesInput.value ?? '');
+    albumNotes.value = notesInput.value ?? '';
+    editingNotes.value = false;
+  } catch (err) {
+    logAlbum('Error saving notes:', err);
+    error.value = err.message || 'Failed to save notes';
+  } finally {
+    savingNotes.value = false;
+  }
+};
+
+const confirmDeleteNote = () => {
+  showDeleteNoteModal.value = false;
+  deleteNotes();
+};
+
+const deleteNotes = async () => {
+  if (!user.value || !album.value) return;
+  try {
+    deletingNotes.value = true;
+    error.value = null;
+    await updateAlbumNotes(album.value.id, '');
+    albumNotes.value = '';
+    notesInput.value = '';
+    editingNotes.value = false;
+  } catch (err) {
+    logAlbum('Error deleting notes:', err);
+    error.value = err.message || 'Failed to delete note';
+  } finally {
+    deletingNotes.value = false;
   }
 };
 
@@ -889,6 +961,16 @@ onUnmounted(() => {
               >
                 Friends
               </button>
+              <button
+                @click="activeListenTab = 'notes'"
+                :class="[
+                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
+                  activeListenTab === 'notes' ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                ]"
+                :aria-current="activeListenTab === 'notes' ? 'page' : undefined"
+              >
+                Notes
+              </button>
             </nav>
             <div class="bg-mint p-4 rounded-xl">
               <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
@@ -900,7 +982,7 @@ onUnmounted(() => {
                   />
                   <p v-else class="text-base">No listening history for this album.</p>
                 </template>
-                <template v-else>
+                <template v-else-if="activeListenTab === 'friends'">
                   <p v-if="friendsTabLoading" class="text-base">Loading…</p>
                   <p v-else-if="friendsWithAlbum.length === 0" class="text-base">None of your friends have this album in a playlist.</p>
                   <ul v-else class="space-y-3">
@@ -926,6 +1008,74 @@ onUnmounted(() => {
                     </li>
                   </ul>
                 </template>
+                <template v-else-if="activeListenTab === 'notes'">
+                  <div v-if="editingNotes" class="space-y-3">
+                    <textarea
+                      ref="notesTextarea"
+                      v-model="notesInput"
+                      rows="1"
+                      placeholder="Add quick notes about this album…"
+                      class="w-full text-base text-delft-blue overflow-hidden resize-none border-0 p-0 focus:ring-0 focus:outline-none min-h-[100px]"
+                      @input="resizeNotesTextarea"
+                    />
+                    <div class="flex gap-2 justify-end">
+                      <BaseButton
+                        variant="tertiary"
+                        @click="cancelEditNotes"
+                        :disabled="savingNotes"
+                      >
+                        Cancel
+                      </BaseButton>
+                      <BaseButton
+                        variant="primary"
+                        @click="saveNotes"
+                        :disabled="savingNotes"
+                      >
+                        {{ savingNotes ? 'Saving…' : 'Save' }}
+                      </BaseButton>
+                    </div>
+                  </div>
+                  <div v-else>
+                    <div
+                      v-if="albumNotes"
+                      class="text-base text-delft-blue whitespace-pre-wrap break-words cursor-pointer rounded p-1 -m-1 hover:bg-mint/30 transition-colors"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Edit note"
+                      @click="startEditNotes"
+                      @keydown.enter="startEditNotes"
+                      @keydown.space.prevent="startEditNotes"
+                    >
+                      {{ albumNotes }}
+                    </div>
+                    <p
+                      v-else
+                      class="text-base text-stone-500 cursor-pointer rounded p-1 -m-1 hover:bg-mint/30 hover:text-delft-blue transition-colors"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Add note"
+                      @click="startEditNotes"
+                      @keydown.enter="startEditNotes"
+                      @keydown.space.prevent="startEditNotes"
+                    >
+                      No notes yet.
+                    </p>
+                  </div>
+                </template>
+              </div>
+              <div
+                v-if="activeListenTab === 'notes' && !editingNotes && albumNotes"
+                class="flex flex-wrap gap-2 mt-3"
+              >
+                <IconButton
+                  variant="secondary"
+                  title="Delete note"
+                  aria-label="Delete note"
+                  :disabled="deletingNotes"
+                  @click="showDeleteNoteModal = true"
+                >
+                  <TrashIcon class="h-5 w-5" aria-hidden="true" />
+                </IconButton>
               </div>
             </div>
           </div>
@@ -1110,6 +1260,21 @@ onUnmounted(() => {
           {{ creatingRecommend ? 'Sending...' : 'Send' }}
         </BaseButton>
       </template>
+    </BaseModal>
+
+    <BaseModal
+      :visible="showDeleteNoteModal"
+      title="Delete note?"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Cancel"
+      confirm-text="Delete"
+      confirm-variant="primary"
+      @close="showDeleteNoteModal = false"
+      @cancel="showDeleteNoteModal = false"
+      @confirm="confirmDeleteNote"
+    >
+      <p class="text-delft-blue">Are you sure you want to delete this note? This cannot be undone.</p>
     </BaseModal>
 
     <LastFmSessionExpiredModal />
