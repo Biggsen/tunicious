@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
@@ -702,15 +702,14 @@ export function useAlbumsData() {
     const data = albumDoc.data();
     const userEntry = data.userEntries?.[user.value.uid];
     if (!userEntry) throw new Error('Album not in your collection');
-    await setDoc(albumRef, {
-      userEntries: {
-        [user.value.uid]: {
-          ...userEntry,
-          notes: notes ?? '',
-          updatedAt: serverTimestamp()
-        }
+    // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
+    await updateDoc(albumRef, {
+      [`userEntries.${user.value.uid}`]: {
+        ...userEntry,
+        notes: notes ?? '',
+        updatedAt: serverTimestamp()
       }
-    }, { merge: true });
+    });
     const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
     if (targetAlbumId !== albumId) cacheKeys.push(`albumDbData_${targetAlbumId}_${user.value.uid}`);
     cacheKeys.forEach(k => clearCache(k));
@@ -809,16 +808,14 @@ export function useAlbumsData() {
         removedAt: new Date()
       };
 
-      // Update the album document
-      await setDoc(albumRef, {
-        userEntries: {
-          [user.value.uid]: {
-            ...userEntry,
-            playlistHistory: updatedPlaylistHistory,
-            updatedAt: serverTimestamp()
-          }
+      // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
+      await updateDoc(albumRef, {
+        [`userEntries.${user.value.uid}`]: {
+          ...userEntry,
+          playlistHistory: updatedPlaylistHistory,
+          updatedAt: serverTimestamp()
         }
-      }, { merge: true });
+      });
 
       const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
       if (targetAlbumId !== albumId) {
