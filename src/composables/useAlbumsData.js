@@ -9,6 +9,13 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import { logAlbum } from '@utils/logger';
 
 /**
+ * CRITICAL — albums.userEntries is multi-user (keyed by userId). When updating one user's
+ * entry, use updateDoc with dot notation only: updateDoc(ref, { [`userEntries.${uid}`]: { ... } }).
+ * Do NOT use setDoc with a full userEntries object; with merge: true, Firestore replaces the
+ * entire userEntries map at the top level, which wipes other users' data on that document.
+ */
+
+/**
  * @typedef {'known' | 'new'} PlaylistType
  * 
  * @typedef {Object} PlaylistHistoryEntry
