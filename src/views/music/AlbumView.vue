@@ -914,7 +914,7 @@ onUnmounted(() => {
       <div class="album-layout-grid">
         <div class="album-right-column">
         <!-- head: album title, artist (year, play, links) -->
-        <div class="album-head">
+        <div class="album-head md:mb-8">
             <p class="text-xl text-delft-blue font-bold mb-0">{{ album.release_date.substring(0, 4) }}</p>
             <h1 class="h2 mb-0.5">{{ album.name }}</h1>
             <p
