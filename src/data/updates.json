@@ -1,5 +1,18 @@
 [
   {
+    "id": 20,
+    "title": "Release 0.2.0",
+    "date": "2026-03-05",
+    "types": ["FEATURE", "UX"],
+    "hidden": false,
+    "description": "Release 0.2.0 introduces album notes, a redesigned album page with new History and Friends views, search by release year, and several layout refinements.",
+    "changes": [
+      "Redesigned album page — information is presented in a clearer order, especially on mobile. The play button is better isolated, the tracklist now sits directly under the album cover, and Last.fm / RYM links have moved to the bottom",
+      "Album page tabs — History shows your listening timeline (playlist movements), Friends shows which friends have the album and where it appears in their playlists, Notes lets you write free-form album notes",
+      "Search by year — search your collection by release year (exact match) or by inclusive year range. Supports both two- and four-digit years and comma-separated multiple terms"
+    ]
+  },
+  {
     "id": 19,
     "title": "Release 0.1.0",
     "date": "2026-03-03",

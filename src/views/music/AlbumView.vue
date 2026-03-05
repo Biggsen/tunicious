@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useAlbumsData } from '@composables/useAlbumsData';
@@ -14,16 +14,18 @@ import { useToast } from '@composables/useToast';
 import { useFriends } from '@composables/useFriends';
 import { useAlbumRecommendations } from '@composables/useAlbumRecommendations';
 import { getLastFmLink, getRateYourMusicLink } from '@utils/musicServiceLinks';
+import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameResolver';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
+import IconButton from '@components/common/IconButton.vue';
 import TrackList from '@components/TrackList.vue';
-import PlaylistStatus from '@components/PlaylistStatus.vue';
+import PlaylistHistoryTimeline from '@components/PlaylistHistoryTimeline.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
 import { PlayIcon } from '@heroicons/vue/24/solid';
-import { BellIcon } from '@heroicons/vue/24/outline';
+import { MegaphoneIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 import { clearCache } from '@utils/cache';
 import { logAlbum } from '@utils/logger';
@@ -33,11 +35,11 @@ const router = useRouter();
 const user = useCurrentUser();
 const { userData } = useUserData();
 const { getUserLovedTracks } = useLastFmApi();
-const { fetchUserAlbumData, getCurrentPlaylistInfo, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, addAlbumToCollection, updateAlbumDetails } = useAlbumsData();
-const { getAlbum, getAlbumTracks, getPlaylistAlbumsWithDates} = useUserSpotifyApi();
+const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, updateAlbumDetails, updateAlbumNotes, getFriendsCurrentPlaylistForAlbum } = useAlbumsData();
+const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
-const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, getAlbumTracksForPlaylist, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
+const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
 
 // Initialize toast
 const { showToast } = useToast();
@@ -93,8 +95,26 @@ const album = ref(null);
 const tracks = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const saving = ref(false);
-const currentPlaylistInfo = ref(null);
+const playlistHistoryEntries = ref([]);
+const playlistNamesMap = ref({});
+const ALBUM_LISTEN_TAB_KEY = 'album_listen_tab';
+const LISTEN_TABS = [
+  { id: 'history', label: 'History' },
+  { id: 'friends', label: 'Friends' },
+  { id: 'notes', label: 'Notes' }
+];
+const activeListenTab = ref(
+  LISTEN_TABS.some(t => t.id === sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY))
+    ? sessionStorage.getItem(ALBUM_LISTEN_TAB_KEY)
+    : 'history'
+);
+
+function handleListenTabClick(tab) {
+  activeListenTab.value = tab.id;
+  if (tab.id === 'friends') loadFriendsAlbumData();
+}
+const friendsWithAlbum = ref([]);
+const friendsTabLoading = ref(false);
 const updating = ref(false);
 const needsUpdate = ref(false);
 const searchResults = ref([]);
@@ -107,6 +127,12 @@ const storedRymLink = ref(null);
 const editingRymLink = ref(false);
 const rymLinkInput = ref('');
 const savingRymLink = ref(false);
+const albumNotes = ref('');
+const editingNotes = ref(false);
+const notesInput = ref('');
+const savingNotes = ref(false);
+const deletingNotes = ref(false);
+const showDeleteNoteModal = ref(false);
 
 // Last.fm loved tracks data (using unified cache)
 const lovedTracksCount = ref(0);
@@ -124,8 +150,6 @@ const checkIfNeedsUpdate = async () => {
 
 
 
-const playlistId = computed(() => route.query.playlistId);
-const isFromPlaylist = computed(() => !!playlistId.value);
 
 const fetchAllTracks = async (albumId) => {
   let allTracks = [];
@@ -164,27 +188,50 @@ const fetchAllTracks = async (albumId) => {
   return allTracks;
 };
 
-const saveAlbum = async () => {
-  if (!user.value || !album.value || !playlistId.value) return;
-  try {
-    saving.value = true;
-    error.value = null;
-    await addAlbumToCollection({
-      album: album.value,
-      playlistId: playlistId.value
-    });
-    currentPlaylistInfo.value = await getCurrentPlaylistInfo(album.value.id);
-  } catch (err) {
-    logAlbum('Error saving album:', err);
-    error.value = err.message || 'Failed to save album';
-  } finally {
-    saving.value = false;
+const refreshPlaylistHistory = async () => {
+  if (!album.value?.id || !user.value) return;
+  const userAlbumData = await fetchUserAlbumData(album.value.id);
+  albumNotes.value = userAlbumData?.notes ?? '';
+  if (userAlbumData?.playlistHistory?.length) {
+    playlistHistoryEntries.value = userAlbumData.playlistHistory;
+    const ids = [...new Set(userAlbumData.playlistHistory.map(e => e.playlistId).filter(Boolean))];
+    playlistNamesMap.value = await resolvePlaylistNames(ids, user.value.uid, getPlaylist);
+  } else {
+    playlistHistoryEntries.value = [];
+    playlistNamesMap.value = {};
   }
 };
 
-
-
-
+const loadFriendsAlbumData = async () => {
+  if (!album.value?.id || !user.value) return;
+  friendsTabLoading.value = true;
+  friendsWithAlbum.value = [];
+  try {
+    await getFriends();
+    const friendIds = (friendsList.value || []).map(f => f.id).filter(Boolean);
+    if (friendIds.length === 0) {
+      friendsWithAlbum.value = [];
+      return;
+    }
+    const raw = await getFriendsCurrentPlaylistForAlbum(album.value.id, friendIds);
+    const friendsById = new Map((friendsList.value || []).map(f => [f.id, f]));
+    const rows = await Promise.all(
+      raw.map(async ({ friendId, playlistId }) => {
+        const friend = friendsById.get(friendId);
+        const friendDisplayName = friend?.displayName || friend?.email || 'Unknown';
+        const friendProfileImageUrl = friend?.profileImageUrl ?? null;
+        const playlistName = await resolvePlaylistName(playlistId, friendId, getPlaylist);
+        return { friendId, friendDisplayName, friendProfileImageUrl, playlistId, playlistName };
+      })
+    );
+    friendsWithAlbum.value = rows;
+  } catch (e) {
+    logAlbum('Error loading friends album data:', e);
+    friendsWithAlbum.value = [];
+  } finally {
+    friendsTabLoading.value = false;
+  }
+};
 
 const handleUpdateAlbumDetails = async () => {
   if (!user.value || !album.value) return;
@@ -320,6 +367,65 @@ const handleSaveRymLink = async () => {
     error.value = err.message || 'Failed to save RYM link';
   } finally {
     savingRymLink.value = false;
+  }
+};
+
+const notesTextarea = ref(null);
+const MIN_NOTES_HEIGHT = 100;
+
+const resizeNotesTextarea = () => {
+  const el = notesTextarea.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${Math.max(MIN_NOTES_HEIGHT, el.scrollHeight)}px`;
+};
+
+const startEditNotes = () => {
+  editingNotes.value = true;
+  notesInput.value = albumNotes.value;
+  nextTick(resizeNotesTextarea);
+};
+
+const cancelEditNotes = () => {
+  editingNotes.value = false;
+  notesInput.value = albumNotes.value;
+};
+
+const saveNotes = async () => {
+  if (!user.value || !album.value) return;
+  try {
+    savingNotes.value = true;
+    error.value = null;
+    await updateAlbumNotes(album.value.id, notesInput.value ?? '');
+    albumNotes.value = notesInput.value ?? '';
+    editingNotes.value = false;
+  } catch (err) {
+    logAlbum('Error saving notes:', err);
+    error.value = err.message || 'Failed to save notes';
+  } finally {
+    savingNotes.value = false;
+  }
+};
+
+const confirmDeleteNote = () => {
+  showDeleteNoteModal.value = false;
+  deleteNotes();
+};
+
+const deleteNotes = async () => {
+  if (!user.value || !album.value) return;
+  try {
+    deletingNotes.value = true;
+    error.value = null;
+    await updateAlbumNotes(album.value.id, '');
+    albumNotes.value = '';
+    notesInput.value = '';
+    editingNotes.value = false;
+  } catch (err) {
+    logAlbum('Error deleting notes:', err);
+    error.value = err.message || 'Failed to delete note';
+  } finally {
+    deletingNotes.value = false;
   }
 };
 
@@ -614,6 +720,10 @@ watch([tracks], async () => {
   }
 });
 
+watch(activeListenTab, (newVal) => {
+  sessionStorage.setItem(ALBUM_LISTEN_TAB_KEY, newVal);
+});
+
 // Computed properties for music service links
 const lastFmLink = computed(() => {
   if (!userData.value?.lastFmUserName || !album.value) return '#';
@@ -649,23 +759,14 @@ onMounted(async () => {
       primaryAlbumId.value = await getPrimaryId(albumId);
     }
     
-    // Try to load tracks from unified cache first (if coming from PlaylistSingle)
+    // Try to load tracks from unified cache first
     let tracksData = [];
     let albumData = null;
     
     if (user.value) {
       try {
-        // If coming from a playlist, try playlist context first
-        if (playlistId.value) {
-          tracksData = await getAlbumTracksForPlaylist(playlistId.value, albumId);
-          logAlbum('Loaded tracks from playlist cache:', { albumId, playlistId: playlistId.value, trackCount: tracksData.length });
-        }
-        
-        // If not found in playlist context, try album context
-        if (tracksData.length === 0) {
-          tracksData = await getAlbumTracksForAlbum(albumId);
-          logAlbum('Loaded tracks from album cache:', { albumId, trackCount: tracksData.length });
-        }
+        tracksData = await getAlbumTracksForAlbum(albumId);
+        logAlbum('Loaded tracks from album cache:', { albumId, trackCount: tracksData.length });
       } catch (err) {
         logAlbum('Error loading tracks from cache:', err);
       }
@@ -703,10 +804,12 @@ onMounted(async () => {
     albumExists.value = !!details;
     storedRymLink.value = details?.rymLink ?? null;
     
-    // Fetch current playlist info if available
-    if (albumId) {
-      currentPlaylistInfo.value = await getCurrentPlaylistInfo(albumId);
+    if (albumId && user.value) {
+      await refreshPlaylistHistory();
       await checkIfNeedsUpdate();
+      if (activeListenTab.value === 'friends') {
+        await loadFriendsAlbumData();
+      }
     }
     
     // Calculate loved percentage from cache (fast, no API call)
@@ -754,11 +857,7 @@ onMounted(async () => {
           // Reload tracks from cache to get updated playcount/loved data
           let reloadedTracks = [];
           try {
-            if (playlistId.value) {
-              reloadedTracks = await getAlbumTracksForPlaylist(playlistId.value, albumId);
-            } else {
-              reloadedTracks = await getAlbumTracksForAlbum(albumId);
-            }
+            reloadedTracks = await getAlbumTracksForAlbum(albumId);
           } catch (reloadErr) {
             logAlbum('Error reloading tracks from cache:', reloadErr);
           }
@@ -806,7 +905,7 @@ onUnmounted(() => {
         variant="secondary"
         @click="openRecommendModal"
       >
-        <template #icon-left><BellIcon class="w-5 h-5" /></template>
+        <template #icon-left><MegaphoneIcon class="w-5 h-5" /></template>
         Recommend
       </BaseButton>
     </div>
@@ -820,28 +919,191 @@ onUnmounted(() => {
     </div>
 
     <div v-else>
-      <div class="flex flex-col md:flex-row gap-8">
-        <!-- Album Cover -->
-        <div class="md:w-1/2">
-          <img 
-            :src="album.images[0].url" 
+      <!-- Desktop: two columns (cover+tracks | head+listen). Mobile: display:contents + order for head, cover, tracks, listen -->
+      <div class="album-layout-grid">
+        <div class="album-right-column">
+        <!-- head: album title, artist (year, play, links) -->
+        <div class="album-head md:mb-8">
+            <p class="text-xl text-delft-blue font-bold mb-0">{{ album.release_date.substring(0, 4) }}</p>
+            <h1 class="h2 mb-0.5">{{ album.name }}</h1>
+            <p
+              class="text-xl md:text-2xl text-delft-blue cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200 mb-6"
+              @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
+            >
+              {{ album.artists[0].name }}
+            </p>
+            <BaseButton
+              v-if="playerReady"
+              variant="primary"
+              title="Play album"
+              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
+            >
+              <template #icon-left><PlayIcon class="w-5 h-5" /></template>
+              Play
+            </BaseButton>
+            <div v-if="playerError && playerReady" class="text-sm text-red-500 mb-2">
+              {{ playerError }}
+            </div>
+          </div>
+
+        <!-- listen: listening history in tabbed section -->
+        <div class="album-listen">
+          <div v-if="albumExists">
+            <nav class="-mb-px flex space-x-2 ml-[20px]">
+              <button
+                v-for="tab in LISTEN_TABS"
+                :key="tab.id"
+                type="button"
+                @click="handleListenTabClick(tab)"
+                :class="[
+                  'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
+                  activeListenTab === tab.id ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                ]"
+                :aria-current="activeListenTab === tab.id ? 'page' : undefined"
+              >
+                {{ tab.label }}
+              </button>
+            </nav>
+            <div class="bg-mint p-4 rounded-xl">
+              <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
+                <template v-if="activeListenTab === 'history'">
+                  <PlaylistHistoryTimeline
+                    v-if="playlistHistoryEntries.length > 0"
+                    :entries="playlistHistoryEntries"
+                    :playlist-names="playlistNamesMap"
+                  />
+                  <p v-else class="text-base">No listening history for this album.</p>
+                </template>
+                <template v-else-if="activeListenTab === 'friends'">
+                  <p v-if="friendsTabLoading" class="text-base">Loading…</p>
+                  <p v-else-if="friendsWithAlbum.length === 0" class="text-base">None of your friends have this album in a playlist.</p>
+                  <ul v-else class="space-y-3">
+                    <li
+                      v-for="row in friendsWithAlbum"
+                      :key="row.friendId"
+                      class="flex flex-wrap items-center gap-x-2 gap-y-1"
+                    >
+                      <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <img
+                          v-if="row.friendProfileImageUrl"
+                          :src="row.friendProfileImageUrl"
+                          alt=""
+                          class="w-full h-full object-cover"
+                        />
+                        <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-xs font-semibold">
+                          {{ row.friendDisplayName?.charAt(0)?.toUpperCase() || '?' }}
+                        </div>
+                      </div>
+                      <span class="font-semibold text-delft-blue">{{ row.friendDisplayName }}</span>
+                      <span class="text-stone-500">–</span>
+                      <span class="text-delft-blue">{{ row.playlistName }}</span>
+                    </li>
+                  </ul>
+                </template>
+                <template v-else-if="activeListenTab === 'notes'">
+                  <div v-if="editingNotes" class="space-y-3">
+                    <textarea
+                      ref="notesTextarea"
+                      v-model="notesInput"
+                      rows="1"
+                      placeholder="Add quick notes about this album…"
+                      class="w-full text-base text-delft-blue overflow-hidden resize-none border-0 p-0 focus:ring-0 focus:outline-none min-h-[100px]"
+                      @input="resizeNotesTextarea"
+                    />
+                    <div class="flex gap-2 justify-end">
+                      <BaseButton
+                        variant="tertiary"
+                        @click="cancelEditNotes"
+                        :disabled="savingNotes"
+                      >
+                        Cancel
+                      </BaseButton>
+                      <BaseButton
+                        variant="primary"
+                        @click="saveNotes"
+                        :disabled="savingNotes"
+                      >
+                        {{ savingNotes ? 'Saving…' : 'Save' }}
+                      </BaseButton>
+                    </div>
+                  </div>
+                  <div v-else>
+                    <div
+                      v-if="albumNotes"
+                      class="text-base text-delft-blue whitespace-pre-wrap break-words cursor-pointer rounded p-1 -m-1 hover:bg-mint/30 transition-colors"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Edit note"
+                      @click="startEditNotes"
+                      @keydown.enter="startEditNotes"
+                      @keydown.space.prevent="startEditNotes"
+                    >
+                      {{ albumNotes }}
+                    </div>
+                    <p
+                      v-else
+                      class="text-base text-stone-500 cursor-pointer rounded p-1 -m-1 hover:bg-mint/30 hover:text-delft-blue transition-colors"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Add note"
+                      @click="startEditNotes"
+                      @keydown.enter="startEditNotes"
+                      @keydown.space.prevent="startEditNotes"
+                    >
+                      No notes yet.
+                    </p>
+                  </div>
+                </template>
+              </div>
+              <div
+                v-if="activeListenTab === 'notes' && !editingNotes && albumNotes"
+                class="flex flex-wrap gap-2 mt-3"
+              >
+                <IconButton
+                  variant="secondary"
+                  title="Delete note"
+                  aria-label="Delete note"
+                  :disabled="deletingNotes"
+                  @click="showDeleteNoteModal = true"
+                >
+                  <TrashIcon class="h-5 w-5" aria-hidden="true" />
+                </IconButton>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div class="album-left-column">
+        <!-- cover: album cover -->
+        <div class="album-cover">
+          <img
+            :src="album.images[0].url"
             :alt="album.name"
             class="w-full rounded-xl shadow-lg"
           />
-          
-                     <!-- Playlist Status -->
-           <PlaylistStatus
-             v-if="isFromPlaylist"
-             :current-playlist-info="currentPlaylistInfo"
-             :needs-update="needsUpdate"
-             :updating="updating"
-             :saving="saving"
-             @update="handleUpdateAlbumDetails"
-             @save="saveAlbum"
-           />
-          
-          <!-- Album Details Update for non-playlist albums -->
-          <div v-if="!isFromPlaylist && albumExists && needsUpdate" class="mt-6">
+        </div>
+
+        <!-- tracks: tracklist + update/mapping -->
+        <div class="album-tracks flex flex-col gap-4">
+          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
+            <TrackList
+              :tracks="tracks"
+              :albumArtist="album.artists[0]?.name || ''"
+              :albumId="album.id"
+              :albumTitle="album.name"
+              :lastFmUserName="userData?.lastFmUserName || ''"
+              :sortByPlaycount="false"
+              :showTrackNumbers="true"
+              :sessionKey="userData?.lastFmSessionKey || ''"
+              :allowLoving="userData?.lastFmAuthenticated || false"
+              :largeElements="true"
+              :showDuration="true"
+              @track-loved="handleTrackLoved"
+              @track-unloved="handleTrackUnloved"
+            />
+          </div>
+          <div v-if="albumExists && needsUpdate">
             <div class="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-4">
               <p class="text-yellow-700 mb-2">
                 This album is missing some details.
@@ -851,8 +1113,6 @@ onUnmounted(() => {
               </BaseButton>
             </div>
           </div>
-
-          <!-- Album Mapping UI -->
           <AlbumMappingManager
             v-if="album && !albumExists"
             :search-results="searchResults"
@@ -868,105 +1128,60 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Album Info -->
-        <div class="md:w-1/2">
-          <div class="flex items-center gap-3 mb-2">
-            <h1 class="h2 flex-1">{{ album.name }}</h1>
-            <button
-              v-if="playerReady"
-              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
-              class="flex items-center gap-2 px-4 py-2 bg-mint text-delft-blue rounded-lg hover:bg-mint/80 transition-colors font-semibold"
-              title="Play album"
+        <div class="album-links flex flex-col gap-2">
+          <div class="flex gap-4 items-center flex-wrap">
+            <a
+              v-if="userData?.lastFmUserName"
+              :href="lastFmLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
             >
-              <PlayIcon class="w-5 h-5" />
-              <span>Play</span>
+              Last.fm
+            </a>
+            <a
+              :href="rymLink"
+              target="_blank"
+              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+            >
+              RYM
+            </a>
+            <button
+              v-if="albumExists"
+              @click="handleEditRymLink"
+              class="text-xs text-gray-500 hover:text-gray-700 underline"
+              title="Edit RYM link"
+            >
+              Edit RYM Link
             </button>
           </div>
-          <p 
-            class="text-2xl text-delft-blue mb-4 cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-            @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
-          >{{ album.artists[0].name }}</p>
-          <p class="text-xl text-delft-blue mb-4 font-bold">{{ album.release_date.substring(0, 4) }}</p>
-          <div v-if="playerError && playerReady" class="mb-4 text-sm text-red-500">
-            {{ playerError }}
-          </div>
-          
-          <!-- Music Service Links -->
-          <div class="mb-6">
-            <div class="flex gap-4 items-center mb-2">
-              <a
-                v-if="userData?.lastFmUserName"
-                :href="lastFmLink"
-                target="_blank"
-                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-              >
-                Last.fm
-              </a>
-              <a
-                :href="rymLink"
-                target="_blank"
-                class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
-              >
-                RYM
-              </a>
-              <button
-                v-if="albumExists"
-                @click="handleEditRymLink"
-                class="text-xs text-gray-500 hover:text-gray-700 underline"
-                title="Edit RYM link"
-              >
-                Edit RYM Link
-              </button>
-            </div>
-            
-            <!-- RYM Link Editor -->
-            <div v-if="editingRymLink" class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                RYM Link (leave empty to use auto-generated)
-              </label>
-              <input
-                v-model="rymLinkInput"
-                type="text"
-                placeholder="https://rateyourmusic.com/release/album/artist/album-name/"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-delft-blue focus:border-delft-blue"
-              />
-              <div class="mt-2 flex gap-2">
-                <BaseButton
-                  @click="handleSaveRymLink"
-                  :disabled="savingRymLink"
-                  customClass="btn-primary text-sm px-3 py-1"
-                >
-                  {{ savingRymLink ? 'Saving...' : 'Save' }}
-                </BaseButton>
-                <BaseButton
-                  @click="handleCancelEditRymLink"
-                  :disabled="savingRymLink"
-                  customClass="btn-secondary text-sm px-3 py-1"
-                >
-                  Cancel
-                </BaseButton>
-              </div>
-            </div>
-          </div>
-
-          
-          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
-            <TrackList 
-              :tracks="tracks" 
-              :albumArtist="album.artists[0]?.name || ''"
-              :albumId="album.id"
-              :albumTitle="album.name"
-              :lastFmUserName="userData?.lastFmUserName || ''"
-              :sortByPlaycount="false"
-              :showTrackNumbers="true"
-              :sessionKey="userData?.lastFmSessionKey || ''"
-              :allowLoving="userData?.lastFmAuthenticated || false"
-              :largeElements="true"
-              :showDuration="true"
-              @track-loved="handleTrackLoved"
-              @track-unloved="handleTrackUnloved"
+          <div v-if="editingRymLink" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              RYM Link (leave empty to use auto-generated)
+            </label>
+            <input
+              v-model="rymLinkInput"
+              type="text"
+              placeholder="https://rateyourmusic.com/release/album/artist/album-name/"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-delft-blue focus:border-delft-blue"
             />
+            <div class="mt-2 flex gap-2">
+              <BaseButton
+                @click="handleSaveRymLink"
+                :disabled="savingRymLink"
+                customClass="btn-primary text-sm px-3 py-1"
+              >
+                {{ savingRymLink ? 'Saving...' : 'Save' }}
+              </BaseButton>
+              <BaseButton
+                @click="handleCancelEditRymLink"
+                :disabled="savingRymLink"
+                customClass="btn-secondary text-sm px-3 py-1"
+              >
+                Cancel
+              </BaseButton>
+            </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -1039,9 +1254,64 @@ onUnmounted(() => {
       </template>
     </BaseModal>
 
+    <BaseModal
+      :visible="showDeleteNoteModal"
+      title="Delete note?"
+      :show-cancel="true"
+      :show-confirm="true"
+      cancel-text="Cancel"
+      confirm-text="Delete"
+      confirm-variant="primary"
+      @close="showDeleteNoteModal = false"
+      @cancel="showDeleteNoteModal = false"
+      @confirm="confirmDeleteNote"
+    >
+      <p class="text-delft-blue">Are you sure you want to delete this note? This cannot be undone.</p>
+    </BaseModal>
+
     <LastFmSessionExpiredModal />
   </BaseLayout>
 </template>
 
 <style scoped>
+.album-layout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.album-right-column,
+.album-left-column {
+  display: contents;
+}
+.album-head { order: 1; }
+.album-cover { order: 2; }
+.album-tracks { order: 3; }
+.album-listen { order: 4; }
+.album-links { order: 5; }
+@media (min-width: 768px) {
+  .album-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .album-right-column,
+  .album-left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .album-right-column { grid-column: 2; }
+  .album-left-column { grid-column: 1; grid-row: 1; }
+  .album-head,
+  .album-cover,
+  .album-tracks,
+  .album-listen,
+  .album-links { order: unset; }
+}
+@media (min-width: 1024px) {
+  .album-layout-grid {
+    grid-template-columns: minmax(0, 500px) 1fr;
+  }
+}
 </style> 

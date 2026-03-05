@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
@@ -7,6 +7,13 @@ import { albumTitleSimilarity } from '../utils/fuzzyMatch';
 import { useUserSpotifyApi } from '@/composables/useUserSpotifyApi';
 import { setCache, getCache, clearCache } from "@utils/cache";
 import { logAlbum } from '@utils/logger';
+
+/**
+ * CRITICAL — albums.userEntries is multi-user (keyed by userId). When updating one user's
+ * entry, use updateDoc with dot notation only: updateDoc(ref, { [`userEntries.${uid}`]: { ... } }).
+ * Do NOT use setDoc with a full userEntries object; with merge: true, Firestore replaces the
+ * entire userEntries map at the top level, which wipes other users' data on that document.
+ */
 
 /**
  * @typedef {'known' | 'new'} PlaylistType
@@ -308,6 +315,106 @@ export function useAlbumsData() {
     }
   };
 
+  const normalizeYear = (yearStr) => {
+    const n = parseInt(yearStr, 10);
+    return yearStr.length <= 2 ? (n >= 50 ? 1900 + n : 2000 + n) : n;
+  };
+
+  const mapAlbumDoc = (doc, seenIds) => {
+    if (seenIds.has(doc.id)) return null;
+    seenIds.add(doc.id);
+    const d = doc.data();
+    return {
+      id: doc.id,
+      albumTitle: d.albumTitle,
+      artistName: d.artistName,
+      albumCover: d.albumCover || '',
+      releaseYear: d.releaseYear || '',
+      artistId: d.artistId || ''
+    };
+  };
+
+  /**
+   * Merges two album query snapshots into a deduped array of mapped album objects.
+   * @param {import('firebase/firestore').QuerySnapshot} numSnapshot
+   * @param {import('firebase/firestore').QuerySnapshot} strSnapshot
+   * @returns {Array<{id: string, albumTitle: string, artistName: string, albumCover: string, releaseYear: string, artistId: string}>}
+   */
+  const mergeAlbumSnapshots = (numSnapshot, strSnapshot) => {
+    const seenIds = new Set();
+    const fromNum = numSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+    const fromStr = strSnapshot.docs.map(doc => mapAlbumDoc(doc, seenIds)).filter(Boolean);
+    return [...fromNum, ...fromStr];
+  };
+
+  /**
+   * Searches for albums by release year (exact match). Handles both string and number storage.
+   * @param {string} yearStr - The year to search for (e.g. "1994" or "94")
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByYear = async (yearStr) => {
+    if (!user.value || !yearStr || !/^\d{2,4}$/.test(yearStr)) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const normalizedYear = normalizeYear(yearStr);
+      const albumsRef = collection(db, 'albums');
+      const [numSnapshot, strSnapshot] = await Promise.all([
+        getDocs(query(albumsRef, where('releaseYear', '==', normalizedYear))),
+        getDocs(query(albumsRef, where('releaseYear', '==', String(normalizedYear))))
+      ]);
+      return mergeAlbumSnapshots(numSnapshot, strSnapshot);
+    } catch (e) {
+      logAlbum('Error searching albums by year:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Searches for albums by release year range (inclusive). Handles both string and number storage.
+   * @param {number} startYear - Start year (inclusive)
+   * @param {number} endYear - End year (inclusive)
+   * @returns {Promise<{id: string, albumTitle: string, artistName: string}[]>}
+   */
+  const searchAlbumsByYearRange = async (startYear, endYear) => {
+    if (!user.value || startYear == null || endYear == null || startYear > endYear) return [];
+    try {
+      loading.value = true;
+      error.value = null;
+      const albumsRef = collection(db, 'albums');
+      const startStr = String(startYear);
+      const endStr = String(endYear);
+      const [numSnapshot, strSnapshot] = await Promise.all([
+        getDocs(query(
+          albumsRef,
+          where('releaseYear', '>=', startYear),
+          where('releaseYear', '<=', endYear)
+        )),
+        getDocs(query(
+          albumsRef,
+          where('releaseYear', '>=', startStr),
+          where('releaseYear', '<=', endStr)
+        ))
+      ]);
+      const combined = mergeAlbumSnapshots(numSnapshot, strSnapshot);
+      combined.sort((a, b) => {
+        const ya = parseInt(a.releaseYear, 10) || 0;
+        const yb = parseInt(b.releaseYear, 10) || 0;
+        return ya - yb;
+      });
+      return combined;
+    } catch (e) {
+      logAlbum('Error searching albums by year range:', e);
+      error.value = 'Failed to search albums';
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
   /**
    * Adds an album to the user's collection and playlist history
    * @param {Object} params
@@ -588,6 +695,34 @@ export function useAlbumsData() {
   };
 
   /**
+   * Updates the current user's notes for an album. Requires an existing user entry (album in collection).
+   * @param {string} albumId - The Spotify album ID
+   * @param {string} notes - Plain text notes (supports line breaks)
+   * @returns {Promise<void>}
+   */
+  const updateAlbumNotes = async (albumId, notes) => {
+    if (!user.value || !albumId) throw new Error('Missing user or album ID');
+    const targetAlbumId = await resolveToPrimaryId(albumId);
+    const albumRef = doc(db, 'albums', targetAlbumId);
+    const albumDoc = await getDoc(albumRef);
+    if (!albumDoc.exists()) throw new Error('Album not found');
+    const data = albumDoc.data();
+    const userEntry = data.userEntries?.[user.value.uid];
+    if (!userEntry) throw new Error('Album not in your collection');
+    // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
+    await updateDoc(albumRef, {
+      [`userEntries.${user.value.uid}`]: {
+        ...userEntry,
+        notes: notes ?? '',
+        updatedAt: serverTimestamp()
+      }
+    });
+    const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
+    if (targetAlbumId !== albumId) cacheKeys.push(`albumDbData_${targetAlbumId}_${user.value.uid}`);
+    cacheKeys.forEach(k => clearCache(k));
+  };
+
+  /**
    * Gets the rating data (type, playlistId) for the current playlist entry of an album
    * @param {string} albumId - The Spotify album ID
    * @returns {Promise<{type: string, playlistId: string} | null>}
@@ -600,6 +735,34 @@ export function useAlbumsData() {
     // Only return the relevant fields
     const { type, playlistId } = currentEntry;
     return { type, playlistId };
+  };
+
+  /**
+   * For a given album, returns each friend's current playlist (the one that has this album, not removed).
+   * @param {string} albumId - The Spotify album ID
+   * @param {string[]} friendIds - Array of friend user IDs
+   * @returns {Promise<Array<{ friendId: string, playlistId: string }>>}
+   */
+  const getFriendsCurrentPlaylistForAlbum = async (albumId, friendIds) => {
+    if (!user.value || !albumId || !friendIds?.length) return [];
+    try {
+      const targetAlbumId = await resolveToPrimaryId(albumId);
+      const albumDoc = await getDoc(doc(db, 'albums', targetAlbumId));
+      if (!albumDoc.exists()) return [];
+      const data = albumDoc.data();
+      const userEntries = data.userEntries || {};
+      const result = [];
+      for (const friendId of friendIds) {
+        const entry = userEntries[friendId];
+        if (!entry || !Array.isArray(entry.playlistHistory)) continue;
+        const current = entry.playlistHistory.find(e => !e.removedAt);
+        if (current?.playlistId) result.push({ friendId, playlistId: current.playlistId });
+      }
+      return result;
+    } catch (e) {
+      logAlbum('Error fetching friends playlist for album:', e);
+      return [];
+    }
   };
 
   /**
@@ -652,16 +815,14 @@ export function useAlbumsData() {
         removedAt: new Date()
       };
 
-      // Update the album document
-      await setDoc(albumRef, {
-        userEntries: {
-          [user.value.uid]: {
-            ...userEntry,
-            playlistHistory: updatedPlaylistHistory,
-            updatedAt: serverTimestamp()
-          }
+      // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
+      await updateDoc(albumRef, {
+        [`userEntries.${user.value.uid}`]: {
+          ...userEntry,
+          playlistHistory: updatedPlaylistHistory,
+          updatedAt: serverTimestamp()
         }
-      }, { merge: true });
+      });
 
       const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
       if (targetAlbumId !== albumId) {
@@ -694,10 +855,14 @@ export function useAlbumsData() {
     removeAlbumFromPlaylist,
     searchAlbumsByTitlePrefix,
     searchAlbumsByArtistPrefix,
+    searchAlbumsByYear,
+    searchAlbumsByYearRange,
     fetchAlbumDetails,
     getAlbumDetails,
     getAlbumsDetailsBatch,
     updateAlbumDetails,
-    getAlbumRatingData
+    updateAlbumNotes,
+    getAlbumRatingData,
+    getFriendsCurrentPlaylistForAlbum
   };
-} 
+}

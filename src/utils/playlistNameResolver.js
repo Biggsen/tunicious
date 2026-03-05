@@ -70,17 +70,22 @@ async function getPlaylistNameFromApi(playlistId, getPlaylistFn) {
 }
 
 /**
- * Get playlist name from Firestore playlists collection
- * This is useful for resolving friends' playlist names when Spotify API fails
+ * Get playlist name from Firestore playlists collection.
+ * When userId is provided (e.g. for a friend), queries by playlistId and userId so we get that user's record.
  * @param {string} playlistId - Spotify playlist ID
+ * @param {string} [userId] - Optional user ID (e.g. friend's uid) to scope the lookup
  * @returns {Promise<string|null>} Playlist name or null if not found
  */
-async function getPlaylistNameFromFirestore(playlistId) {
+async function getPlaylistNameFromFirestore(playlistId, userId = null) {
   try {
     const playlistsRef = collection(db, 'playlists');
-    const q = query(playlistsRef, where('playlistId', '==', playlistId));
+    const constraints = [where('playlistId', '==', playlistId)];
+    if (userId) {
+      constraints.push(where('userId', '==', userId));
+    }
+    const q = query(playlistsRef, ...constraints);
     const snapshot = await getDocs(q);
-    
+
     if (!snapshot.empty) {
       const playlistData = snapshot.docs[0].data();
       return playlistData.name || null;
@@ -133,8 +138,8 @@ export async function resolvePlaylistName(playlistId, userId, getPlaylistFn = nu
     }
   }
 
-  // Try Firestore as final fallback (works for friends' playlists)
-  name = await getPlaylistNameFromFirestore(playlistId);
+  // Try Firestore as final fallback (works for friends' playlists; pass userId to get that user's doc)
+  name = await getPlaylistNameFromFirestore(playlistId, userId);
   if (name) {
     sessionCache.set(sessionKey, name);
     return name;
@@ -231,7 +236,7 @@ export async function resolvePlaylistNames(playlistIds, userId, getPlaylistFn = 
         
         // If Spotify API failed, try Firestore as fallback
         if (!name) {
-          name = await getPlaylistNameFromFirestore(playlistId);
+          name = await getPlaylistNameFromFirestore(playlistId, userId);
         }
         
         if (name) {

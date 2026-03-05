@@ -269,11 +269,7 @@ const fallbackImage = '/placeholder.png'; // You can replace this with your own 
             </p>
             <router-link
               class="album-name text-lg cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200"
-              :to="{ 
-                name: 'album', 
-                params: { id: album.id },
-                query: currentPlaylist && !isMappedAlbum ? { playlistId: currentPlaylist.playlistId } : undefined 
-              }"
+              :to="{ name: 'album', params: { id: album.id } }"
             >
               {{ album.name || album.albumTitle || 'Unknown Album' }}
             </router-link>

@@ -2,23 +2,26 @@
   <BaseLayout>
     <h1 class="h2 pb-4">Search</h1>
     <div class="flex flex-col gap-4 mb-6">
-      <div class="flex items-center gap-2">
-        <input
-          ref="searchInput"
-          v-model="searchTerm"
-          @input="onSearch"
-          type="text"
-          placeholder="Search for albums or artists"
-          class="flex-1 px-4 py-2 border-2 border-delft-blue rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
-        />
-        <button
-          v-if="searchTerm || filters.albums || filters.artists"
-          @click="resetSearch"
-          class="p-2 text-delft-blue hover:text-raspberry transition-colors"
-          aria-label="Reset search"
-        >
-          <XMarkIcon class="w-6 h-6" />
-        </button>
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <input
+            ref="searchInput"
+            v-model="searchTerm"
+            @input="onSearch"
+            type="text"
+            placeholder="Search for albums, artists, or year"
+            class="flex-1 px-4 py-2 border-2 border-delft-blue rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
+          />
+          <button
+            v-if="searchTerm || filters.albums || filters.artists || filters.years"
+            @click="resetSearch"
+            class="p-2 text-delft-blue hover:text-raspberry transition-colors"
+            aria-label="Reset search"
+          >
+            <XMarkIcon class="w-6 h-6" />
+          </button>
+        </div>
+        <p class="text-sm text-stone-500">Tip: Use commas to search multiple terms. Use a hyphen for year ranges (e.g. 1990-1995).</p>
       </div>
       <div v-if="searchTerm" class="flex gap-2">
         <button
@@ -29,13 +32,20 @@
           :class="filters.artists ? activeFilterClass : inactiveFilterClass"
           @click="toggleFilter('artists')"
         >Artists</button>
+        <button
+          :class="filters.years ? activeFilterClass : inactiveFilterClass"
+          @click="toggleFilter('years')"
+        >Year</button>
       </div>
     </div>
     <div v-if="loading" class="text-center text-delft-blue py-8">Loading...</div>
     <div v-else-if="error" class="text-center text-raspberry py-8">{{ error }}</div>
     <div v-else>
+      <p v-if="filteredResults.length > 0" class="text-sm text-delft-blue mb-4">
+        {{ filteredResults.length }} {{ filteredResults.length === 1 ? 'result' : 'results' }}
+      </p>
       <div v-if="filteredResults.length === 0" class="text-center text-gray-500 py-8">No results found.</div>
-      <ul class="album-grid">
+      <ul v-else class="album-grid">
         <AlbumItem
           v-for="album in filteredResults"
           :key="album.id"
@@ -61,7 +71,7 @@ import { setCache, getCache } from "@utils/cache";
 
 const searchTerm = ref('');
 const searchInput = ref(null);
-const filters = ref({ albums: false, artists: false });
+const filters = ref({ albums: false, artists: false, years: false });
 const results = ref([]);
 const resultTypes = ref({}); // Track which search type each result came from
 const ratingDataMap = ref({});
@@ -76,7 +86,7 @@ const activeFilterClass =
 const inactiveFilterClass =
   'px-[14px] py-[6px] rounded-full bg-white text-delft-blue border-2 border-delft-blue font-medium hover:bg-mint transition-colors duration-200';
 
-const { searchAlbumsByTitlePrefix, searchAlbumsByArtistPrefix, getAlbumRatingData, fetchAlbumsData, getAlbumDetails } = useAlbumsData();
+const { searchAlbumsByTitlePrefix, searchAlbumsByArtistPrefix, searchAlbumsByYear, searchAlbumsByYearRange, getAlbumRatingData, fetchAlbumsData, getAlbumDetails } = useAlbumsData();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { user } = useUserData();
 
@@ -86,7 +96,7 @@ const toggleFilter = (filterType) => {
 
 const resetSearch = () => {
   searchTerm.value = '';
-  filters.value = { albums: false, artists: false };
+  filters.value = { albums: false, artists: false, years: false };
   results.value = [];
   resultTypes.value = {};
   ratingDataMap.value = {};
@@ -101,14 +111,14 @@ const resetSearch = () => {
 
 // Filter displayed results based on active toggles
 const filteredResults = computed(() => {
-  // If both are off, show nothing (visibility toggle behavior)
-  if (!filters.value.albums && !filters.value.artists) {
+  if (!filters.value.albums && !filters.value.artists && !filters.value.years) {
     return [];
   }
   return results.value.filter(album => {
     const resultType = resultTypes.value[album.id];
     if (resultType === 'album' && filters.value.albums) return true;
     if (resultType === 'artist' && filters.value.artists) return true;
+    if (resultType === 'year' && filters.value.years) return true;
     return false;
   });
 });
@@ -130,11 +140,56 @@ onMounted(async () => {
   }
 });
 
+const normalizeYearPart = (yearStr, len2Threshold = 50) => {
+  const n = parseInt(yearStr, 10);
+  return yearStr.length <= 2 ? (n >= len2Threshold ? 1900 + n : 2000 + n) : n;
+};
+
+const runSearchForPart = async (part) => {
+  const yearRangeMatch = part.match(/^(\d{2,4})-(\d{2,4})$/);
+  const isYearRangeQuery = yearRangeMatch && parseInt(yearRangeMatch[1], 10) <= parseInt(yearRangeMatch[2], 10);
+  const isSingleYearQuery = !isYearRangeQuery && /^\d{2,4}$/.test(part);
+  const searchPromises = [
+    searchAlbumsByTitlePrefix(part),
+    searchAlbumsByArtistPrefix(part)
+  ];
+  if (isYearRangeQuery) {
+    const start = normalizeYearPart(yearRangeMatch[1]);
+    const end = normalizeYearPart(yearRangeMatch[2]);
+    searchPromises.push(searchAlbumsByYearRange(start, end));
+  } else if (isSingleYearQuery) {
+    searchPromises.push(searchAlbumsByYear(part));
+  }
+  const searchResults = await Promise.all(searchPromises);
+  return {
+    albumResults: searchResults[0],
+    artistResults: searchResults[1],
+    yearResults: (isYearRangeQuery || isSingleYearQuery) ? searchResults[2] : []
+  };
+};
+
 const onSearch = async () => {
-  if (!searchTerm.value.trim() || searchTerm.value.trim().length < 2) {
+  const raw = searchTerm.value.trim();
+  if (!raw) {
     results.value = [];
     resultTypes.value = {};
-    filters.value = { albums: false, artists: false };
+    filters.value = { albums: false, artists: false, years: false };
+    ratingDataMap.value = {};
+    positionDataMap.value = {};
+    albumDbDataMap.value = {};
+    albumRootDataMap.value = {};
+    return;
+  }
+  const parts = raw.split(',').map(p => p.trim()).filter(p => {
+    if (p.length >= 2) return true;
+    if (/^\d{2,4}$/.test(p)) return true;
+    if (/^\d{2,4}-\d{2,4}$/.test(p)) return true;
+    return false;
+  });
+  if (parts.length === 0) {
+    results.value = [];
+    resultTypes.value = {};
+    filters.value = { albums: false, artists: false, years: false };
     ratingDataMap.value = {};
     positionDataMap.value = {};
     albumDbDataMap.value = {};
@@ -144,41 +199,48 @@ const onSearch = async () => {
   loading.value = true;
   error.value = null;
   try {
-    // Always search both, regardless of filter state
-    const [albumResults, artistResults] = await Promise.all([
-      searchAlbumsByTitlePrefix(searchTerm.value.trim()),
-      searchAlbumsByArtistPrefix(searchTerm.value.trim())
-    ]);
-    
-    // Combine results from both searches, removing duplicates
+    const partResults = await Promise.all(parts.map(runSearchForPart));
+
     const combinedResults = [];
     const seenIds = new Set();
     const newResultTypes = {};
-    
-    // Track album results
-    albumResults.forEach(album => {
-      if (album && album.id && !seenIds.has(album.id)) {
-        seenIds.add(album.id);
-        combinedResults.push(album);
-        newResultTypes[album.id] = 'album';
-      }
+    let hasAlbums = false;
+    let hasArtists = false;
+    let hasYears = false;
+
+    partResults.forEach(({ albumResults, artistResults, yearResults }) => {
+      hasAlbums = hasAlbums || albumResults.length > 0;
+      hasArtists = hasArtists || artistResults.length > 0;
+      hasYears = hasYears || yearResults.length > 0;
+      albumResults.forEach(album => {
+        if (album && album.id && !seenIds.has(album.id)) {
+          seenIds.add(album.id);
+          combinedResults.push(album);
+          newResultTypes[album.id] = 'album';
+        }
+      });
+      artistResults.forEach(album => {
+        if (album && album.id && !seenIds.has(album.id)) {
+          seenIds.add(album.id);
+          combinedResults.push(album);
+          newResultTypes[album.id] = 'artist';
+        }
+      });
+      yearResults.forEach(album => {
+        if (album && album.id && !seenIds.has(album.id)) {
+          seenIds.add(album.id);
+          combinedResults.push(album);
+          newResultTypes[album.id] = 'year';
+        }
+      });
     });
-    
-    // Track artist results
-    artistResults.forEach(album => {
-      if (album && album.id && !seenIds.has(album.id)) {
-        seenIds.add(album.id);
-        combinedResults.push(album);
-        newResultTypes[album.id] = 'artist';
-      }
-    });
-    
+
     results.value = combinedResults;
     resultTypes.value = newResultTypes;
-    
-    // Enable filters based on what we found
-    filters.value.albums = albumResults.length > 0;
-    filters.value.artists = artistResults.length > 0;
+
+    filters.value.albums = hasAlbums;
+    filters.value.artists = hasArtists;
+    filters.value.years = hasYears;
     // Batch fetch user album data and root details
     albumDbDataMap.value = await fetchAlbumsData(results.value.map(album => album.id));
     const rootDetailsArr = await Promise.all(results.value.map(album => getCachedAlbumDetails(album.id)));

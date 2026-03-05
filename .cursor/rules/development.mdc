@@ -92,6 +92,13 @@ src/
 - Implement error handling for all Firebase operations
 - Use composite indexes where specified
 
+#### Data persistence / multi-user structures (critical)
+- When writing or reviewing code that updates Firestore (or any shared store) where a document or record holds data for **multiple users** (e.g. `userEntries` keyed by `userId`):
+  - Use updates that target **only the intended user** (e.g. `updateDoc(ref, { \`userEntries.${uid}\`: { ... } })`).
+  - Do **not** assume `setDoc(..., { merge: true })` deep-merges nested maps; treat it as **top-level only** unless you have verified otherwise in the current Firebase/Firestore docs for this SDK.
+  - Prefer `updateDoc` with dot notation for a single nested key over replacing a whole map field.
+- This avoids accidentally overwriting or deleting other users' data on the same document.
+
 ### API Integration
 - Keep API keys in environment variables
 - Implement proper error handling
