@@ -1,6 +1,6 @@
 # Album Recommendations Specification
 
-## **Status**: 📋 Planning
+## **Status**: ✅ Completed
 
 ## Overview
 
@@ -225,26 +225,26 @@ Add to `firestore.indexes.json`:
 ## Implementation Phases
 
 ### Phase 1: Data & composable
-- [ ] Create `albumRecommendations` collection (document structure as above)
-- [ ] Add Firestore index for `toUserId`, `status`, `createdAt`
-- [ ] Update security rules for `albumRecommendations`
-- [ ] Create `useAlbumRecommendations` composable (create, getRecommendationsForMe, accept, decline)
+- [x] Create `albumRecommendations` collection (document structure as above)
+- [x] Add Firestore index for `toUserId`, `status`, `createdAt`
+- [x] Update security rules for `albumRecommendations`
+- [x] Create `useAlbumRecommendations` composable (create, getRecommendationsForMe, accept, decline)
 
 ### Phase 2: Album page
-- [ ] Put Recommend button in same row as Back button, right side (`AlbumView.vue`)
-- [ ] Add Recommend modal (friend list from `useFriends().getFriends()`)
-- [ ] Wire create recommendation + success/error toasts
+- [x] Put Recommend button in same row as Back button, right side (`AlbumView.vue`)
+- [x] Add Recommend modal (friend list from `useFriends().getFriends()`)
+- [x] Wire create recommendation + success/error toasts
 
 ### Phase 3: Friends page – Recommendations tab
-- [ ] Add "Recommendations" tab to `FriendsView.vue`
-- [ ] Load and display pending recommendations (with sender name, album, artist)
-- [ ] Implement Accept: playlist picker modal → add album to playlist + collection → update recommendation (acceptedPlaylistId, acceptedAt)
-- [ ] Implement Decline: update status to declined
-- [ ] Optional: badge count on Recommendations tab
+- [x] Add "Recommendations" tab to `FriendsView.vue`
+- [x] Load and display pending recommendations (with sender name, album, artist)
+- [x] Implement Accept: playlist picker modal → add album to playlist + collection → update recommendation (acceptedPlaylistId, acceptedAt)
+- [x] Implement Decline: update status to declined
+- [x] Optional: badge count on Recommendations tab
 
 ### Phase 4: Polish
-- [ ] Empty states (no friends, no recommendations)
-- [ ] Loading and error states
+- [x] Empty states (no friends, no recommendations)
+- [x] Loading and error states
 - [ ] Optional: real-time listener for recommendations for live badge/tab updates
 
 ## Out of Scope / Future
