@@ -20,6 +20,7 @@ const error = ref(null);
 let initializationPromise = null;
 let isInitializing = false;
 let componentCount = 0;
+let positionPollIntervalId = null;
 
 export function useSpotifyPlayer() {
   componentCount++;
@@ -365,6 +366,17 @@ export function useSpotifyPlayer() {
       error.value = err.message || 'Failed to play album';
       throw err;
     }
+  };
+
+  /**
+   * Set the "playing from" context (e.g. playlist) for UI display.
+   * Used when starting/clearing a playlist session so the app can show "playing from playlist X"
+   * without passing context into playTrack.
+   *
+   * @param {{ type: string, id: string, name: string } | null} context
+   */
+  const setPlayingFrom = (context) => {
+    playingFrom.value = context ?? null;
   };
 
   /**
@@ -786,6 +798,32 @@ export function useSpotifyPlayer() {
     disconnect();
   });
 
+  watch(
+    [isPlaying, player],
+    () => {
+      if (player.value && isPlaying.value) {
+        if (!positionPollIntervalId) {
+          positionPollIntervalId = setInterval(async () => {
+            if (!player.value) return;
+            try {
+              const state = await player.value.getCurrentState();
+              if (state?.position !== undefined) position.value = state.position;
+              if (state?.duration !== undefined) duration.value = state.duration;
+            } catch {
+              // ignore
+            }
+          }, 1000);
+        }
+      } else {
+        if (positionPollIntervalId) {
+          clearInterval(positionPollIntervalId);
+          positionPollIntervalId = null;
+        }
+      }
+    },
+    { immediate: true }
+  );
+
   return {
     player,
     deviceId,
@@ -801,6 +839,7 @@ export function useSpotifyPlayer() {
     initializePlayer,
     playTrack,
     playAlbum,
+    setPlayingFrom,
     togglePlayback,
     pause,
     resume,

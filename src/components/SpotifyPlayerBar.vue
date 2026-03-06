@@ -4,15 +4,18 @@ import { useRouter } from 'vue-router';
 import { useQueueSession } from '@composables/useQueueSession';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
-import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/vue/24/solid';
+import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon, QueueListIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
+import { trackIdFromUri } from '@utils/spotify';
 
 const router = useRouter();
-useQueueSession();
+const { session, upcomingUris } = useQueueSession();
+const { getTracks } = useUserSpotifyApi();
 const {
   isReady,
   isPlaying,
@@ -55,6 +58,65 @@ const optimisticLovedStatus = ref(null); // Track optimistic loved status for cu
 
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
+
+const queuePanelOpen = ref(false);
+const queueTrackDetails = ref([]);
+const queueLoading = ref(false);
+const hasQueue = computed(() => !!session.value);
+
+const fetchQueueTrackDetails = async () => {
+  const uris = upcomingUris.value;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:start',message:'fetchQueueTrackDetails',data:{urisLength:uris?.length,firstUri:uris?.[0]},timestamp:Date.now(),hypothesisId:'H2,H4'})}).catch(()=>{});
+  // #endregion
+  if (!uris.length) {
+    queueTrackDetails.value = [];
+    return;
+  }
+  const ids = uris.slice(0, 20).map((uri) => trackIdFromUri(uri)).filter(Boolean);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:ids',message:'ids extracted',data:{idsLength:ids.length,firstId:ids[0]},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
+  if (!ids.length) {
+    queueTrackDetails.value = [];
+    return;
+  }
+  queueLoading.value = true;
+  try {
+    const res = await getTracks(ids);
+    const raw = res?.tracks ?? res?.data?.tracks ?? [];
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:afterGetTracks',message:'getTracks response',data:{resKeys:res?Object.keys(res):[],rawLength:raw?.length,firstTrackName:raw?.[0]?.name},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+    queueTrackDetails.value = raw.map((t) =>
+      t
+        ? {
+            name: t.name,
+            artists: t.artists?.map((a) => a.name).filter(Boolean) || []
+          }
+        : null
+    );
+  } catch {
+    queueTrackDetails.value = [];
+  } finally {
+    queueLoading.value = false;
+  }
+};
+
+const queueAreaRef = ref(null);
+
+const toggleQueuePanel = () => {
+  queuePanelOpen.value = !queuePanelOpen.value;
+  if (queuePanelOpen.value && upcomingUris.value.length) {
+    fetchQueueTrackDetails();
+  }
+};
+
+const onDocumentClick = (e) => {
+  if (queuePanelOpen.value && queueAreaRef.value && !queueAreaRef.value.contains(e.target)) {
+    queuePanelOpen.value = false;
+  }
+};
 
 let volumeThrottleTimer = null;
 const volumeBeforeMute = ref(null);
@@ -104,6 +166,22 @@ const stopPositionTracking = () => {
     positionInterval = null;
   }
 };
+
+watch(
+  () => [...(upcomingUris.value || [])],
+  () => {
+    if (queuePanelOpen.value) fetchQueueTrackDetails();
+  },
+  { deep: true }
+);
+
+watch(queuePanelOpen, (open) => {
+  if (open) {
+    setTimeout(() => document.addEventListener('click', onDocumentClick), 0);
+  } else {
+    document.removeEventListener('click', onDocumentClick);
+  }
+});
 
 watch(isPlaying, (newValue) => {
   logPlayer('Playback state changed:', { isPlaying: newValue, track: currentTrack.value?.name });
@@ -513,6 +591,43 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         </div>
         
         <div class="flex items-center gap-2 flex-shrink-0 controls-container">
+          <div v-if="hasQueue" class="relative" ref="queueAreaRef">
+            <button
+              @click.stop="toggleQueuePanel"
+              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
+              :class="{ 'bg-white/20': queuePanelOpen }"
+              :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
+            >
+              <QueueListIcon class="w-6 h-6" />
+              <span class="text-xs hidden sm:inline">{{ upcomingUris?.length ?? 0 }}</span>
+            </button>
+            <div
+              v-if="queuePanelOpen"
+              class="absolute bottom-full left-0 mb-1 w-72 max-h-64 overflow-y-auto bg-delft-blue border border-white/20 rounded-lg shadow-xl z-50 flex flex-col"
+              @click.stop
+            >
+              <div class="p-2 border-b border-white/20 font-medium text-sm sticky top-0 bg-delft-blue">
+                Up next ({{ upcomingUris?.length ?? 0 }})
+              </div>
+              <div v-if="queueLoading" class="p-4 text-gray-400 text-sm">Loading…</div>
+              <ul v-else class="p-2 divide-y divide-white/10">
+                <li
+                  v-for="(item, i) in queueTrackDetails"
+                  :key="i"
+                  class="py-2 px-2 text-sm truncate"
+                >
+                  <span v-if="item" class="text-white">{{ item.name }}</span>
+                  <span v-else class="text-gray-500">—</span>
+                  <span v-if="item?.artists?.length" class="text-gray-400 block truncate">
+                    {{ item.artists.join(', ') }}
+                  </span>
+                </li>
+                <li v-if="!queueLoading && !queueTrackDetails.length && upcomingUris?.length" class="py-2 text-gray-500 text-sm">
+                  No track details
+                </li>
+              </ul>
+            </div>
+          </div>
           <button
             v-if="canLoveTracks"
             @click="handleHeartClick"

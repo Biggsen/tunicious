@@ -1,7 +1,9 @@
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueSession } from './useQueueSession';
 import { useQueueTrackSelection } from './useQueueTrackSelection';
-import { addAlbumBatchToQueue } from '@utils/queueBatchUtils';
+import { getNextTrackUrisForAlbums } from '@utils/queueBatchUtils';
+
+const REFILL_TARGET = 10;
 
 /**
  * Albums from currentAlbumIndex+1 to end. Returns [] if not a valid playlist-with-albums context.
@@ -18,19 +20,39 @@ function findRemainingAlbums(albumsList, currentAlbumId) {
 }
 
 /**
+ * Build initial internal queue URIs (one per album) and refill to REFILL_TARGET by looping if needed.
+ *
+ * @param {Array<{id: string}>} remainingAlbums
+ * @param {Array<{id: string}>} fullAlbumsList
+ * @param {Object} selectionOpts
+ * @param {Object} deps
+ * @returns {Promise<string[]>}
+ */
+async function buildInitialUris(remainingAlbums, fullAlbumsList, selectionOpts, deps) {
+  const uris = await getNextTrackUrisForAlbums(remainingAlbums, selectionOpts, deps);
+  while (uris.length < REFILL_TARGET && fullAlbumsList?.length > 0) {
+    const batch = await getNextTrackUrisForAlbums(fullAlbumsList, selectionOpts, deps);
+    if (batch.length === 0) break;
+    uris.push(...batch);
+  }
+  return uris;
+}
+
+/**
  * Composable that encapsulates "play from playlist" flow: clear session, play track,
- * optionally fill queue with one track per remaining album and set session.
+ * and for multi-album playlists set internal queue + session and playingFrom.
  */
 export function usePlaylistPlay() {
-  const { playTrack, addToQueue } = useSpotifyPlayer();
+  const { playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { clearSession, setSession } = useQueueSession();
   const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
 
   /**
-   * Play a track and, when in a multi-album playlist, fill queue and set session for refill/loop.
+   * Play a track. For multi-album playlist: uses internal queue (no Spotify context), sets session and playingFrom.
+   * For album-only: uses Spotify context_uri for the album; no session.
    *
    * @param {Object} track - { id, uri? }
-   * @param {Object} [playlistContext] - When present and has playlistId/albumsList/albumId, runs initial queue fill and setSession
+   * @param {Object} [playlistContext] - When present and has playlistId/albumsList/albumId, uses internal queue and setSession
    * @param {string} [playlistContext.playlistId]
    * @param {string} [playlistContext.playlistName]
    * @param {Array<{id: string}>} [playlistContext.albumsList]
@@ -42,40 +64,39 @@ export function usePlaylistPlay() {
     clearSession();
 
     const trackUri = track?.uri || `spotify:track:${track?.id}`;
-    let context = null;
-    if (playlistContext.playlistId) {
-      context = {
-        type: 'playlist',
-        id: playlistContext.playlistId,
-        name: playlistContext.playlistName || 'Unknown Playlist'
-      };
-    } else if (playlistContext.albumId) {
-      context = {
-        type: 'album',
-        id: playlistContext.albumId,
-        name: playlistContext.albumTitle || 'Unknown Album'
-      };
-    }
+    const { playlistId, playlistName, albumsList, playlistTrackIds, albumId, albumTitle } = playlistContext;
 
-    await playTrack(trackUri, context);
+    const isMultiAlbumPlaylist = playlistId && albumsList?.length > 0 && albumId;
 
-    const { playlistId, playlistName, albumsList, playlistTrackIds, albumId } = playlistContext;
-    if (playlistId && albumsList?.length > 0 && albumId) {
+    if (isMultiAlbumPlaylist) {
+      await playTrack(trackUri, null);
+
       const remainingAlbums = findRemainingAlbums(albumsList, albumId);
       const selectionOpts = { playlistId, playlistTrackIds: playlistTrackIds ?? {} };
-
-      await addAlbumBatchToQueue(remainingAlbums, selectionOpts, {
-        selectNextTrackUriForAlbum,
-        addToQueue
+      const initialUris = await buildInitialUris(remainingAlbums, albumsList, selectionOpts, {
+        selectNextTrackUriForAlbum
       });
 
-      setSession({
-        playlistId,
-        playlistName: playlistName ?? '',
-        albumsList,
-        playlistTrackIds: playlistTrackIds ?? {}
-      });
+      setSession(
+        {
+          playlistId,
+          playlistName: playlistName ?? '',
+          albumsList,
+          playlistTrackIds: playlistTrackIds ?? {}
+        },
+        initialUris
+      );
+      setPlayingFrom({ type: 'playlist', id: playlistId, name: playlistName || 'Unknown Playlist' });
+      return;
     }
+
+    let context = null;
+    if (playlistId) {
+      context = { type: 'playlist', id: playlistId, name: playlistName || 'Unknown Playlist' };
+    } else if (albumId) {
+      context = { type: 'album', id: albumId, name: albumTitle || 'Unknown Album' };
+    }
+    await playTrack(trackUri, context);
   };
 
   return { playFromPlaylist };
