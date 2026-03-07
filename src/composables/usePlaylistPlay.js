@@ -1,7 +1,9 @@
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueSession } from './useQueueSession';
 import { useQueueTrackSelection } from './useQueueTrackSelection';
+import { useUnifiedTrackCache } from './useUnifiedTrackCache';
 import { getNextTrackUrisForAlbums } from '@utils/queueBatchUtils';
+import { trackIdFromUri } from '@utils/spotify';
 
 const REFILL_TARGET = 10;
 
@@ -35,7 +37,11 @@ async function buildInitialUris(remainingAlbums, fullAlbumsList, selectionOpts, 
     if (batch.length === 0) break;
     uris.push(...batch);
   }
-  return uris;
+  const result = uris.slice(0, REFILL_TARGET);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'usePlaylistPlay.js:buildInitialUris',message:'buildInitialUris return',data:{urisLengthBeforeSlice:uris.length,resultLength:result.length,REFILL_TARGET,lastUri:result[result.length-1],secondLastUri:result.length>1?result[result.length-2]:null,duplicateAtEnd:result.length>1&&result[result.length-1]===result[result.length-2]},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+  return result;
 }
 
 /**
@@ -46,6 +52,7 @@ export function usePlaylistPlay() {
   const { playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { clearSession, setSession } = useQueueSession();
   const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
+  const { updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
 
   /**
    * Play a track. For multi-album playlist: uses internal queue (no Spotify context), sets session and playingFrom.
@@ -73,8 +80,12 @@ export function usePlaylistPlay() {
 
       const remainingAlbums = findRemainingAlbums(albumsList, albumId);
       const selectionOpts = { playlistId, playlistTrackIds: playlistTrackIds ?? {} };
+      const onTrackQueued = async (uri) => {
+        await updateLastPlayedFromPlaylist(trackIdFromUri(uri), playlistId, playlistName ?? '', null, null);
+      };
       const initialUris = await buildInitialUris(remainingAlbums, albumsList, selectionOpts, {
-        selectNextTrackUriForAlbum
+        selectNextTrackUriForAlbum,
+        onTrackQueued
       });
 
       setSession(

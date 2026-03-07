@@ -3,12 +3,14 @@ import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueTrackSelection } from './useQueueTrackSelection';
 import { useAlbumMappings } from './useAlbumMappings';
 import { getNextTrackUrisForAlbums } from '@utils/queueBatchUtils';
-import { albumIdFromUri } from '@utils/spotify';
+import { useUnifiedTrackCache } from './useUnifiedTrackCache';
+import { albumIdFromUri, trackIdFromUri } from '@utils/spotify';
 import { logPlayer } from '@utils/logger';
 
-const REFILL_TARGET = 10;
+const QUEUE_CAP = 10;
 
 const session = ref(null);
+let isRefilling = false;
 const upcomingUris = ref([]);
 let lastHandledTrackId = null;
 let watchRegistered = false;
@@ -23,6 +25,7 @@ export function useQueueSession() {
   const { currentTrack, position, duration, playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
   const { getPrimaryId } = useAlbumMappings();
+  const { updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
 
   /**
    * @param {Object} payload
@@ -33,8 +36,9 @@ export function useQueueSession() {
    * @param {string[]} [initialUris] - Initial internal queue (one URI per album ahead). Refill to REFILL_TARGET happens on consumption.
    */
   const setSession = (payload, initialUris = []) => {
+    const len = Array.isArray(initialUris) ? initialUris.length : 0;
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:setSession',message:'setSession called',data:{hasPayload:!!payload,playlistId:payload?.playlistId,albumsListLength:payload?.albumsList?.length,initialUrisLength:Array.isArray(initialUris)?initialUris.length:'not-array'},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:setSession',message:'setSession called',data:{initialUrisLength:len,lastUri:len>0?initialUris[len-1]:null,secondLastUri:len>1?initialUris[len-2]:null,duplicateAtEnd:len>1&&initialUris[len-1]===initialUris[len-2]},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(()=>{});
     // #endregion
     if (!payload?.playlistId || !payload?.albumsList?.length) {
       session.value = null;
@@ -66,23 +70,67 @@ export function useQueueSession() {
   const getSession = () => readonly(session);
 
   async function refillUpcoming() {
+    const lenAtEntry = upcomingUris.value.length;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:refillUpcoming:entry',message:'refillUpcoming entry',data:{lenAtEntry,QUEUE_CAP,isRefilling},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    if (isRefilling || lenAtEntry >= QUEUE_CAP) return;
+    isRefilling = true;
     const s = session.value;
     const track = currentTrack.value;
-    if (!s || !track) return;
+    if (!s || !track) {
+      isRefilling = false;
+      return;
+    }
 
     const currentAlbumId = albumIdFromUri(track.albumUri);
-    if (!currentAlbumId) return;
+    if (!currentAlbumId) {
+      isRefilling = false;
+      return;
+    }
 
-    const albumIndex = s.albumsList.findIndex((a) => a.id === currentAlbumId);
-    if (albumIndex === -1) return;
+    const currentPrimary = (await getPrimaryId(currentAlbumId)) || currentAlbumId;
+    let albumIndex = s.albumsList.findIndex(
+      (a) => a.id === currentAlbumId || a.id === currentPrimary
+    );
+    if (albumIndex === -1) {
+      for (let i = 0; i < s.albumsList.length; i++) {
+        const primaryA = (await getPrimaryId(s.albumsList[i].id)) || s.albumsList[i].id;
+        if (primaryA === currentAlbumId || primaryA === currentPrimary) {
+          albumIndex = i;
+          break;
+        }
+      }
+    }
+    if (albumIndex === -1) {
+      isRefilling = false;
+      return;
+    }
 
-    const isLastAlbum = albumIndex === s.albumsList.length - 1;
-    const remainingAlbums = isLastAlbum ? [...s.albumsList] : s.albumsList.slice(albumIndex + 1);
-    const selectionOpts = { playlistId: s.playlistId, playlistTrackIds: s.playlistTrackIds };
-    const uris = await getNextTrackUrisForAlbums(remainingAlbums, selectionOpts, {
-      selectNextTrackUriForAlbum
-    });
-    upcomingUris.value.push(...uris);
+    try {
+      const nextIndex = (albumIndex + 1 + upcomingUris.value.length) % s.albumsList.length;
+      const albumToAdd = s.albumsList[nextIndex];
+      const selectionOpts = { playlistId: s.playlistId, playlistTrackIds: s.playlistTrackIds };
+      const onTrackQueued = async (uri) => {
+        await updateLastPlayedFromPlaylist(trackIdFromUri(uri), s.playlistId, s.playlistName, null, null);
+      };
+      const uris = await getNextTrackUrisForAlbums([albumToAdd], selectionOpts, {
+        selectNextTrackUriForAlbum,
+        onTrackQueued
+      });
+      const lenBeforePush = upcomingUris.value.length;
+      if (uris.length > 0 && lenBeforePush < QUEUE_CAP) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:refillUpcoming:beforePush',message:'before push',data:{lenBeforePush,uriToAdd:uris[0],nextIndex,albumToAddId:albumToAdd?.id,QUEUE_CAP},timestamp:Date.now(),hypothesisId:'H1,H3'})}).catch(()=>{});
+        // #endregion
+        upcomingUris.value.push(uris[0]);
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:refillUpcoming',message:'refill done',data:{added:uris.length,totalAfter:upcomingUris.value.length,currentAlbumId:albumIdFromUri(track?.albumUri)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
+    } finally {
+      isRefilling = false;
+    }
   }
 
   if (!watchRegistered) {
@@ -127,7 +175,7 @@ export function useQueueSession() {
           return;
         }
 
-        if (upcomingUris.value.length < REFILL_TARGET) {
+        if (upcomingUris.value.length < QUEUE_CAP) {
           refillUpcoming();
         }
       },
@@ -139,7 +187,18 @@ export function useQueueSession() {
       async () => {
         const s = session.value;
         const track = currentTrack.value;
-        if (!s || !track || !duration.value || duration.value <= 0) return;
+        if (!s || !track) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:trackEndWatch',message:'early return no session or track',data:{hasS:!!s,hasTrack:!!track},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(()=>{});
+          // #endregion
+          return;
+        }
+        if (!duration.value || duration.value <= 0) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:trackEndWatch',message:'early return no duration',data:{duration:duration.value,trackId:track?.id},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
+          return;
+        }
 
         const remainingMs = duration.value - position.value;
         if (remainingMs <= 2000) {
@@ -149,8 +208,25 @@ export function useQueueSession() {
         }
         if (remainingMs > 500) return;
 
-        if (track.id === lastHandledTrackId) return;
+        if (track.id === lastHandledTrackId) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:trackEndWatch',message:'skip already handled',data:{trackId:track.id,lastHandledTrackId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
+          return;
+        }
         lastHandledTrackId = track.id;
+
+        try {
+          await updateLastPlayedFromPlaylist(
+            track.id,
+            s.playlistId,
+            s.playlistName,
+            track.name ?? null,
+            track.artists?.[0] ?? null
+          );
+        } catch {
+          // continue to advance playback
+        }
 
         if (upcomingUris.value.length === 0) {
           await refillUpcoming();
@@ -165,6 +241,9 @@ export function useQueueSession() {
           await playTrack(nextUri, null);
         } catch (err) {
           logPlayer('Play next (internal queue) failed:', err);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useQueueSession.js:playNext',message:'playTrack failed',data:{nextUri,errMessage:err?.message},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+          // #endregion
           lastHandledTrackId = null;
         }
       },

@@ -57,10 +57,12 @@ export function useQueueTrackSelection() {
       const tracksWithMinPlaycount = tracksInPlaylist
         .filter((t) => t.playcount === minPlaycount)
         .sort((a, b) => {
+          const numA = a.track_number || 0;
+          const numB = b.track_number || 0;
+          if (numA !== numB) return numA - numB;
           const tsA = a.lastPlayedFromTimestamp || 0;
           const tsB = b.lastPlayedFromTimestamp || 0;
-          if (tsA !== tsB) return tsA - tsB;
-          return (a.track_number || 0) - (b.track_number || 0);
+          return tsA - tsB;
         });
 
       const selectedTrack = tracksWithMinPlaycount[0];

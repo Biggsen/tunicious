@@ -8,14 +8,18 @@ import { logPlayer } from '@utils/logger';
  * @param {{ playlistId: string, playlistTrackIds: Record<string, Record<string, boolean>> }} selectionOpts - playlistId and playlistTrackIds
  * @param {Object} deps
  * @param {Function} deps.selectNextTrackUriForAlbum - (album, selectionOpts) => Promise<string|null>
+ * @param {Function} [deps.onTrackQueued] - (uri, album) => Promise<void> - called after each track is queued so cache can mark it "just played" for forward-thinking selection
  * @returns {Promise<string[]>} Track URIs in album order (skips albums that yield no URI)
  */
-export async function getNextTrackUrisForAlbums(albums, selectionOpts, { selectNextTrackUriForAlbum }) {
+export async function getNextTrackUrisForAlbums(albums, selectionOpts, { selectNextTrackUriForAlbum, onTrackQueued }) {
   const uris = [];
   for (const album of albums) {
     try {
       const uri = await selectNextTrackUriForAlbum(album, selectionOpts);
-      if (uri) uris.push(uri);
+      if (uri) {
+        uris.push(uri);
+        if (onTrackQueued) await onTrackQueued(uri, album);
+      }
     } catch (err) {
       logPlayer('Queue batch failed for album:', album?.id, err);
     }

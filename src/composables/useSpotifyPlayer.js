@@ -803,8 +803,8 @@ export function useSpotifyPlayer() {
     () => {
       if (player.value && isPlaying.value) {
         if (!positionPollIntervalId) {
-          positionPollIntervalId = setInterval(async () => {
-            if (!player.value) return;
+          const pollAndSchedule = async () => {
+            if (!player.value || !isPlaying.value) return;
             try {
               const state = await player.value.getCurrentState();
               if (state?.position !== undefined) position.value = state.position;
@@ -812,11 +812,16 @@ export function useSpotifyPlayer() {
             } catch {
               // ignore
             }
-          }, 1000);
+            if (!player.value || !isPlaying.value) return;
+            const remaining = (duration.value || 0) - (position.value || 0);
+            const nextDelay = remaining > 0 && remaining < 2000 ? 200 : 1000;
+            positionPollIntervalId = setTimeout(pollAndSchedule, nextDelay);
+          };
+          positionPollIntervalId = setTimeout(pollAndSchedule, 1000);
         }
       } else {
         if (positionPollIntervalId) {
-          clearInterval(positionPollIntervalId);
+          clearTimeout(positionPollIntervalId);
           positionPollIntervalId = null;
         }
       }
