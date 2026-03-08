@@ -731,9 +731,6 @@ export function useUserSpotifyApi() {
     if (!trackIds?.length) return { tracks: [] };
     const ids = trackIds.slice(0, 50).join(',');
     const res = await makeUserRequest(`https://api.spotify.com/v1/tracks?ids=${ids}`);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'useUserSpotifyApi.js:getTracks',message:'getTracks raw response',data:{resKeys:res?Object.keys(res):[],tracksLength:res?.tracks?.length,hasTracksKey:'tracks' in (res||{})},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     const raw = res?.tracks ?? res?.data?.tracks ?? [];
     return { tracks: Array.isArray(raw) ? raw : [] };
   };

@@ -135,12 +135,15 @@ export function useSpotifyPlayer() {
 
           player.value.addListener('not_ready', ({ device_id }) => {
             logPlayer('Device ID has gone offline', device_id);
+            console.warn('[Spotify player] Device went offline (not_ready). Player bar will hide. device_id:', device_id);
             isReady.value = false;
             deviceId.value = null;
           });
 
           player.value.addListener('player_state_changed', (state) => {
             if (!state) {
+              logPlayer('player_state_changed received null state (no active playback); clearing currentTrack');
+              console.warn('[Spotify player] Playback state is null (no active playback). Player bar will hide. This can happen after device disconnect or when playback is transferred.');
               isPlaying.value = false;
               currentTrack.value = null;
               playingFrom.value = null;

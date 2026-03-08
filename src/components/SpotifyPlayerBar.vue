@@ -66,17 +66,11 @@ const hasQueue = computed(() => !!session.value);
 
 const fetchQueueTrackDetails = async () => {
   const uris = upcomingUris.value;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:start',message:'fetchQueueTrackDetails',data:{urisLength:uris?.length,firstUri:uris?.[0]},timestamp:Date.now(),hypothesisId:'H2,H4'})}).catch(()=>{});
-  // #endregion
   if (!uris.length) {
     queueTrackDetails.value = [];
     return;
   }
   const ids = uris.slice(0, 20).map((uri) => trackIdFromUri(uri)).filter(Boolean);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:ids',message:'ids extracted',data:{idsLength:ids.length,firstId:ids[0]},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
   if (!ids.length) {
     queueTrackDetails.value = [];
     return;
@@ -85,9 +79,6 @@ const fetchQueueTrackDetails = async () => {
   try {
     const res = await getTracks(ids);
     const raw = res?.tracks ?? res?.data?.tracks ?? [];
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'SpotifyPlayerBar.vue:fetchQueueTrackDetails:afterGetTracks',message:'getTracks response',data:{resKeys:res?Object.keys(res):[],rawLength:raw?.length,firstTrackName:raw?.[0]?.name},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     queueTrackDetails.value = raw.map((t) =>
       t
         ? {

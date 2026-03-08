@@ -1,48 +1,12 @@
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueSession } from './useQueueSession';
-import { useQueueTrackSelection } from './useQueueTrackSelection';
 import { useUnifiedTrackCache } from './useUnifiedTrackCache';
-import { getNextTrackUrisForAlbums } from '@utils/queueBatchUtils';
+import { useAlbumMappings } from './useAlbumMappings';
+import { useUserSpotifyApi } from './useUserSpotifyApi';
+import { buildQueue, getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { trackIdFromUri } from '@utils/spotify';
 
-const REFILL_TARGET = 10;
-
-/**
- * Albums from currentAlbumIndex+1 to end. Returns [] if not a valid playlist-with-albums context.
- *
- * @param {Array<{id: string}>} albumsList
- * @param {string} currentAlbumId
- * @returns {Array<{id: string}>}
- */
-function findRemainingAlbums(albumsList, currentAlbumId) {
-  if (!albumsList?.length || !currentAlbumId) return [];
-  const currentIndex = albumsList.findIndex((a) => a.id === currentAlbumId);
-  if (currentIndex === -1 || currentIndex === albumsList.length - 1) return [];
-  return albumsList.slice(currentIndex + 1);
-}
-
-/**
- * Build initial internal queue URIs (one per album) and refill to REFILL_TARGET by looping if needed.
- *
- * @param {Array<{id: string}>} remainingAlbums
- * @param {Array<{id: string}>} fullAlbumsList
- * @param {Object} selectionOpts
- * @param {Object} deps
- * @returns {Promise<string[]>}
- */
-async function buildInitialUris(remainingAlbums, fullAlbumsList, selectionOpts, deps) {
-  const uris = await getNextTrackUrisForAlbums(remainingAlbums, selectionOpts, deps);
-  while (uris.length < REFILL_TARGET && fullAlbumsList?.length > 0) {
-    const batch = await getNextTrackUrisForAlbums(fullAlbumsList, selectionOpts, deps);
-    if (batch.length === 0) break;
-    uris.push(...batch);
-  }
-  const result = uris.slice(0, REFILL_TARGET);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d4c2a42-d337-4c5e-a4f5-acade31bf5da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d13514'},body:JSON.stringify({sessionId:'d13514',location:'usePlaylistPlay.js:buildInitialUris',message:'buildInitialUris return',data:{urisLengthBeforeSlice:uris.length,resultLength:result.length,REFILL_TARGET,lastUri:result[result.length-1],secondLastUri:result.length>1?result[result.length-2]:null,duplicateAtEnd:result.length>1&&result[result.length-1]===result[result.length-2]},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
-  return result;
-}
+const QUEUE_SIZE = 10;
 
 /**
  * Composable that encapsulates "play from playlist" flow: clear session, play track,
@@ -51,8 +15,9 @@ async function buildInitialUris(remainingAlbums, fullAlbumsList, selectionOpts, 
 export function usePlaylistPlay() {
   const { playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { clearSession, setSession } = useQueueSession();
-  const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
-  const { updateLastPlayedFromPlaylist } = useUnifiedTrackCache();
+  const { updateLastPlayedFromPlaylist, getPlaycountForTrack } = useUnifiedTrackCache();
+  const { getPrimaryId } = useAlbumMappings();
+  const { getAllAlbumTracks } = useUserSpotifyApi();
 
   /**
    * Play a track. For multi-album playlist: uses internal queue (no Spotify context), sets session and playingFrom.
@@ -78,24 +43,50 @@ export function usePlaylistPlay() {
     if (isMultiAlbumPlaylist) {
       await playTrack(trackUri, null);
 
-      const remainingAlbums = findRemainingAlbums(albumsList, albumId);
-      const selectionOpts = { playlistId, playlistTrackIds: playlistTrackIds ?? {} };
-      const onTrackQueued = async (uri) => {
-        await updateLastPlayedFromPlaylist(trackIdFromUri(uri), playlistId, playlistName ?? '', null, null);
-      };
-      const initialUris = await buildInitialUris(remainingAlbums, albumsList, selectionOpts, {
-        selectNextTrackUriForAlbum,
-        onTrackQueued
-      });
+      try {
+        await updateLastPlayedFromPlaylist(
+          track?.id ?? trackIdFromUri(trackUri),
+          playlistId,
+          playlistName ?? '',
+          track?.name ?? null,
+          track?.artists?.[0] ?? null
+        );
+      } catch {
+        // continue; cache may not have track yet
+      }
+
+      const currentPrimaryId = (await getPrimaryId(albumId)) || albumId;
+      const ptIds = playlistTrackIds ?? {};
+      const rankedTracksPerAlbum = await Promise.all(
+        albumsList.map((album) =>
+          getRankedTracksForAlbum(
+            album.id,
+            ptIds[album.id] || {},
+            getAllAlbumTracks,
+            getPlaycountForTrack
+          )
+        )
+      );
+      const startAlbumIndex = albumsList.findIndex(
+        (a) => a.id === albumId || a.id === currentPrimaryId
+      );
+      const currentTrackId = track?.id ?? trackIdFromUri(trackUri);
+      const { queueUris, usedCountPerAlbum } = buildQueue(
+        rankedTracksPerAlbum,
+        startAlbumIndex >= 0 ? startAlbumIndex : 0,
+        QUEUE_SIZE,
+        currentTrackId
+      );
 
       setSession(
         {
           playlistId,
           playlistName: playlistName ?? '',
           albumsList,
-          playlistTrackIds: playlistTrackIds ?? {}
+          playlistTrackIds: ptIds
         },
-        initialUris
+        queueUris,
+        usedCountPerAlbum
       );
       setPlayingFrom({ type: 'playlist', id: playlistId, name: playlistName || 'Unknown Playlist' });
       return;

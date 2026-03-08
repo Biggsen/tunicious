@@ -13,6 +13,7 @@
  * @property {Array<{id: string}>} albumsList
  * @property {Record<string, Record<string, boolean>>} [playlistTrackIds]
  * @property {string|null} lastAlbumId
+ * @property {number[]} [usedCountPerAlbum] - Per-album pick index for round-robin refill
  */
 
 /** @type {QueueSession} */
