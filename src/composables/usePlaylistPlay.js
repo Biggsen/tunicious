@@ -2,7 +2,6 @@ import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueSession } from './useQueueSession';
 import { useUnifiedTrackCache } from './useUnifiedTrackCache';
 import { useAlbumMappings } from './useAlbumMappings';
-import { useUserSpotifyApi } from './useUserSpotifyApi';
 import { buildQueue, getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { trackIdFromUri } from '@utils/spotify';
 
@@ -11,13 +10,13 @@ const QUEUE_SIZE = 10;
 /**
  * Composable that encapsulates "play from playlist" flow: clear session, play track,
  * and for multi-album playlists set internal queue + session and playingFrom.
+ * Queue build uses cache only (getAlbumTracksForPlaylist), no Spotify API.
  */
 export function usePlaylistPlay() {
   const { playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { clearSession, setSession } = useQueueSession();
-  const { updateLastPlayedFromPlaylist, getPlaycountForTrack } = useUnifiedTrackCache();
+  const { updateLastPlayedFromPlaylist, getPlaycountForTrack, getAlbumTracksForPlaylist } = useUnifiedTrackCache();
   const { getPrimaryId } = useAlbumMappings();
-  const { getAllAlbumTracks } = useUserSpotifyApi();
 
   /**
    * Play a track. For multi-album playlist: uses internal queue (no Spotify context), sets session and playingFrom.
@@ -57,12 +56,13 @@ export function usePlaylistPlay() {
 
       const currentPrimaryId = (await getPrimaryId(albumId)) || albumId;
       const ptIds = playlistTrackIds ?? {};
+      const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(playlistId, albumId);
       const rankedTracksPerAlbum = await Promise.all(
         albumsList.map((album) =>
           getRankedTracksForAlbum(
             album.id,
             ptIds[album.id] || {},
-            getAllAlbumTracks,
+            getTracksForAlbum,
             getPlaycountForTrack
           )
         )

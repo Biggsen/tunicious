@@ -42,7 +42,7 @@ const { user, userData, loading: userDataLoading } = useUserData();
 const { refreshSpecificPlaylists } = usePlaylistUpdates();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();
 const { isAdmin } = useAdmin();
-const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAlbum, getAllAlbumTracks, getAllArtistAlbums, getAllPlaylistTracks, removeTracksFromPlaylist, addTracksToPlaylist } = useUserSpotifyApi();
+const { getPlaylist, getPlaylistAlbumsWithDates, loadAlbumsBatched, addAlbumToPlaylist, removeAlbumFromPlaylist: removeFromSpotify, loading: spotifyLoading, error: spotifyError, getAlbumTracks, getAlbum, getAllArtistAlbums, getAllPlaylistTracks, removeTracksFromPlaylist, addTracksToPlaylist } = useUserSpotifyApi();
 
 const { getCurrentPlaylistInfo, fetchAlbumsData, getAlbumDetails, getAlbumsDetailsBatch, updateAlbumDetails, getAlbumRatingData, addAlbumToCollection, removeAlbumFromPlaylist, searchAlbumsByTitleAndArtist } = useAlbumsData();
 const { getPrimaryId, isAlternateId, createMapping } = useAlbumMappings();
@@ -303,10 +303,11 @@ const handlePlayPlaylist = async () => {
   playPlaylistLoading.value = true;
   try {
     const firstAlbum = sortedAlbumsList.value[0];
+    const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(id.value, albumId);
     const ranked = await getRankedTracksForAlbum(
       firstAlbum.id,
       playlistTrackIds.value[firstAlbum.id] ?? {},
-      getAllAlbumTracks,
+      getTracksForAlbum,
       getPlaycountForTrack
     );
     const firstTrack = ranked[0];

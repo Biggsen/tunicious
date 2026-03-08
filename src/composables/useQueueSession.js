@@ -2,7 +2,6 @@ import { ref, readonly, watch } from 'vue';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useAlbumMappings } from './useAlbumMappings';
 import { useUnifiedTrackCache } from './useUnifiedTrackCache';
-import { useUserSpotifyApi } from './useUserSpotifyApi';
 import { getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { albumIdFromUri } from '@utils/spotify';
 import { logPlayer } from '@utils/logger';
@@ -24,8 +23,7 @@ let watchRegistered = false;
 export function useQueueSession() {
   const { currentTrack, position, duration, playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { getPrimaryId } = useAlbumMappings();
-  const { updateLastPlayedFromPlaylist, getPlaycountForTrack } = useUnifiedTrackCache();
-  const { getAllAlbumTracks } = useUserSpotifyApi();
+  const { updateLastPlayedFromPlaylist, getPlaycountForTrack, getAlbumTracksForPlaylist } = useUnifiedTrackCache();
 
   /**
    * @param {Object} payload
@@ -103,11 +101,12 @@ export function useQueueSession() {
       const albumToAdd = s.albumsList[nextIndex];
       const usedCountPerAlbum = s.usedCountPerAlbum ?? [];
       const pickIndex = usedCountPerAlbum[nextIndex] ?? 0;
+      const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(s.playlistId, albumId);
 
       const ranked = await getRankedTracksForAlbum(
         albumToAdd.id,
         s.playlistTrackIds[albumToAdd.id] ?? {},
-        getAllAlbumTracks,
+        getTracksForAlbum,
         getPlaycountForTrack
       );
       if (pickIndex < ranked.length && upcomingUris.value.length < QUEUE_CAP) {
