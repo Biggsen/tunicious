@@ -166,6 +166,9 @@ watch(
   { deep: true }
 );
 
+watch(showPlayer, (visible) => {
+  if (!visible) queuePanelOpen.value = false;
+});
 
 watch(isPlaying, (newValue) => {
   logPlayer('Playback state changed:', { isPlaying: newValue, track: currentTrack.value?.name });
@@ -577,22 +580,12 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         
         <div class="flex items-center gap-2 flex-shrink-0 controls-container">
           <button
-            v-if="canLoveTracks"
-            @click="handleHeartClick"
-            :disabled="isLoving"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
-            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
-          >
-            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
-            <HeartIconOutline v-else class="w-6 h-6" />
-          </button>
-          <button
             @click="togglePlayback"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors control-button"
+            class="p-2.5 hover:bg-white/20 rounded-full transition-colors control-button ring-1 ring-white/40 sm:ring-0"
             :title="isPlaying ? 'Pause' : 'Play'"
           >
-            <PauseIcon v-if="isPlaying" class="w-6 h-6" />
-            <PlayIcon v-else class="w-6 h-6" />
+            <PauseIcon v-if="isPlaying" class="w-7 h-7" />
+            <PlayIcon v-else class="w-7 h-7 play-icon-offset" />
           </button>
         </div>
         
@@ -622,25 +615,37 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           />
         </div>
         
-        <button
-          v-if="canLoveTracks"
-          @click="handleHeartClick"
-          :disabled="isLoving"
-          class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button flex-shrink-0 items-center justify-center"
-          :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
-        >
-          <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
-          <HeartIconOutline v-else class="w-6 h-6" />
-        </button>
-        <div v-if="hasQueue" class="relative" ref="queueAreaRef">
+        <div class="flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2 flex-shrink-0">
           <button
-            @click.stop="toggleQueuePanel"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
-            :class="{ 'bg-white/20': queuePanelOpen }"
-            :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
+            v-if="canLoveTracks"
+            @click="handleHeartClick"
+            :disabled="isLoving"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
+            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
           >
-            <QueueListIcon class="w-6 h-6" />
+            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+            <HeartIconOutline v-else class="w-6 h-6" />
           </button>
+          <button
+            v-if="canLoveTracks"
+            @click="handleHeartClick"
+            :disabled="isLoving"
+            class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button items-center justify-center"
+            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
+          >
+            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+            <HeartIconOutline v-else class="w-6 h-6" />
+          </button>
+          <div v-if="hasQueue" class="relative" ref="queueAreaRef">
+            <button
+              @click.stop="toggleQueuePanel"
+              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
+              :class="{ 'bg-white/20': queuePanelOpen }"
+              :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
+            >
+              <QueueListIcon class="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
       
@@ -699,6 +704,10 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
 <style scoped>
 .player-bar-shadow {
   box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.play-icon-offset {
+  transform: translateX(2px);
 }
 
 @media (max-width: 549px) {
@@ -775,6 +784,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.3s ease-out;
+  font-family: Chivo, sans-serif;
 }
 
 .queue-sidebar-open {
