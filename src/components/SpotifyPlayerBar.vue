@@ -9,7 +9,7 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
-import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon, QueueListIcon } from '@heroicons/vue/24/solid';
+import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
 import { trackIdFromUri } from '@utils/spotify';
 
@@ -59,18 +59,20 @@ const optimisticLovedStatus = ref(null); // Track optimistic loved status for cu
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
 
+const QUEUE_DISPLAY_SIZE = 50;
 const queuePanelOpen = ref(false);
 const queueTrackDetails = ref([]);
 const queueLoading = ref(false);
 const hasQueue = computed(() => !!session.value);
+const upcomingUrisToShow = computed(() => (upcomingUris.value || []).slice(0, QUEUE_DISPLAY_SIZE));
 
 const fetchQueueTrackDetails = async () => {
-  const uris = upcomingUris.value;
+  const uris = upcomingUrisToShow.value;
   if (!uris.length) {
     queueTrackDetails.value = [];
     return;
   }
-  const ids = uris.slice(0, 20).map((uri) => trackIdFromUri(uri)).filter(Boolean);
+  const ids = uris.slice(0, QUEUE_DISPLAY_SIZE).map((uri) => trackIdFromUri(uri)).filter(Boolean);
   if (!ids.length) {
     queueTrackDetails.value = [];
     return;
@@ -103,10 +105,8 @@ const toggleQueuePanel = () => {
   }
 };
 
-const onDocumentClick = (e) => {
-  if (queuePanelOpen.value && queueAreaRef.value && !queueAreaRef.value.contains(e.target)) {
-    queuePanelOpen.value = false;
-  }
+const closeQueueSidebar = () => {
+  queuePanelOpen.value = false;
 };
 
 let volumeThrottleTimer = null;
@@ -159,20 +159,13 @@ const stopPositionTracking = () => {
 };
 
 watch(
-  () => [...(upcomingUris.value || [])],
+  () => [...(upcomingUrisToShow.value || [])],
   () => {
     if (queuePanelOpen.value) fetchQueueTrackDetails();
   },
   { deep: true }
 );
 
-watch(queuePanelOpen, (open) => {
-  if (open) {
-    setTimeout(() => document.addEventListener('click', onDocumentClick), 0);
-  } else {
-    document.removeEventListener('click', onDocumentClick);
-  }
-});
 
 watch(isPlaying, (newValue) => {
   logPlayer('Playback state changed:', { isPlaying: newValue, track: currentTrack.value?.name });
@@ -542,9 +535,10 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
 </script>
 
 <template>
+  <div>
   <div 
     v-if="showPlayer"
-    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-50 shadow-lg"
+    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-[60] player-bar-shadow"
   >
     <div class="container mx-auto px-4 py-3 player-container">
       <div class="flex items-center gap-4 player-content">
@@ -582,43 +576,6 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         </div>
         
         <div class="flex items-center gap-2 flex-shrink-0 controls-container">
-          <div v-if="hasQueue" class="relative" ref="queueAreaRef">
-            <button
-              @click.stop="toggleQueuePanel"
-              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
-              :class="{ 'bg-white/20': queuePanelOpen }"
-              :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
-            >
-              <QueueListIcon class="w-6 h-6" />
-              <span class="text-xs hidden sm:inline">{{ upcomingUris?.length ?? 0 }}</span>
-            </button>
-            <div
-              v-if="queuePanelOpen"
-              class="absolute bottom-full left-0 mb-1 w-72 max-h-64 overflow-y-auto bg-delft-blue border border-white/20 rounded-lg shadow-xl z-50 flex flex-col"
-              @click.stop
-            >
-              <div class="p-2 border-b border-white/20 font-medium text-sm sticky top-0 bg-delft-blue">
-                Up next ({{ upcomingUris?.length ?? 0 }})
-              </div>
-              <div v-if="queueLoading" class="p-4 text-gray-400 text-sm">Loading…</div>
-              <ul v-else class="p-2 divide-y divide-white/10">
-                <li
-                  v-for="(item, i) in queueTrackDetails"
-                  :key="i"
-                  class="py-2 px-2 text-sm truncate"
-                >
-                  <span v-if="item" class="text-white">{{ item.name }}</span>
-                  <span v-else class="text-gray-500">—</span>
-                  <span v-if="item?.artists?.length" class="text-gray-400 block truncate">
-                    {{ item.artists.join(', ') }}
-                  </span>
-                </li>
-                <li v-if="!queueLoading && !queueTrackDetails.length && upcomingUris?.length" class="py-2 text-gray-500 text-sm">
-                  No track details
-                </li>
-              </ul>
-            </div>
-          </div>
           <button
             v-if="canLoveTracks"
             @click="handleHeartClick"
@@ -675,6 +632,16 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
           <HeartIconOutline v-else class="w-6 h-6" />
         </button>
+        <div v-if="hasQueue" class="relative" ref="queueAreaRef">
+          <button
+            @click.stop="toggleQueuePanel"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
+            :class="{ 'bg-white/20': queuePanelOpen }"
+            :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
+          >
+            <QueueListIcon class="w-6 h-6" />
+          </button>
+        </div>
       </div>
       
       <div class="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
@@ -685,9 +652,55 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="hasQueue"
+      class="queue-sidebar"
+      :class="{ 'queue-sidebar-open': queuePanelOpen }"
+      role="dialog"
+      aria-label="Up next queue"
+    >
+      <div class="flex items-center justify-between p-3 border-b border-white/20 sticky top-0 bg-delft-blue z-10">
+        <h2 class="font-semibold text-lg text-white pl-[3px]">
+          Up next
+        </h2>
+        <button
+          type="button"
+          @click="closeQueueSidebar"
+          class="p-2 hover:bg-white/20 rounded-full transition-colors text-white"
+          aria-label="Close queue"
+        >
+          <XMarkIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <div v-if="queueLoading" class="p-4 text-gray-400 text-sm">Loading…</div>
+      <ul v-else class="p-2 divide-y divide-white/10 overflow-y-auto flex-1">
+        <li
+          v-for="(item, i) in queueTrackDetails"
+          :key="i"
+          class="py-2 px-2 text-sm truncate"
+        >
+          <span v-if="item" class="text-white">{{ item.name }}</span>
+          <span v-else class="text-gray-500">—</span>
+          <span v-if="item?.artists?.length" class="text-gray-400 block truncate">
+            {{ item.artists.join(', ') }}
+          </span>
+        </li>
+        <li v-if="!queueLoading && !queueTrackDetails.length && upcomingUrisToShow?.length" class="py-2 pl-2 text-white text-sm">
+          No track details
+        </li>
+      </ul>
+    </div>
+  </Teleport>
+  </div>
 </template>
 
 <style scoped>
+.player-bar-shadow {
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.2);
+}
+
 @media (max-width: 549px) {
   .player-container {
     padding-top: 0.45rem;
@@ -745,5 +758,26 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   background: theme('colors.mindero');
   cursor: pointer;
   border: none;
+}
+
+/* Queue sidebar (teleported to body) */
+.queue-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 20rem;
+  height: calc(100vh - 5.5rem);
+  background: #23395b;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out;
+}
+
+.queue-sidebar-open {
+  transform: translateX(0);
 }
 </style>
