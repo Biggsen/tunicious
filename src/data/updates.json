@@ -10,7 +10,8 @@
       "Internal playback queue — starting playback from a multi-album playlist now creates a queue managed by the app. As each track ends, the next one is selected and played automatically",
       "Up Next sidebar — a queue icon in the player bar opens a slide-out panel showing the upcoming tracks (artist and title)",
       "Smooth queue updates — the list updates as playback progresses, with tracks dropping off the top and new ones appearing as the queue refills",
-      "Foundation for new playback modes — moving queue management inside the app opens the door for additional playback options in the future, such as shuffle and other play modes"
+      "Foundation for new playback modes — moving queue management inside the app opens the door for additional playback options in the future, such as shuffle and other play modes",
+      "Recommend to multiple friends — the Recommend modal now lets you select one or more friends and send the album recommendation to all of them in one go"
     ]
   },
   {
