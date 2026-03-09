@@ -53,13 +53,27 @@ const { createRecommendation, getPendingRecommendationRecipientIds } = useAlbumR
 const showRecommendModal = ref(false);
 const recommendFriends = ref([]);
 const recommendFriendsLoading = ref(false);
-const selectedRecommendFriendId = ref(null);
+const selectedRecommendFriendIds = ref(new Set());
 const creatingRecommend = ref(false);
 const recommendAlreadySentToIds = ref(new Set());
 
+function toggleRecommendFriendSelection(friendId) {
+  if (recommendAlreadySentToIds.value.has(friendId)) return;
+  const next = new Set(selectedRecommendFriendIds.value);
+  if (next.has(friendId)) next.delete(friendId);
+  else next.add(friendId);
+  selectedRecommendFriendIds.value = next;
+}
+
+const hasSendableRecommendSelection = computed(() => {
+  const selected = selectedRecommendFriendIds.value;
+  if (!selected.size) return false;
+  return [...selected].some((id) => !recommendAlreadySentToIds.value.has(id));
+});
+
 const openRecommendModal = async () => {
   showRecommendModal.value = true;
-  selectedRecommendFriendId.value = null;
+  selectedRecommendFriendIds.value = new Set();
   try {
     recommendFriendsLoading.value = true;
     await getFriends();
@@ -78,11 +92,14 @@ const openRecommendModal = async () => {
 };
 
 const handleRecommendConfirm = async () => {
-  if (!selectedRecommendFriendId.value || !album.value) return;
+  const ids = [...selectedRecommendFriendIds.value].filter(
+    (id) => !recommendAlreadySentToIds.value.has(id)
+  );
+  if (!ids.length || !album.value) return;
   try {
     creatingRecommend.value = true;
-    await createRecommendation(album.value, selectedRecommendFriendId.value);
-    showToast('Recommendation sent!', 'success');
+    await Promise.all(ids.map((toUserId) => createRecommendation(album.value, toUserId)));
+    showToast(ids.length === 1 ? 'Recommendation sent!' : 'Recommendations sent!', 'success');
     showRecommendModal.value = false;
   } catch (e) {
     showToast(e.message || 'Failed to send recommendation', 'error');
@@ -1187,7 +1204,7 @@ onUnmounted(() => {
     </div>
     <BaseModal
       :visible="showRecommendModal"
-      :title="album ? `Recommend ${album.name} to a friend` : 'Recommend to a friend'"
+      :title="album ? `Recommend ${album.name} to friends` : 'Recommend to friends'"
       :show-cancel="true"
       :show-confirm="true"
       confirm-text="Send"
@@ -1203,19 +1220,19 @@ onUnmounted(() => {
           <router-link to="/friends" class="text-mint font-semibold hover:underline mt-2 inline-block">Go to Friends</router-link>
         </template>
         <template v-else>
-          <p class="text-sm text-gray-600 mb-3">Choose a friend:</p>
+          <p class="text-sm text-gray-600 mb-3">Choose one or more friends:</p>
           <ul class="space-y-2 max-h-60 overflow-y-auto">
             <li
               v-for="friend in recommendFriends"
               :key="friend.id"
-              @click="recommendAlreadySentToIds.has(friend.id) ? null : (selectedRecommendFriendId = friend.id)"
+              @click="toggleRecommendFriendSelection(friend.id)"
               :class="[
                 'rounded-lg border-2 py-2 px-3 transition-colors flex items-center gap-3',
                 recommendAlreadySentToIds.has(friend.id)
                   ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-75'
                   : [
                       'cursor-pointer',
-                      selectedRecommendFriendId === friend.id
+                      selectedRecommendFriendIds.has(friend.id)
                         ? 'border-delft-blue bg-mint'
                         : 'bg-white border-delft-blue hover:border-delft-blue/70'
                     ]
@@ -1243,10 +1260,10 @@ onUnmounted(() => {
         </template>
       </template>
       <template #actions>
-        <BaseButton variant="default" @click="showRecommendModal = false">Cancel</BaseButton>
+        <BaseButton variant="tertiary" @click="showRecommendModal = false">Cancel</BaseButton>
         <BaseButton
           variant="primary"
-          :disabled="!selectedRecommendFriendId || creatingRecommend || recommendAlreadySentToIds.has(selectedRecommendFriendId)"
+          :disabled="!hasSendableRecommendSelection || creatingRecommend"
           @click="handleRecommendConfirm"
         >
           {{ creatingRecommend ? 'Sending...' : 'Send' }}

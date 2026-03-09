@@ -23,7 +23,16 @@ export function useQueueTrackSelection() {
    * @param {QueueSelectionOptions} [options]
    * @returns {Promise<string|null>} Track URI or null
    */
-  const selectNextTrackUriForAlbum = async (album, { playlistId = '', playlistTrackIds = {} } = {}) => {
+  const selectNextTrackUriForAlbum = async (album, options = {}) => {
+    const {
+      playlistId = '',
+      playlistTrackIds = {},
+      excludeTrackId = null,
+      excludeForAlbumId = null,
+      excludeForAlbumPrimaryId = null,
+      excludeTrackIds = null,
+      excludeUris = null
+    } = options;
     if (!album?.id) return null;
 
     try {
@@ -44,12 +53,28 @@ export function useQueueTrackSelection() {
       });
 
       const playlistTracksForAlbum = playlistTrackIds[album.id] || {};
-      const tracksInPlaylist = tracksWithPlaycounts.filter((track) => {
+      let tracksInPlaylist = tracksWithPlaycounts.filter((track) => {
         if (!playlistId || Object.keys(playlistTracksForAlbum).length === 0) {
           return true;
         }
         return !!playlistTracksForAlbum[track.id];
       });
+
+      const isExcludedAlbum =
+        excludeTrackId &&
+        (album.id === excludeForAlbumId || album.id === excludeForAlbumPrimaryId);
+      if (isExcludedAlbum) {
+        tracksInPlaylist = tracksInPlaylist.filter((t) => t.id !== excludeTrackId);
+      }
+      if (excludeTrackIds && excludeTrackIds.size > 0) {
+        tracksInPlaylist = tracksInPlaylist.filter((t) => !excludeTrackIds.has(t.id));
+      }
+      if (excludeUris && excludeUris.size > 0) {
+        tracksInPlaylist = tracksInPlaylist.filter((t) => {
+          const u = t.uri || `spotify:track:${t.id}`;
+          return !excludeUris.has(u);
+        });
+      }
 
       if (tracksInPlaylist.length === 0) return null;
 
@@ -57,10 +82,12 @@ export function useQueueTrackSelection() {
       const tracksWithMinPlaycount = tracksInPlaylist
         .filter((t) => t.playcount === minPlaycount)
         .sort((a, b) => {
+          const numA = a.track_number || 0;
+          const numB = b.track_number || 0;
+          if (numA !== numB) return numA - numB;
           const tsA = a.lastPlayedFromTimestamp || 0;
           const tsB = b.lastPlayedFromTimestamp || 0;
-          if (tsA !== tsB) return tsA - tsB;
-          return (a.track_number || 0) - (b.track_number || 0);
+          return tsA - tsB;
         });
 
       const selectedTrack = tracksWithMinPlaycount[0];

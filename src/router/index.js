@@ -10,7 +10,6 @@ import AccountView from '@views/auth/AccountView.vue';
 import ProfileSection from '@views/auth/account/ProfileSection.vue';
 import IntegrationsSection from '@views/auth/account/IntegrationsSection.vue';
 import DiagnosticsSection from '@views/auth/account/DiagnosticsSection.vue';
-import StatisticsSection from '@views/auth/account/StatisticsSection.vue';
 import CacheSection from '@views/auth/account/CacheSection.vue';
 import SecuritySection from '@views/auth/account/SecuritySection.vue';
 import AdminSection from '@views/auth/account/AdminSection.vue';
@@ -122,11 +121,6 @@ const routes = [
         path: 'diagnostics',
         component: DiagnosticsSection,
         name: 'account-diagnostics'
-      },
-      {
-        path: 'statistics',
-        component: StatisticsSection,
-        name: 'account-statistics'
       },
       {
         path: 'cache',
@@ -263,7 +257,6 @@ const allowedOnboardingRoutes = [
   '/account/profile',
   '/account/integrations',
   '/account/diagnostics',
-  '/account/statistics',
   '/account/cache',
   '/account/security',
   '/account/admin',

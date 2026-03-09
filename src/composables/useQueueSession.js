@@ -1,26 +1,30 @@
 import { ref, readonly, watch } from 'vue';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
-import { useQueueTrackSelection } from './useQueueTrackSelection';
-import { addAlbumBatchToQueue } from '@utils/queueBatchUtils';
+import { useAlbumMappings } from './useAlbumMappings';
+import { useUnifiedTrackCache } from './useUnifiedTrackCache';
+import { getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { albumIdFromUri } from '@utils/spotify';
 import { logPlayer } from '@utils/logger';
 
-const session = ref(null);
-const isToppingUp = ref(false);
-let watchRegistered = false;
-let loopAddedForAlbumId = null;
+/** Refill keeps this many URIs ahead. buildQueue uses INITIAL_QUEUE_SIZE (100); player UI shows up to QUEUE_DISPLAY_SIZE (50). */
+const QUEUE_CAP = 10;
 
-const QUEUE_TOP_UP_THRESHOLD = 2;
+const session = ref(null);
+let isRefilling = false;
+const upcomingUris = ref([]);
+let lastHandledTrackId = null;
+let watchRegistered = false;
 
 /**
- * Queue session for playlist playback: tracks refill and loop.
+ * Queue session for playlist playback: internal queue with refill and loop.
  * Session is set when user starts play from a playlist (multi-album);
- * cleared on every play click.
+ * cleared when user plays something else or session is cleared.
  * Session shape: see QueueSession in @/types/queueSession.js
  */
 export function useQueueSession() {
-  const { currentTrack, getQueue, addToQueue } = useSpotifyPlayer();
-  const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
+  const { currentTrack, position, duration, playTrack, setPlayingFrom } = useSpotifyPlayer();
+  const { getPrimaryId } = useAlbumMappings();
+  const { updateLastPlayedFromPlaylist, getPlaycountForTrack, getAlbumTracksForPlaylist } = useUnifiedTrackCache();
 
   /**
    * @param {Object} payload
@@ -28,10 +32,13 @@ export function useQueueSession() {
    * @param {string} [payload.playlistName]
    * @param {Array<{id: string}>} payload.albumsList
    * @param {Record<string, Record<string, boolean>>} [payload.playlistTrackIds]
+   * @param {string[]} [initialUris] - Initial queue from round-robin builder
+   * @param {number[]} [usedCountPerAlbum] - Per-album pick index for refill round-robin
    */
-  const setSession = (payload) => {
+  const setSession = (payload, initialUris = [], usedCountPerAlbum = []) => {
     if (!payload?.playlistId || !payload?.albumsList?.length) {
       session.value = null;
+      upcomingUris.value = [];
       return;
     }
     const lastAlbum = payload.albumsList[payload.albumsList.length - 1];
@@ -40,19 +47,101 @@ export function useQueueSession() {
       playlistName: payload.playlistName ?? '',
       albumsList: [...payload.albumsList],
       playlistTrackIds: payload.playlistTrackIds ?? {},
-      lastAlbumId: lastAlbum?.id ?? null
+      lastAlbumId: lastAlbum?.id ?? null,
+      usedCountPerAlbum: Array.isArray(usedCountPerAlbum) ? [...usedCountPerAlbum] : []
     };
+    upcomingUris.value = Array.isArray(initialUris) ? [...initialUris] : [];
+    lastHandledTrackId = null;
   };
 
   const clearSession = () => {
     session.value = null;
-    loopAddedForAlbumId = null;
+    upcomingUris.value = [];
+    lastHandledTrackId = null;
+    setPlayingFrom(null);
   };
 
   const getSession = () => readonly(session);
 
+  async function refillUpcoming() {
+    if (isRefilling || upcomingUris.value.length >= QUEUE_CAP) return;
+    isRefilling = true;
+    const s = session.value;
+    const track = currentTrack.value;
+    if (!s || !track) {
+      isRefilling = false;
+      return;
+    }
+
+    const currentAlbumId = albumIdFromUri(track.albumUri);
+    if (!currentAlbumId) {
+      isRefilling = false;
+      return;
+    }
+
+    const currentPrimary = (await getPrimaryId(currentAlbumId)) || currentAlbumId;
+    let albumIndex = s.albumsList.findIndex(
+      (a) => a.id === currentAlbumId || a.id === currentPrimary
+    );
+    if (albumIndex === -1) {
+      for (let i = 0; i < s.albumsList.length; i++) {
+        const primaryA = (await getPrimaryId(s.albumsList[i].id)) || s.albumsList[i].id;
+        if (primaryA === currentAlbumId || primaryA === currentPrimary) {
+          albumIndex = i;
+          break;
+        }
+      }
+    }
+    if (albumIndex === -1) {
+      isRefilling = false;
+      return;
+    }
+
+    try {
+      const nextIndex = (albumIndex + 1) % s.albumsList.length;
+      const albumToAdd = s.albumsList[nextIndex];
+      const usedCountPerAlbum = s.usedCountPerAlbum ?? [];
+      const pickIndex = usedCountPerAlbum[nextIndex] ?? 0;
+      const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(s.playlistId, albumId);
+
+      const ranked = await getRankedTracksForAlbum(
+        albumToAdd.id,
+        s.playlistTrackIds[albumToAdd.id] ?? {},
+        getTracksForAlbum,
+        getPlaycountForTrack
+      );
+      if (pickIndex < ranked.length && upcomingUris.value.length < QUEUE_CAP) {
+        const nextUri = ranked[pickIndex].uri;
+        upcomingUris.value.push(nextUri);
+        usedCountPerAlbum[nextIndex] = pickIndex + 1;
+        try {
+          await updateLastPlayedFromPlaylist(
+            ranked[pickIndex].id,
+            s.playlistId,
+            s.playlistName,
+            null,
+            null
+          );
+        } catch {
+          // continue
+        }
+      }
+    } finally {
+      isRefilling = false;
+    }
+  }
+
   if (!watchRegistered) {
     watchRegistered = true;
+
+    watch(
+      currentTrack,
+      () => {
+        lastHandledTrackId = null;
+      },
+      { flush: 'sync' }
+    );
+
     watch(
       currentTrack,
       async (newTrack) => {
@@ -63,44 +152,69 @@ export function useQueueSession() {
         const currentAlbumId = albumIdFromUri(newTrack.albumUri);
         if (!currentAlbumId) return;
 
-        const albumIndex = s.albumsList.findIndex((a) => a.id === currentAlbumId);
+        const currentPrimary = (await getPrimaryId(currentAlbumId)) || currentAlbumId;
+        let albumIndex = s.albumsList.findIndex(
+          (a) => a.id === currentAlbumId || a.id === currentPrimary
+        );
+        if (albumIndex === -1) {
+          for (let i = 0; i < s.albumsList.length; i++) {
+            const primaryA = (await getPrimaryId(s.albumsList[i].id)) || s.albumsList[i].id;
+            if (primaryA === currentAlbumId || primaryA === currentPrimary) {
+              albumIndex = i;
+              break;
+            }
+          }
+        }
         if (albumIndex === -1) {
           clearSession();
           return;
         }
 
-        const { queue } = await getQueue();
-        const isLastAlbum = albumIndex === s.albumsList.length - 1;
-        const queueShort = queue.length <= QUEUE_TOP_UP_THRESHOLD;
-
-        if (!isLastAlbum) {
-          loopAddedForAlbumId = null;
+        if (upcomingUris.value.length < QUEUE_CAP) {
+          refillUpcoming();
         }
-        if (isLastAlbum && loopAddedForAlbumId === currentAlbumId) return;
-        if (!queueShort && !isLastAlbum) return;
+      },
+      { immediate: false }
+    );
 
-        if (isToppingUp.value) return;
-        isToppingUp.value = true;
+    watch(
+      [position, duration, currentTrack],
+      async () => {
+        const s = session.value;
+        const track = currentTrack.value;
+        if (!s || !track) return;
+        if (!duration.value || duration.value <= 0) return;
+
+        const remainingMs = duration.value - position.value;
+        if (remainingMs > 500) return;
+
+        if (track.id === lastHandledTrackId) return;
+        lastHandledTrackId = track.id;
 
         try {
-          const remainingAlbums = isLastAlbum
-            ? [...s.albumsList]
-            : s.albumsList.slice(albumIndex + 1);
+          await updateLastPlayedFromPlaylist(
+            track.id,
+            s.playlistId,
+            s.playlistName,
+            track.name ?? null,
+            track.artists?.[0] ?? null
+          );
+        } catch {
+          // continue to advance playback
+        }
 
-          const selectionOpts = {
-            playlistId: s.playlistId,
-            playlistTrackIds: s.playlistTrackIds
-          };
+        if (upcomingUris.value.length === 0) {
+          await refillUpcoming();
+        }
+        if (upcomingUris.value.length === 0) return;
 
-          await addAlbumBatchToQueue(remainingAlbums, selectionOpts, {
-            selectNextTrackUriForAlbum,
-            addToQueue
-          });
-          if (isLastAlbum) {
-            loopAddedForAlbumId = currentAlbumId;
-          }
-        } finally {
-          isToppingUp.value = false;
+        const nextUri = upcomingUris.value.shift();
+        try {
+          await playTrack(nextUri, null);
+        } catch (err) {
+          logPlayer('Play next (internal queue) failed:', err);
+          upcomingUris.value.unshift(nextUri);
+          lastHandledTrackId = null;
         }
       },
       { immediate: false }
@@ -109,6 +223,7 @@ export function useQueueSession() {
 
   return {
     session: readonly(session),
+    upcomingUris: readonly(upcomingUris),
     setSession,
     clearSession,
     getSession

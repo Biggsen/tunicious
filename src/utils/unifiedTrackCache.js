@@ -684,21 +684,17 @@ export async function updateLastPlayedFromPlaylist(trackId, playlistId, playlist
       actualTrackId = foundTrackId;
     }
   }
-  
   if (!cache.tracks[actualTrackId]) {
     logCache(`Track ${trackId} not found in cache, cannot update last played playlist`);
     return null;
   }
-  
   cache.tracks[actualTrackId].lastPlayedFromPlaylistId = playlistId;
   cache.tracks[actualTrackId].lastPlayedFromPlaylistName = playlistName;
   cache.tracks[actualTrackId].lastPlayedFromAlbumId = null;
   cache.tracks[actualTrackId].lastPlayedFromAlbumName = null;
   cache.tracks[actualTrackId].lastPlayedFromTimestamp = Date.now();
   updateTrackAccess(cache, actualTrackId);
-  
   await saveUnifiedTrackCache(userId);
-  
   return actualTrackId;
 }
 

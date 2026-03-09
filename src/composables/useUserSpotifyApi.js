@@ -723,6 +723,27 @@ export function useUserSpotifyApi() {
   };
 
   /**
+   * Fetches multiple tracks by ID. Batches requests so endpoint length stays under backend limit (500 chars).
+   * Spotify allows 50 IDs per request; we use ~21 per batch to keep "/tracks?ids=" + ids under 500.
+   * @param {string[]} trackIds - Array of Spotify track IDs
+   * @returns {Promise<{ tracks: Array }>} Spotify response with tracks array (null for missing), in same order as trackIds
+   */
+  const getTracks = async (trackIds) => {
+    if (!trackIds?.length) return { tracks: [] };
+    const MAX_IDS_PER_BATCH = 21;
+    const allTracks = [];
+    for (let i = 0; i < trackIds.length && i < 50; i += MAX_IDS_PER_BATCH) {
+      const batch = trackIds.slice(i, i + MAX_IDS_PER_BATCH);
+      const ids = batch.join(',');
+      const res = await makeUserRequest(`https://api.spotify.com/v1/tracks?ids=${ids}`);
+      const raw = res?.tracks ?? res?.data?.tracks ?? [];
+      const list = Array.isArray(raw) ? raw : [];
+      allTracks.push(...list);
+    }
+    return { tracks: allTracks };
+  };
+
+  /**
    * Fetches tracks from an album
    */
   const getAlbumTracks = async (albumId, limit = 50, offset = 0) => {
@@ -821,6 +842,7 @@ export function useUserSpotifyApi() {
     getAlbumsBatch,
     loadAlbumsBatched,
     getAlbum,
+    getTracks,
     getAlbumTracks,
     getAllAlbumTracks,
     getArtistAlbums,
