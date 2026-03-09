@@ -1,16 +1,16 @@
 [
   {
     "id": 21,
-    "title": "Internal Queue & Up Next Sidebar",
+    "title": "Release 0.3.0",
     "date": "2026-03-09",
-    "types": ["FEATURE", "IMPROVEMENT", "UX"],
+    "types": ["FEATURE", "UX"],
     "hidden": false,
-    "description": "Playlist playback now uses an internal queue instead of Spotify's queue. The app chooses and plays the next track itself (same round-robin order and refill as before), so nothing is sent to Spotify's queue. A new Up next sidebar in the player bar shows what's coming up and stays in sync without reloading.",
+    "description": "Release 0.3.0 introduces an internal playback queue for multi-album playlists and an Up Next sidebar in the player bar. The app now manages upcoming tracks directly instead of relying on Spotify's queue.",
     "changes": [
-      "Internal queue — when you play from a multi-album playlist, the app builds and maintains the queue in memory. The next track is selected and played automatically when the current one ends; nothing is added to Spotify's queue",
-      "Up next sidebar — a queue icon in the player bar opens a slide-out panel showing the next tracks (artist and title). The icon is always visible and disabled when there is no active queue",
-      "Smooth queue updates — the sidebar list updates incrementally as tracks advance (top item drops off, new items appear at the bottom when the queue refills). No full reload or loading spinner on each track change",
-      "Queue sidebar closes when you navigate to another page or when the player bar hides, so it doesn't linger on top of new content"
+      "Internal playback queue — starting playback from a multi-album playlist now creates a queue managed by the app. As each track ends, the next one is selected and played automatically",
+      "Up Next sidebar — a queue icon in the player bar opens a slide-out panel showing the upcoming tracks (artist and title)",
+      "Smooth queue updates — the list updates as playback progresses, with tracks dropping off the top and new ones appearing as the queue refills",
+      "Foundation for new playback modes — moving queue management inside the app opens the door for additional playback options in the future, such as shuffle and other play modes"
     ]
   },
   {
