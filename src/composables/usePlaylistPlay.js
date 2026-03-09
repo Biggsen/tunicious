@@ -5,7 +5,7 @@ import { useAlbumMappings } from './useAlbumMappings';
 import { buildQueue, getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { trackIdFromUri } from '@utils/spotify';
 
-/** Initial queue length (round-robin capped by album tracks). UI shows first 10; refill tops up when below 10. */
+/** Initial queue length (round-robin, capped by album tracks). Refill when below QUEUE_CAP (10); player UI shows first 50. */
 const INITIAL_QUEUE_SIZE = 100;
 
 /**

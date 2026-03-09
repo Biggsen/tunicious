@@ -636,12 +636,15 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
             <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
             <HeartIconOutline v-else class="w-6 h-6" />
           </button>
-          <div v-if="hasQueue" class="relative" ref="queueAreaRef">
+          <div class="relative" ref="queueAreaRef">
             <button
+              type="button"
+              :disabled="!hasQueue"
               @click.stop="toggleQueuePanel"
-              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1"
-              :class="{ 'bg-white/20': queuePanelOpen }"
-              :title="'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks'"
+              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1 disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+              :class="{ 'bg-white/20': queuePanelOpen && hasQueue }"
+              :title="hasQueue ? 'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks' : 'Up next (no queue)'"
+              aria-label="Up next queue"
             >
               <QueueListIcon class="w-6 h-6" />
             </button>

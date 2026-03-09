@@ -86,7 +86,8 @@ export async function getRankedTracksForAlbum(
 
 /**
  * Returns one track URI per album in order, using the provided selection function.
- * Used for internal queue (no Spotify queue). Same selection logic as addAlbumBatchToQueue.
+ * Same selection logic as addAlbumBatchToQueue. Retained for callers that need URIs without
+ * using Spotify's queue (e.g. internal queue builders or future features).
  *
  * @param {Array<{id: string}>} albums - Albums to get one track URI each for
  * @param {{ playlistId: string, playlistTrackIds: Record<string, Record<string, boolean>> }} selectionOpts - playlistId and playlistTrackIds
@@ -112,8 +113,9 @@ export async function getNextTrackUrisForAlbums(albums, selectionOpts, { selectN
 }
 
 /**
- * Adds one track per album from the given albums to the queue, using the provided
- * selection and queue functions. Used for initial queue fill (TrackList) and top-up (useQueueSession).
+ * Adds one track per album from the given albums to Spotify's queue via the provided
+ * selection and addToQueue functions. Retained for callers that use Spotify's queue
+ * (e.g. TrackList initial fill or future features); playlist playback now uses internal queue (buildQueue).
  *
  * @param {Array<{id: string}>} albums - Remaining albums to add one track each for
  * @param {{ playlistId: string, playlistTrackIds: Record<string, Record<string, boolean>> }} selectionOpts - playlistId and playlistTrackIds

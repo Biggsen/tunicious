@@ -6,6 +6,7 @@ import { getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { albumIdFromUri } from '@utils/spotify';
 import { logPlayer } from '@utils/logger';
 
+/** Refill keeps this many URIs ahead. buildQueue uses INITIAL_QUEUE_SIZE (100); player UI shows up to QUEUE_DISPLAY_SIZE (50). */
 const QUEUE_CAP = 10;
 
 const session = ref(null);
@@ -112,9 +113,7 @@ export function useQueueSession() {
       if (pickIndex < ranked.length && upcomingUris.value.length < QUEUE_CAP) {
         const nextUri = ranked[pickIndex].uri;
         upcomingUris.value.push(nextUri);
-        if (usedCountPerAlbum.length > nextIndex) {
-          usedCountPerAlbum[nextIndex] = pickIndex + 1;
-        }
+        usedCountPerAlbum[nextIndex] = pickIndex + 1;
         try {
           await updateLastPlayedFromPlaylist(
             ranked[pickIndex].id,
@@ -214,6 +213,7 @@ export function useQueueSession() {
           await playTrack(nextUri, null);
         } catch (err) {
           logPlayer('Play next (internal queue) failed:', err);
+          upcomingUris.value.unshift(nextUri);
           lastHandledTrackId = null;
         }
       },
