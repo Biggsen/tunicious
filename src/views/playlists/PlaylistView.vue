@@ -28,7 +28,7 @@ const loading = ref(true);
 const error = ref(null);
 const loadingPipeline = ref(null);
 const reloadingGroup = ref(null);
-const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') !== 'false');
+const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') === 'true');
 
 // Dynamic active tab - will be set to first available group
 const activeTab = ref(sessionStorage.getItem('activeTab') || '');
@@ -65,19 +65,18 @@ const activePipelineLoaded = computed(() => {
 function getTabCount(group) {
   const loaded = playlists.value[group];
   if (loaded?.length > 0) {
-    return showEndPlaylists.value ? loaded.length : loaded.filter(p => p.pipelineRole !== 'sink').length;
+    return showEndPlaylists.value ? loaded.filter(p => p.pipelineRole !== 'sink').length : loaded.length;
   }
   return (userPlaylists.value[group] || []).length;
 }
 
 const filteredPlaylists = computed(() => {
-  if (showEndPlaylists.value) {
+  if (!showEndPlaylists.value) {
     return playlists.value;
   }
-  
   const filtered = {};
   availableGroups.value.forEach(group => {
-    filtered[group] = (playlists.value[group] || []).filter(p => 
+    filtered[group] = (playlists.value[group] || []).filter(p =>
       p.pipelineRole !== 'sink'
     );
   });
@@ -376,7 +375,7 @@ onUnmounted(() => {
     </div>
     <div class="flex items-center gap-3 mb-6">
       <ToggleSwitch v-model="showEndPlaylists" variant="primary-on-celadon" />
-      <span class="text-delft-blue">Rating Playlists</span>
+      <span class="text-delft-blue">Hide rating playlists</span>
     </div>
 
     <p v-if="loading">Loading playlists...</p>
