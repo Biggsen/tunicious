@@ -24,7 +24,10 @@ const ALLOWED_ENDPOINTS = [
   "/albums",
   "/albums/{albumId}",
   "/albums/{albumId}/tracks",
-  
+
+  // Track endpoints (e.g. GET /tracks?ids=...)
+  "/tracks",
+
   // Artist endpoints
   "/artists/{artistId}",
   "/artists/{artistId}/albums",

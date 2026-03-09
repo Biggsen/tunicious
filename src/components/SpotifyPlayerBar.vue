@@ -1,18 +1,22 @@
 <script setup>
 import { computed, watch, onUnmounted, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useQueueSession } from '@composables/useQueueSession';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
 import { useUserData } from '@composables/useUserData';
+import { useUserSpotifyApi } from '@composables/useUserSpotifyApi';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { getCache } from '@utils/cache';
 import { logPlayer, logCache } from '@utils/logger';
-import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/vue/24/solid';
+import { PlayIcon, PauseIcon, HeartIcon, SpeakerWaveIcon, SpeakerXMarkIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/solid';
 import { HeartIcon as HeartIconOutline } from '@heroicons/vue/24/outline';
+import { trackIdFromUri } from '@utils/spotify';
 
 const router = useRouter();
-useQueueSession();
+const route = useRoute();
+const { session, upcomingUris } = useQueueSession();
+const { getTracks } = useUserSpotifyApi();
 const {
   isReady,
   isPlaying,
@@ -55,6 +59,101 @@ const optimisticLovedStatus = ref(null); // Track optimistic loved status for cu
 
 const showPlayer = computed(() => currentTrack.value !== null && isReady.value);
 const currentPosition = ref(0);
+
+const QUEUE_DISPLAY_SIZE = 50;
+const queuePanelOpen = ref(false);
+const queueTrackDetails = ref([]);
+const queueLoading = ref(false);
+/** URIs that queueTrackDetails currently represents (same order/length). Used for incremental updates. */
+const lastDisplayedUris = ref([]);
+const hasQueue = computed(() => !!session.value);
+const upcomingUrisToShow = computed(() => (upcomingUris.value || []).slice(0, QUEUE_DISPLAY_SIZE));
+
+function formatTrackDetails(raw) {
+  return (Array.isArray(raw) ? raw : []).map((t) =>
+    t
+      ? {
+          name: t.name,
+          artists: t.artists?.map((a) => a.name).filter(Boolean) || []
+        }
+      : null
+  );
+}
+
+/**
+ * Apply one step of sync: if current queue is "first removed" from what we just displayed,
+ * slice the list so we don't show a stale first row. Called after a full fetch in case the
+ * queue changed while we were loading.
+ */
+function syncQueueDisplayAfterFetch() {
+  const current = [...(upcomingUrisToShow.value || [])];
+  const prev = lastDisplayedUris.value;
+  const overlapLen = prev.length > 0 ? prev.length - 1 : 0;
+  const firstRemovedMaybeAppended =
+    prev.length > 0 &&
+    current.length >= overlapLen &&
+    (overlapLen === 0 || current.slice(0, overlapLen).every((u, i) => u === prev[i + 1]));
+  if (!firstRemovedMaybeAppended) return;
+  queueTrackDetails.value = queueTrackDetails.value.slice(1);
+  lastDisplayedUris.value = [...current];
+  if (current.length > overlapLen) {
+    const tailUris = current.slice(overlapLen);
+    const tailIds = tailUris.map((uri) => trackIdFromUri(uri)).filter(Boolean);
+    if (tailIds.length) {
+      getTracks(tailIds)
+        .then((res) => {
+          const raw = res?.tracks ?? res?.data?.tracks ?? [];
+          queueTrackDetails.value = [...queueTrackDetails.value, ...formatTrackDetails(raw)];
+        })
+        .catch(() => {});
+    }
+  }
+}
+
+/**
+ * Full fetch for the given URIs; updates queueTrackDetails and lastDisplayedUris.
+ * @param {string[]} uris
+ * @param {boolean} [showSpinner=true] - If false, do not set queueLoading (avoids flashing "Loading…" when syncing on track change).
+ */
+const fetchQueueTrackDetailsFull = async (uris, showSpinner = true) => {
+  if (!uris?.length) {
+    queueTrackDetails.value = [];
+    lastDisplayedUris.value = [];
+    return;
+  }
+  const ids = uris.map((uri) => trackIdFromUri(uri)).filter(Boolean);
+  if (!ids.length) {
+    queueTrackDetails.value = [];
+    lastDisplayedUris.value = [];
+    return;
+  }
+  if (showSpinner) queueLoading.value = true;
+  try {
+    const res = await getTracks(ids);
+    const raw = res?.tracks ?? res?.data?.tracks ?? [];
+    queueTrackDetails.value = formatTrackDetails(raw);
+    lastDisplayedUris.value = [...uris];
+  } catch {
+    queueTrackDetails.value = [];
+    lastDisplayedUris.value = [];
+  } finally {
+    if (showSpinner) queueLoading.value = false;
+    syncQueueDisplayAfterFetch();
+  }
+};
+
+const queueAreaRef = ref(null);
+
+const toggleQueuePanel = () => {
+  queuePanelOpen.value = !queuePanelOpen.value;
+  if (queuePanelOpen.value && upcomingUris.value.length) {
+    fetchQueueTrackDetailsFull(upcomingUrisToShow.value);
+  }
+};
+
+const closeQueueSidebar = () => {
+  queuePanelOpen.value = false;
+};
 
 let volumeThrottleTimer = null;
 const volumeBeforeMute = ref(null);
@@ -104,6 +203,82 @@ const stopPositionTracking = () => {
     positionInterval = null;
   }
 };
+
+watch(
+  () => [...(upcomingUrisToShow.value || [])],
+  (newUris) => {
+    if (!queuePanelOpen.value) return;
+    const prev = lastDisplayedUris.value;
+
+    const overlapLen = prev.length > 0 ? prev.length - 1 : 0;
+    const firstRemovedMaybeAppended =
+      prev.length > 0 &&
+      newUris.length >= overlapLen &&
+      (overlapLen === 0 || newUris.slice(0, overlapLen).every((u, i) => u === prev[i + 1]));
+    const appended =
+      prev.length > 0 &&
+      newUris.length >= prev.length &&
+      prev.every((u, i) => u === newUris[i]) &&
+      newUris.length > prev.length;
+
+    if (!newUris.length) {
+      queueTrackDetails.value = [];
+      lastDisplayedUris.value = [];
+      return;
+    }
+    if (prev.length === newUris.length && prev.every((u, i) => u === newUris[i])) {
+      return;
+    }
+    if (firstRemovedMaybeAppended) {
+      queueTrackDetails.value = queueTrackDetails.value.slice(1);
+      lastDisplayedUris.value = [...newUris];
+      if (newUris.length > overlapLen) {
+        const tailUris = newUris.slice(overlapLen);
+        const tailIds = tailUris.map((uri) => trackIdFromUri(uri)).filter(Boolean);
+        if (tailIds.length) {
+          getTracks(tailIds)
+            .then((res) => {
+              const raw = res?.tracks ?? res?.data?.tracks ?? [];
+              queueTrackDetails.value = [...queueTrackDetails.value, ...formatTrackDetails(raw)];
+            })
+            .catch(() => {});
+        }
+      }
+      return;
+    }
+    if (appended) {
+      const tailUris = newUris.slice(prev.length);
+      const tailIds = tailUris.map((uri) => trackIdFromUri(uri)).filter(Boolean);
+      if (!tailIds.length) {
+        lastDisplayedUris.value = [...newUris];
+        return;
+      }
+      getTracks(tailIds)
+        .then((res) => {
+          const raw = res?.tracks ?? res?.data?.tracks ?? [];
+          queueTrackDetails.value = [...queueTrackDetails.value, ...formatTrackDetails(raw)];
+          lastDisplayedUris.value = [...newUris];
+        })
+        .catch(() => {
+          lastDisplayedUris.value = [...newUris];
+        });
+      return;
+    }
+    if (queueLoading.value) {
+      return;
+    }
+    fetchQueueTrackDetailsFull(newUris, false);
+  },
+  { deep: true }
+);
+
+watch(showPlayer, (visible) => {
+  if (!visible) queuePanelOpen.value = false;
+});
+
+watch(() => route.fullPath, () => {
+  queuePanelOpen.value = false;
+});
 
 watch(isPlaying, (newValue) => {
   logPlayer('Playback state changed:', { isPlaying: newValue, track: currentTrack.value?.name });
@@ -473,9 +648,10 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
 </script>
 
 <template>
+  <div>
   <div 
     v-if="showPlayer"
-    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-50 shadow-lg"
+    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-[60] player-bar-shadow"
   >
     <div class="container mx-auto px-4 py-3 player-container">
       <div class="flex items-center gap-4 player-content">
@@ -490,46 +666,38 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
         
         <div class="flex-1 min-w-0">
           <h3 class="font-semibold truncate track-title">{{ currentTrack?.name }}</h3>
-          <button
-            v-if="artistId"
-            @click="navigateToArtist"
-            class="text-sm text-gray-300 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer block w-full"
-          >
-            {{ currentTrack?.artists?.join(', ') }}
-          </button>
-          <p v-else class="text-sm text-gray-300 truncate">
-            {{ currentTrack?.artists?.join(', ') }}
-          </p>
-          <button
-            v-if="(albumInfo.year || albumInfo.name) && albumId"
-            @click="navigateToAlbum"
-            class="text-xs text-gray-400 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer block w-full"
-          >
-            {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
-          </button>
-          <p v-else-if="albumInfo.year || albumInfo.name" class="text-xs text-gray-400 truncate">
-            {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
-          </p>
+          <div class="flex flex-col items-start">
+            <button
+              v-if="artistId"
+              @click="navigateToArtist"
+              class="text-sm text-gray-300 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer inline-block max-w-full"
+            >
+              {{ currentTrack?.artists?.join(', ') }}
+            </button>
+            <p v-else class="text-sm text-gray-300 truncate">
+              {{ currentTrack?.artists?.join(', ') }}
+            </p>
+            <button
+              v-if="(albumInfo.year || albumInfo.name) && albumId"
+              @click="navigateToAlbum"
+              class="text-xs text-gray-400 truncate text-left hover:text-white hover:underline transition-colors cursor-pointer inline-block max-w-full"
+            >
+              {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
+            </button>
+            <p v-else-if="albumInfo.year || albumInfo.name" class="text-xs text-gray-400 truncate">
+              {{ albumInfo.year || '' }}{{ albumInfo.year && albumInfo.name ? ' - ' : '' }}{{ albumInfo.name || '' }}
+            </p>
+          </div>
         </div>
         
         <div class="flex items-center gap-2 flex-shrink-0 controls-container">
           <button
-            v-if="canLoveTracks"
-            @click="handleHeartClick"
-            :disabled="isLoving"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
-            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
-          >
-            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
-            <HeartIconOutline v-else class="w-6 h-6" />
-          </button>
-          <button
             @click="togglePlayback"
-            class="p-2 hover:bg-white/20 rounded-full transition-colors control-button"
+            class="p-2.5 hover:bg-white/20 rounded-full transition-colors control-button ring-1 ring-white/40 sm:ring-0"
             :title="isPlaying ? 'Pause' : 'Play'"
           >
-            <PauseIcon v-if="isPlaying" class="w-6 h-6" />
-            <PlayIcon v-else class="w-6 h-6" />
+            <PauseIcon v-if="isPlaying" class="w-7 h-7" />
+            <PlayIcon v-else class="w-7 h-7 play-icon-offset" />
           </button>
         </div>
         
@@ -559,16 +727,41 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
           />
         </div>
         
-        <button
-          v-if="canLoveTracks"
-          @click="handleHeartClick"
-          :disabled="isLoving"
-          class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button flex-shrink-0 items-center justify-center"
-          :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
-        >
-          <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
-          <HeartIconOutline v-else class="w-6 h-6" />
-        </button>
+        <div class="flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2 flex-shrink-0">
+          <button
+            v-if="canLoveTracks"
+            @click="handleHeartClick"
+            :disabled="isLoving"
+            class="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button sm:hidden"
+            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
+          >
+            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+            <HeartIconOutline v-else class="w-6 h-6" />
+          </button>
+          <button
+            v-if="canLoveTracks"
+            @click="handleHeartClick"
+            :disabled="isLoving"
+            class="hidden sm:flex p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 control-button items-center justify-center"
+            :title="isCurrentTrackLoved ? 'Unlove track' : 'Love track'"
+          >
+            <HeartIcon v-if="isCurrentTrackLoved" class="w-6 h-6 text-raspberry" />
+            <HeartIconOutline v-else class="w-6 h-6" />
+          </button>
+          <div class="relative" ref="queueAreaRef">
+            <button
+              type="button"
+              :disabled="!hasQueue"
+              @click.stop="toggleQueuePanel"
+              class="p-2 hover:bg-white/20 rounded-full transition-colors control-button flex items-center gap-1 disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+              :class="{ 'bg-white/20': queuePanelOpen && hasQueue }"
+              :title="hasQueue ? 'Up next: ' + (upcomingUris?.length ?? 0) + ' tracks' : 'Up next (no queue)'"
+              aria-label="Up next queue"
+            >
+              <QueueListIcon class="w-6 h-6" />
+            </button>
+          </div>
+        </div>
       </div>
       
       <div class="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
@@ -579,9 +772,59 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="hasQueue"
+      class="queue-sidebar"
+      :class="{ 'queue-sidebar-open': queuePanelOpen }"
+      role="dialog"
+      aria-label="Up next queue"
+    >
+      <div class="flex items-center justify-between p-3 border-b border-white/20 sticky top-0 bg-delft-blue z-10">
+        <h2 class="font-semibold text-lg text-white pl-[3px]">
+          Up next
+        </h2>
+        <button
+          type="button"
+          @click="closeQueueSidebar"
+          class="p-2 hover:bg-white/20 rounded-full transition-colors text-white"
+          aria-label="Close queue"
+        >
+          <XMarkIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <div v-if="queueLoading" class="p-4 text-gray-400 text-sm">Loading…</div>
+      <ul v-else class="p-2 divide-y divide-white/10 overflow-y-auto flex-1">
+        <li
+          v-for="(item, i) in queueTrackDetails"
+          :key="i"
+          class="py-2 px-2 text-sm truncate"
+        >
+          <span v-if="item" class="text-white">{{ item.name }}</span>
+          <span v-else class="text-gray-500">—</span>
+          <span v-if="item?.artists?.length" class="text-gray-400 block truncate">
+            {{ item.artists.join(', ') }}
+          </span>
+        </li>
+        <li v-if="!queueLoading && !queueTrackDetails.length && upcomingUrisToShow?.length" class="py-2 pl-2 text-white text-sm">
+          No track details
+        </li>
+      </ul>
+    </div>
+  </Teleport>
+  </div>
 </template>
 
 <style scoped>
+.player-bar-shadow {
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.play-icon-offset {
+  transform: translateX(2px);
+}
+
 @media (max-width: 549px) {
   .player-container {
     padding-top: 0.45rem;
@@ -639,5 +882,27 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   background: theme('colors.mindero');
   cursor: pointer;
   border: none;
+}
+
+/* Queue sidebar (teleported to body) */
+.queue-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 20rem;
+  height: calc(100vh - 5.5rem);
+  background: #23395b;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out;
+  font-family: Chivo, sans-serif;
+}
+
+.queue-sidebar-open {
+  transform: translateX(0);
 }
 </style>

@@ -1,36 +1,30 @@
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 import { useQueueSession } from './useQueueSession';
-import { useQueueTrackSelection } from './useQueueTrackSelection';
-import { addAlbumBatchToQueue } from '@utils/queueBatchUtils';
+import { useUnifiedTrackCache } from './useUnifiedTrackCache';
+import { useAlbumMappings } from './useAlbumMappings';
+import { buildQueue, getRankedTracksForAlbum } from '@utils/queueBatchUtils';
+import { trackIdFromUri } from '@utils/spotify';
 
-/**
- * Albums from currentAlbumIndex+1 to end. Returns [] if not a valid playlist-with-albums context.
- *
- * @param {Array<{id: string}>} albumsList
- * @param {string} currentAlbumId
- * @returns {Array<{id: string}>}
- */
-function findRemainingAlbums(albumsList, currentAlbumId) {
-  if (!albumsList?.length || !currentAlbumId) return [];
-  const currentIndex = albumsList.findIndex((a) => a.id === currentAlbumId);
-  if (currentIndex === -1 || currentIndex === albumsList.length - 1) return [];
-  return albumsList.slice(currentIndex + 1);
-}
+/** Initial queue length (round-robin, capped by album tracks). Refill when below QUEUE_CAP (10); player UI shows first 50. */
+const INITIAL_QUEUE_SIZE = 100;
 
 /**
  * Composable that encapsulates "play from playlist" flow: clear session, play track,
- * optionally fill queue with one track per remaining album and set session.
+ * and for multi-album playlists set internal queue + session and playingFrom.
+ * Queue build uses cache only (getAlbumTracksForPlaylist), no Spotify API.
  */
 export function usePlaylistPlay() {
-  const { playTrack, addToQueue } = useSpotifyPlayer();
+  const { playTrack, setPlayingFrom } = useSpotifyPlayer();
   const { clearSession, setSession } = useQueueSession();
-  const { selectNextTrackUriForAlbum } = useQueueTrackSelection();
+  const { updateLastPlayedFromPlaylist, getPlaycountForTrack, getAlbumTracksForPlaylist } = useUnifiedTrackCache();
+  const { getPrimaryId } = useAlbumMappings();
 
   /**
-   * Play a track and, when in a multi-album playlist, fill queue and set session for refill/loop.
+   * Play a track. For multi-album playlist: uses internal queue (no Spotify context), sets session and playingFrom.
+   * For album-only: uses Spotify context_uri for the album; no session.
    *
    * @param {Object} track - { id, uri? }
-   * @param {Object} [playlistContext] - When present and has playlistId/albumsList/albumId, runs initial queue fill and setSession
+   * @param {Object} [playlistContext] - When present and has playlistId/albumsList/albumId, uses internal queue and setSession
    * @param {string} [playlistContext.playlistId]
    * @param {string} [playlistContext.playlistName]
    * @param {Array<{id: string}>} [playlistContext.albumsList]
@@ -42,40 +36,70 @@ export function usePlaylistPlay() {
     clearSession();
 
     const trackUri = track?.uri || `spotify:track:${track?.id}`;
+    const { playlistId, playlistName, albumsList, playlistTrackIds, albumId, albumTitle } = playlistContext;
+
+    const isMultiAlbumPlaylist = playlistId && albumsList?.length > 0 && albumId;
+
+    if (isMultiAlbumPlaylist) {
+      await playTrack(trackUri, null);
+
+      try {
+        await updateLastPlayedFromPlaylist(
+          track?.id ?? trackIdFromUri(trackUri),
+          playlistId,
+          playlistName ?? '',
+          track?.name ?? null,
+          track?.artists?.[0] ?? null
+        );
+      } catch {
+        // continue; cache may not have track yet
+      }
+
+      const currentPrimaryId = (await getPrimaryId(albumId)) || albumId;
+      const ptIds = playlistTrackIds ?? {};
+      const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(playlistId, albumId);
+      const rankedTracksPerAlbum = await Promise.all(
+        albumsList.map((album) =>
+          getRankedTracksForAlbum(
+            album.id,
+            ptIds[album.id] || {},
+            getTracksForAlbum,
+            getPlaycountForTrack
+          )
+        )
+      );
+      const startAlbumIndex = albumsList.findIndex(
+        (a) => a.id === albumId || a.id === currentPrimaryId
+      );
+      const currentTrackId = track?.id ?? trackIdFromUri(trackUri);
+      const { queueUris, usedCountPerAlbum } = buildQueue(
+        rankedTracksPerAlbum,
+        startAlbumIndex >= 0 ? startAlbumIndex : 0,
+        INITIAL_QUEUE_SIZE,
+        currentTrackId
+      );
+
+      setSession(
+        {
+          playlistId,
+          playlistName: playlistName ?? '',
+          albumsList,
+          playlistTrackIds: ptIds
+        },
+        queueUris,
+        usedCountPerAlbum
+      );
+      setPlayingFrom({ type: 'playlist', id: playlistId, name: playlistName || 'Unknown Playlist' });
+      return;
+    }
+
     let context = null;
-    if (playlistContext.playlistId) {
-      context = {
-        type: 'playlist',
-        id: playlistContext.playlistId,
-        name: playlistContext.playlistName || 'Unknown Playlist'
-      };
-    } else if (playlistContext.albumId) {
-      context = {
-        type: 'album',
-        id: playlistContext.albumId,
-        name: playlistContext.albumTitle || 'Unknown Album'
-      };
+    if (playlistId) {
+      context = { type: 'playlist', id: playlistId, name: playlistName || 'Unknown Playlist' };
+    } else if (albumId) {
+      context = { type: 'album', id: albumId, name: albumTitle || 'Unknown Album' };
     }
-
     await playTrack(trackUri, context);
-
-    const { playlistId, playlistName, albumsList, playlistTrackIds, albumId } = playlistContext;
-    if (playlistId && albumsList?.length > 0 && albumId) {
-      const remainingAlbums = findRemainingAlbums(albumsList, albumId);
-      const selectionOpts = { playlistId, playlistTrackIds: playlistTrackIds ?? {} };
-
-      await addAlbumBatchToQueue(remainingAlbums, selectionOpts, {
-        selectNextTrackUriForAlbum,
-        addToQueue
-      });
-
-      setSession({
-        playlistId,
-        playlistName: playlistName ?? '',
-        albumsList,
-        playlistTrackIds: playlistTrackIds ?? {}
-      });
-    }
   };
 
   return { playFromPlaylist };

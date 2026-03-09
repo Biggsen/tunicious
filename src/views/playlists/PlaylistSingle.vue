@@ -29,6 +29,8 @@ import { useLastFmApi } from '@composables/useLastFmApi';
 import { useCurrentPlayingTrack } from '@composables/useCurrentPlayingTrack';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { usePlaylistPlay } from '@composables/usePlaylistPlay';
+import { getRankedTracksForAlbum } from '@utils/queueBatchUtils';
 import { useToast } from '@composables/useToast';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
 import { loadUnifiedTrackCache, moveAlbumBetweenPlaylists, addAlbumTracks, saveUnifiedTrackCache, isPlaylistCached, removeAlbumFromPlaylistInCache } from '@utils/unifiedTrackCache';
@@ -59,7 +61,8 @@ const {
   buildProgress: cacheBuildProgress
 } = useUnifiedTrackCache();
 
-const { isReady: playerReady, isPlaying, playingFrom, playTrack, addToQueue, togglePlayback } = useSpotifyPlayer();
+const { isReady: playerReady, isPlaying, playingFrom, togglePlayback } = useSpotifyPlayer();
+const { playFromPlaylist } = usePlaylistPlay();
 
 // Initialize current playing track tracking (singleton)
 const { startPolling: startCurrentTrackPolling, stopPolling: stopCurrentTrackPolling } = useCurrentPlayingTrack();
@@ -299,46 +302,30 @@ const handlePlayPlaylist = async () => {
 
   playPlaylistLoading.value = true;
   try {
-    const context = { type: 'playlist', id: id.value, name: playlistName.value || 'Unknown Playlist' };
-
-    const selectLeastPlayedTrack = async (album) => {
-      const tracks = await getAlbumTracksForPlaylist(id.value, album.id);
-      if (tracks.length === 0) return null;
-      const tracksWithPlaycount = tracks.map(t => ({
-        ...t,
-        playcount: t.playcount ?? getPlaycountForTrack(t.id) ?? 0,
-        uri: t.uri || `spotify:track:${t.id}`
-      }));
-      const minPlaycount = Math.min(...tracksWithPlaycount.map(t => t.playcount));
-      const leastPlayed = tracksWithPlaycount
-        .filter(t => t.playcount === minPlaycount)
-        .sort((a, b) => {
-          const tsA = a.lastPlayedFromTimestamp || 0;
-          const tsB = b.lastPlayedFromTimestamp || 0;
-          if (tsA !== tsB) return tsA - tsB;
-          return (a.track_number || 0) - (b.track_number || 0);
-        });
-      return leastPlayed[0]?.uri ?? null;
-    };
-
     const firstAlbum = sortedAlbumsList.value[0];
-    const firstTrackUri = await selectLeastPlayedTrack(firstAlbum);
-    if (!firstTrackUri) {
+    const getTracksForAlbum = (albumId) => getAlbumTracksForPlaylist(id.value, albumId);
+    const ranked = await getRankedTracksForAlbum(
+      firstAlbum.id,
+      playlistTrackIds.value[firstAlbum.id] ?? {},
+      getTracksForAlbum,
+      getPlaycountForTrack
+    );
+    const firstTrack = ranked[0];
+    if (!firstTrack) {
       showToast('No tracks found to play', 'error');
       return;
     }
 
-    await playTrack(firstTrackUri, context);
-
-    const remainingAlbums = sortedAlbumsList.value.slice(1);
-    for (const album of remainingAlbums) {
-      try {
-        const trackUri = await selectLeastPlayedTrack(album);
-        if (trackUri) await addToQueue(trackUri);
-      } catch {
-        // Continue with next album
+    await playFromPlaylist(
+      { id: firstTrack.id, uri: firstTrack.uri },
+      {
+        playlistId: id.value,
+        playlistName: playlistName.value || 'Unknown Playlist',
+        albumsList: sortedAlbumsList.value,
+        albumId: firstAlbum.id,
+        playlistTrackIds: playlistTrackIds.value
       }
-    }
+    );
   } catch (err) {
     logPlaylist('Error playing playlist:', err);
     showToast(err.message || 'Failed to play playlist', 'error');

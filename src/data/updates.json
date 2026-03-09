@@ -1,5 +1,19 @@
 [
   {
+    "id": 21,
+    "title": "Internal Queue & Up Next Sidebar",
+    "date": "2026-03-09",
+    "types": ["FEATURE", "IMPROVEMENT", "UX"],
+    "hidden": false,
+    "description": "Playlist playback now uses an internal queue instead of Spotify's queue. The app chooses and plays the next track itself (same round-robin order and refill as before), so nothing is sent to Spotify's queue. A new Up next sidebar in the player bar shows what's coming up and stays in sync without reloading.",
+    "changes": [
+      "Internal queue — when you play from a multi-album playlist, the app builds and maintains the queue in memory. The next track is selected and played automatically when the current one ends; nothing is added to Spotify's queue",
+      "Up next sidebar — a queue icon in the player bar opens a slide-out panel showing the next tracks (artist and title). The icon is always visible and disabled when there is no active queue",
+      "Smooth queue updates — the sidebar list updates incrementally as tracks advance (top item drops off, new items appear at the bottom when the queue refills). No full reload or loading spinner on each track change",
+      "Queue sidebar closes when you navigate to another page or when the player bar hides, so it doesn't linger on top of new content"
+    ]
+  },
+  {
     "id": 20,
     "title": "Release 0.2.0",
     "date": "2026-03-05",

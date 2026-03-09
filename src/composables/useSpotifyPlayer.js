@@ -20,6 +20,7 @@ const error = ref(null);
 let initializationPromise = null;
 let isInitializing = false;
 let componentCount = 0;
+let positionPollIntervalId = null;
 
 export function useSpotifyPlayer() {
   componentCount++;
@@ -133,13 +134,14 @@ export function useSpotifyPlayer() {
           });
 
           player.value.addListener('not_ready', ({ device_id }) => {
-            logPlayer('Device ID has gone offline', device_id);
+            logPlayer('Device ID has gone offline (not_ready). Player bar will hide.', device_id);
             isReady.value = false;
             deviceId.value = null;
           });
 
           player.value.addListener('player_state_changed', (state) => {
             if (!state) {
+              logPlayer('player_state_changed received null state (no active playback). Player bar will hide. Can happen after device disconnect or playback transfer.');
               isPlaying.value = false;
               currentTrack.value = null;
               playingFrom.value = null;
@@ -365,6 +367,17 @@ export function useSpotifyPlayer() {
       error.value = err.message || 'Failed to play album';
       throw err;
     }
+  };
+
+  /**
+   * Set the "playing from" context (e.g. playlist) for UI display.
+   * Used when starting/clearing a playlist session so the app can show "playing from playlist X"
+   * without passing context into playTrack.
+   *
+   * @param {{ type: string, id: string, name: string } | null} context
+   */
+  const setPlayingFrom = (context) => {
+    playingFrom.value = context ?? null;
   };
 
   /**
@@ -786,6 +799,37 @@ export function useSpotifyPlayer() {
     disconnect();
   });
 
+  watch(
+    [isPlaying, player],
+    () => {
+      if (player.value && isPlaying.value) {
+        if (!positionPollIntervalId) {
+          const pollAndSchedule = async () => {
+            if (!player.value || !isPlaying.value) return;
+            try {
+              const state = await player.value.getCurrentState();
+              if (state?.position !== undefined) position.value = state.position;
+              if (state?.duration !== undefined) duration.value = state.duration;
+            } catch {
+              // ignore
+            }
+            if (!player.value || !isPlaying.value) return;
+            const remaining = (duration.value || 0) - (position.value || 0);
+            const nextDelay = remaining > 0 && remaining < 2000 ? 200 : 1000;
+            positionPollIntervalId = setTimeout(pollAndSchedule, nextDelay);
+          };
+          positionPollIntervalId = setTimeout(pollAndSchedule, 1000);
+        }
+      } else {
+        if (positionPollIntervalId) {
+          clearTimeout(positionPollIntervalId);
+          positionPollIntervalId = null;
+        }
+      }
+    },
+    { immediate: true }
+  );
+
   return {
     player,
     deviceId,
@@ -801,6 +845,7 @@ export function useSpotifyPlayer() {
     initializePlayer,
     playTrack,
     playAlbum,
+    setPlayingFrom,
     togglePlayback,
     pause,
     resume,
