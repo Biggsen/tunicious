@@ -6,7 +6,6 @@ import {
   UserIcon,
   PuzzlePieceIcon,
   WrenchScrewdriverIcon,
-  ChartBarIcon,
   ArchiveBoxIcon,
   LockClosedIcon,
   ShieldCheckIcon
@@ -35,22 +34,16 @@ const baseNavItems = [
     order: 3
   },
   {
-    name: 'Statistics',
-    path: '/account/statistics',
-    icon: ChartBarIcon,
-    order: 4
-  },
-  {
     name: 'Cache',
     path: '/account/cache',
     icon: ArchiveBoxIcon,
-    order: 5
+    order: 4
   },
   {
     name: 'Security',
     path: '/account/security',
     icon: LockClosedIcon,
-    order: 6
+    order: 5
   }
 ];
 
@@ -58,7 +51,7 @@ const adminNavItem = {
   name: 'Admin',
   path: '/account/admin',
   icon: ShieldCheckIcon,
-  order: 7
+  order: 6
 };
 
 const navItems = computed(() => {
