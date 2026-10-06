@@ -21,6 +21,13 @@ let initializationPromise = null;
 let isInitializing = false;
 let componentCount = 0;
 let positionPollIntervalId = null;
+let reconnectPromise = null;
+let readyGeneration = 0;
+let userInitiatedPause = false;
+let playRequestDepth = 0;
+let stallTimer = null;
+let stallWatchRegistered = false;
+let stallAttemptedForTrackId = null;
 
 export function useSpotifyPlayer() {
   componentCount++;
@@ -128,6 +135,7 @@ export function useSpotifyPlayer() {
         if (!player.value._listenersSet) {
           player.value.addListener('ready', ({ device_id }) => {
             logPlayer('Spotify player ready with device ID:', device_id);
+            readyGeneration += 1;
             deviceId.value = device_id;
             isReady.value = true;
             error.value = null;
@@ -210,20 +218,85 @@ export function useSpotifyPlayer() {
     return initializationPromise;
   };
 
+  const deviceNotFoundMessage = 'Device not found. Please refresh the page and try again.';
+
   /**
-   * Play a track by URI
+   * The Web Playback device id goes stale without a not_ready event.
+   * Disconnect and connect so Spotify issues a live id. The queue session stays.
    */
-  const playTrack = async (trackUri, context = null) => {
-    if (!player.value || !isReady.value || !deviceId.value) {
+  const reconnectDevice = async () => {
+    if (reconnectPromise) return reconnectPromise;
+    if (!player.value) {
+      throw new Error(deviceNotFoundMessage);
+    }
+
+    reconnectPromise = (async () => {
+      const generationAtStart = readyGeneration;
+      logPlayer('Reconnecting Spotify player after stale device id');
+      try {
+        await player.value.disconnect();
+      } catch (err) {
+        logPlayer('Error disconnecting before reconnect:', err);
+      }
+      player.value._connected = false;
+      isReady.value = false;
+      deviceId.value = null;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const connected = await player.value.connect();
+      if (!connected) {
+        throw new Error('Failed to connect to Spotify player');
+      }
+      player.value._connected = true;
+
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        if (isReady.value && deviceId.value && readyGeneration > generationAtStart) {
+          logPlayer('Reconnected Spotify player with device ID:', deviceId.value);
+          return deviceId.value;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      throw new Error(deviceNotFoundMessage);
+    })().finally(() => {
+      reconnectPromise = null;
+    });
+
+    return reconnectPromise;
+  };
+
+  /**
+   * Play a track by URI.
+   * positionMs resumes a stalled track instead of starting it over.
+   */
+  const playTrack = async (trackUri, context = null, { positionMs } = {}) => {
+    if (!player.value) {
       const message = 'Player not ready. Please ensure Spotify is open and you have Premium.';
       error.value = message;
       // Throw so queue advance can put the URI back. A quiet return drops it.
       throw new Error(message);
     }
 
+    userInitiatedPause = false;
+    if (stallTimer) {
+      clearTimeout(stallTimer);
+      stallTimer = null;
+    }
+
+    playRequestDepth += 1;
     try {
+      if (!isReady.value || !deviceId.value) {
+        await reconnectDevice();
+      }
+      if (!isReady.value || !deviceId.value) {
+        const message = 'Player not ready. Please ensure Spotify is open and you have Premium.';
+        error.value = message;
+        throw new Error(message);
+      }
+
       const tokens = await getUserTokens();
       const accessToken = tokens.accessToken;
+      let reconnectedForThisPlay = false;
 
       // If playing from a context (playlist or album), use context_uri for continuous playback after queue ends
       let requestBody;
@@ -247,14 +320,31 @@ export function useSpotifyPlayer() {
         requestBody = { uris: [trackUri] };
       }
 
-      let response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
-        method: 'PUT',
-        body: JSON.stringify(requestBody),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+      if (Number.isFinite(positionMs) && positionMs > 0) {
+        requestBody.position_ms = Math.floor(positionMs);
+      }
+
+      const requestPlay = async (body) => {
+        const send = () => fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
+          method: 'PUT',
+          body: JSON.stringify(body),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        let playResponse = await send();
+        if (playResponse.status === 404 && !reconnectedForThisPlay) {
+          reconnectedForThisPlay = true;
+          logPlayer('Spotify rejected the device id (404). Reconnecting and retrying play.');
+          await reconnectDevice();
+          playResponse = await send();
         }
-      });
+        return playResponse;
+      };
+
+      let response = await requestPlay(requestBody);
 
       // If context_uri fails with 403/404, try without device_id (uses active device)
       if (!response.ok && requestBody.context_uri) {
@@ -276,14 +366,11 @@ export function useSpotifyPlayer() {
           logPlayer('Context playback failed, falling back to single track:', await response.json().catch(() => ({})));
           
           // Fall back to single track playback
-          response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
-            method: 'PUT',
-            body: JSON.stringify({ uris: [trackUri] }),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`
-            }
-          });
+          const fallbackBody = { uris: [trackUri] };
+          if (Number.isFinite(positionMs) && positionMs > 0) {
+            fallbackBody.position_ms = Math.floor(positionMs);
+          }
+          response = await requestPlay(fallbackBody);
           
           if (!response.ok) {
             const fallbackErrorData = await response.json().catch(() => ({}));
@@ -317,7 +404,7 @@ export function useSpotifyPlayer() {
         if (response.status === 403) {
           throw new Error('Device not found or not active. Please ensure Spotify is open and the web player is ready.');
         } else if (response.status === 404) {
-          throw new Error('Device not found. Please refresh the page and try again.');
+          throw new Error(deviceNotFoundMessage);
         }
         
         throw new Error(errorMessage);
@@ -333,6 +420,8 @@ export function useSpotifyPlayer() {
       logPlayer('Error playing track:', err);
       error.value = err.message || 'Failed to play track';
       throw err;
+    } finally {
+      playRequestDepth -= 1;
     }
   };
 
@@ -402,20 +491,80 @@ export function useSpotifyPlayer() {
   };
 
   /**
-   * Toggle play/pause
+   * Toggle play/pause.
+   * A paused-but-still-loaded track can ignore togglePlay when the device id is stale.
+   * Starting again goes through playTrack, which reconnects that device and keeps the session.
    */
   const togglePlayback = async () => {
     activatePlayer();
-    if (!player.value || !isReady.value) {
+    if (!player.value) {
       error.value = 'Player not ready';
       return;
     }
 
+    const shouldPause = isPlaying.value;
+    if (shouldPause) {
+      userInitiatedPause = true;
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    } else {
+      userInitiatedPause = false;
+    }
+
+    if (isReady.value) {
+      try {
+        await player.value.togglePlay();
+      } catch (err) {
+        logPlayer('Error toggling playback:', err);
+        error.value = err.message || 'Failed to toggle playback';
+      }
+    }
+
+    if (!shouldPause && currentTrack.value) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!isPlaying.value && !userInitiatedPause) {
+        try {
+          await playTrack(currentTrack.value.uri || `spotify:track:${currentTrack.value.id}`, null, {
+            positionMs: position.value
+          });
+        } catch (err) {
+          logPlayer('Play toggle did not start playback:', err);
+          error.value = err.message || 'Failed to toggle playback';
+        }
+      }
+    } else if (!isReady.value && shouldPause) {
+      error.value = 'Player not ready';
+    }
+  };
+
+  /**
+   * Continue a track Spotify paused on its own. A pause in the last half-second
+   * belongs to the queue handoff, which starts the next URI.
+   */
+  const recoverFromStall = async () => {
+    if (playRequestDepth > 0 || userInitiatedPause || isPlaying.value) return;
+    const track = currentTrack.value;
+    if (!track?.id) return;
+    const remaining = (duration.value || 0) - (position.value || 0);
+    if (!duration.value || remaining <= 500) return;
+    if (stallAttemptedForTrackId === track.id) return;
+
+    stallAttemptedForTrackId = track.id;
+    const uri = track.uri || `spotify:track:${track.id}`;
+    const pos = position.value;
+    logPlayer('Playback stalled mid-track, restoring session:', { uri, pos });
+
     try {
-      await player.value.togglePlay();
+      if (player.value && isReady.value) {
+        await player.value.resume();
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+      if (isPlaying.value || userInitiatedPause) return;
+      await playTrack(uri, null, { positionMs: pos });
     } catch (err) {
-      logPlayer('Error toggling playback:', err);
-      error.value = err.message || 'Failed to toggle playback';
+      logPlayer('Stall recovery failed:', err);
     }
   };
 
@@ -423,6 +572,11 @@ export function useSpotifyPlayer() {
    * Pause playback
    */
   const pause = async () => {
+    userInitiatedPause = true;
+    if (stallTimer) {
+      clearTimeout(stallTimer);
+      stallTimer = null;
+    }
     if (!player.value || !isReady.value) {
       return;
     }
@@ -439,6 +593,7 @@ export function useSpotifyPlayer() {
    * Resume playback
    */
   const resume = async () => {
+    userInitiatedPause = false;
     if (!player.value || !isReady.value) {
       return;
     }
@@ -820,6 +975,28 @@ export function useSpotifyPlayer() {
     }
     disconnect();
   });
+
+  if (!stallWatchRegistered) {
+    stallWatchRegistered = true;
+    watch(isPlaying, (playing) => {
+      if (playing) {
+        stallAttemptedForTrackId = null;
+        if (stallTimer) {
+          clearTimeout(stallTimer);
+          stallTimer = null;
+        }
+        return;
+      }
+      if (userInitiatedPause || playRequestDepth > 0 || !currentTrack.value) return;
+      const remaining = (duration.value || 0) - (position.value || 0);
+      if (!duration.value || remaining <= 500) return;
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        recoverFromStall();
+      }, 1000);
+    });
+  }
 
   watch(
     [isPlaying, player],
