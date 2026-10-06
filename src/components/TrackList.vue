@@ -98,6 +98,7 @@ const {
   isReady: playerReady,
   isPlaying,
   currentTrack: playerCurrentTrack,
+  activatePlayer,
   togglePlayback,
   isTrackPlaying,
   error: playerError
@@ -305,6 +306,7 @@ const handleHeartClick = async (track, event) => {
  * Handle track play/pause click
  */
 const handleTrackClick = async (track) => {
+  activatePlayer();
   if (!playerReady.value) {
     logPlayer('Spotify player not ready');
     return;

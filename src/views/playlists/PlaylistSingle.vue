@@ -61,7 +61,7 @@ const {
   buildProgress: cacheBuildProgress
 } = useUnifiedTrackCache();
 
-const { isReady: playerReady, isPlaying, playingFrom, togglePlayback } = useSpotifyPlayer();
+const { isReady: playerReady, isPlaying, playingFrom, activatePlayer, togglePlayback } = useSpotifyPlayer();
 const { playFromPlaylist } = usePlaylistPlay();
 
 // Initialize current playing track tracking (singleton)
@@ -291,6 +291,7 @@ const isPlaylistCurrentlyPlaying = computed(() =>
 
 const playPlaylistLoading = ref(false);
 const handlePlayPlaylist = async () => {
+  activatePlayer();
   if (!playerReady.value || playPlaylistLoading.value) return;
 
   if (isPlaylistContext.value) {

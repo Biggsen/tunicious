@@ -215,8 +215,10 @@ export function useSpotifyPlayer() {
    */
   const playTrack = async (trackUri, context = null) => {
     if (!player.value || !isReady.value || !deviceId.value) {
-      error.value = 'Player not ready. Please ensure Spotify is open and you have Premium.';
-      return;
+      const message = 'Player not ready. Please ensure Spotify is open and you have Premium.';
+      error.value = message;
+      // Throw so queue advance can put the URI back. A quiet return drops it.
+      throw new Error(message);
     }
 
     try {
@@ -321,8 +323,12 @@ export function useSpotifyPlayer() {
         throw new Error(errorMessage);
       }
 
-      // Store the context after successful play
-      playingFrom.value = context;
+      // A null context is the playlist queue advancing one URI. Leave the
+      // existing playlist context in place. Clear happens in clearSession
+      // and when the player reports no active playback.
+      if (context) {
+        playingFrom.value = context;
+      }
     } catch (err) {
       logPlayer('Error playing track:', err);
       error.value = err.message || 'Failed to play track';
@@ -381,9 +387,25 @@ export function useSpotifyPlayer() {
   };
 
   /**
+   * Unlock the SDK media element inside a user tap. Must run synchronously,
+   * before any await, or mobile browsers drop the gesture and the first play is silent.
+   */
+  const activatePlayer = () => {
+    try {
+      const result = player.value?.activateElement?.();
+      if (result && typeof result.catch === 'function') {
+        result.catch((err) => logPlayer('activateElement failed:', err));
+      }
+    } catch (err) {
+      logPlayer('activateElement failed:', err);
+    }
+  };
+
+  /**
    * Toggle play/pause
    */
   const togglePlayback = async () => {
+    activatePlayer();
     if (!player.value || !isReady.value) {
       error.value = 'Player not ready';
       return;
@@ -846,6 +868,7 @@ export function useSpotifyPlayer() {
     playTrack,
     playAlbum,
     setPlayingFrom,
+    activatePlayer,
     togglePlayback,
     pause,
     resume,
