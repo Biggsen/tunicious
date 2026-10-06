@@ -33,3 +33,4 @@ service-account.json
 # DB scripts output
 dbscripts/usage-analysis/
 dbscripts/seed-data/
+exports/
