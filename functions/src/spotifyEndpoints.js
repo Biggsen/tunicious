@@ -11,7 +11,9 @@ const ALLOWED_ENDPOINTS = [
   // User endpoints
   "/me",
   "/me/playlists",
+  "/me/albums",
   "/me/library",
+  "/me/library/contains",
   "/users/{userId}/playlists",
 
   // Playlist endpoints

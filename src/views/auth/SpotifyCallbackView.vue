@@ -50,7 +50,8 @@ const storeTokens = async (tokens) => {
     spotifyTokens: {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      expiresAt: Date.now() + (tokens.expiresIn * 1000)
+      expiresAt: Date.now() + (tokens.expiresIn * 1000),
+      ...(tokens.scope ? { scope: tokens.scope } : {})
     },
     spotifyConnected: true,
     updatedAt: serverTimestamp()

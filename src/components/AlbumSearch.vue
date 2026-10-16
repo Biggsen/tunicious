@@ -43,6 +43,13 @@
               <p class="text-sm text-gray-600 truncate">{{ album.artists.map(a => a.name).join(', ') }}</p>
               <p class="text-xs text-gray-500">{{ album.release_date?.split('-')[0] || 'Unknown Year' }}</p>
             </div>
+            <router-link
+              :to="{ name: 'album', params: { id: album.id } }"
+              class="text-sm font-medium text-delft-blue hover:text-raspberry shrink-0"
+              @click.stop
+            >
+              Open
+            </router-link>
           </div>
         </div>
       </div>

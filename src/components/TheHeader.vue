@@ -6,6 +6,7 @@ import { useUpdatesBadge } from "@composables/useUpdatesBadge";
 import { useRecommendationsBadge } from "@composables/useRecommendationsBadge";
 import { 
   MusicalNoteIcon, 
+  RectangleStackIcon,
   BoltIcon,
   MagnifyingGlassIcon, 
   RocketLaunchIcon, 
@@ -92,6 +93,12 @@ const closeMobileMenu = () => {
               <RouterLink to="/playlists" class="flex items-center gap-1">
                 <MusicalNoteIcon class="w-4 h-4" />
                 <span>Playlists</span>
+              </RouterLink>
+            </li>
+            <li>
+              <RouterLink to="/library" class="flex items-center gap-1">
+                <RectangleStackIcon class="w-4 h-4" />
+                <span>Library</span>
               </RouterLink>
             </li>
             <li>
@@ -182,6 +189,16 @@ const closeMobileMenu = () => {
                 >
                   <MusicalNoteIcon class="w-6 h-6" />
                   <span>Playlists</span>
+                </RouterLink>
+              </li>
+              <li>
+                <RouterLink
+                  to="/library"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  @click="closeMobileMenu"
+                >
+                  <RectangleStackIcon class="w-6 h-6" />
+                  <span>Library</span>
                 </RouterLink>
               </li>
               <li>

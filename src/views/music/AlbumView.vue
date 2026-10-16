@@ -8,6 +8,7 @@ import { useAlbumMappings } from '@composables/useAlbumMappings';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { useUserData } from '@composables/useUserData';
 import { useSpotifyPlayer } from '@composables/useSpotifyPlayer';
+import { useQueueSession } from '@composables/useQueueSession';
 import { useUnifiedTrackCache } from '@composables/useUnifiedTrackCache';
 import { useLastFmSessionModal } from '@composables/useLastFmSessionModal';
 import { useToast } from '@composables/useToast';
@@ -18,9 +19,10 @@ import { resolvePlaylistNames, resolvePlaylistName } from '@utils/playlistNameRe
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BackButton from '@components/common/BackButton.vue';
 import BaseButton from '@components/common/BaseButton.vue';
+import LibrarySaveButton from '@components/LibrarySaveButton.vue';
 import IconButton from '@components/common/IconButton.vue';
 import TrackList from '@components/TrackList.vue';
-import PlaylistHistoryTimeline from '@components/PlaylistHistoryTimeline.vue';
+import AlbumHistoryTimeline from '@components/AlbumHistoryTimeline.vue';
 import AlbumMappingManager from '@components/AlbumMappingManager.vue';
 import LastFmSessionExpiredModal from '@components/LastFmSessionExpiredModal.vue';
 import BaseModal from '@components/common/BaseModal.vue';
@@ -39,6 +41,7 @@ const { fetchUserAlbumData, getAlbumDetails, searchAlbumsByTitleAndArtistFuzzy, 
 const { getAlbum, getAlbumTracks, getPlaylist } = useUserSpotifyApi();
 const { createMapping, isAlternateId, getPrimaryId } = useAlbumMappings();
 const { isReady: playerReady, playAlbum: playAlbumTrack, error: playerError } = useSpotifyPlayer();
+const { clearSession } = useQueueSession();
 const { getAlbumLovedPercentage, addAlbumTracksToCache, getAlbumTracksForAlbum, refreshLovedTracksForUser, refreshPlaycountsForTracks, getPlaycountForTrack, checkTrackLoved, updateLovedStatus } = useUnifiedTrackCache();
 
 // Initialize toast
@@ -112,11 +115,22 @@ const album = ref(null);
 const tracks = ref([]);
 const loading = ref(true);
 const error = ref(null);
+
+const playAlbumFromStart = () => {
+  if (!album.value?.id) return;
+  clearSession();
+  playAlbumTrack(`spotify:album:${album.value.id}`, 0, {
+    type: 'album',
+    id: album.value.id,
+    name: album.value.name
+  });
+};
 const playlistHistoryEntries = ref([]);
+const libraryHistoryEntries = ref([]);
 const playlistNamesMap = ref({});
 const ALBUM_LISTEN_TAB_KEY = 'album_listen_tab';
 const LISTEN_TABS = [
-  { id: 'history', label: 'History' },
+  { id: 'history', label: 'Album History' },
   { id: 'friends', label: 'Friends' },
   { id: 'notes', label: 'Notes' }
 ];
@@ -209,14 +223,24 @@ const refreshPlaylistHistory = async () => {
   if (!album.value?.id || !user.value) return;
   const userAlbumData = await fetchUserAlbumData(album.value.id);
   albumNotes.value = userAlbumData?.notes ?? '';
-  if (userAlbumData?.playlistHistory?.length) {
-    playlistHistoryEntries.value = userAlbumData.playlistHistory;
+  playlistHistoryEntries.value = userAlbumData?.playlistHistory || [];
+  libraryHistoryEntries.value = userAlbumData?.libraryHistory || [];
+  if (playlistHistoryEntries.value.length) {
     const ids = [...new Set(userAlbumData.playlistHistory.map(e => e.playlistId).filter(Boolean))];
     playlistNamesMap.value = await resolvePlaylistNames(ids, user.value.uid, getPlaylist);
   } else {
-    playlistHistoryEntries.value = [];
     playlistNamesMap.value = {};
   }
+};
+
+const onLibraryMembershipChanged = async () => {
+  if (!album.value?.id || !user.value) return;
+  if (!albumExists.value) {
+    const details = await getAlbumDetails(album.value.id);
+    albumExists.value = !!details;
+    if (details?.rymLink) storedRymLink.value = details.rymLink;
+  }
+  await refreshPlaylistHistory();
 };
 
 const loadFriendsAlbumData = async () => {
@@ -949,15 +973,18 @@ onUnmounted(() => {
             >
               {{ album.artists[0].name }}
             </p>
-            <BaseButton
-              v-if="playerReady"
-              variant="primary"
-              title="Play album"
-              @click="playAlbumTrack(`spotify:album:${album.id}`, 0, { type: 'album', id: album.id, name: album.name })"
-            >
-              <template #icon-left><PlayIcon class="w-5 h-5" /></template>
-              Play
-            </BaseButton>
+            <div class="flex flex-wrap items-start gap-3">
+              <BaseButton
+                v-if="playerReady"
+                variant="primary"
+                title="Play album"
+                @click="playAlbumFromStart"
+              >
+                <template #icon-left><PlayIcon class="w-5 h-5" /></template>
+                Play
+              </BaseButton>
+              <LibrarySaveButton v-if="album?.id" :album="album" @changed="onLibraryMembershipChanged" />
+            </div>
             <div v-if="playerError && playerReady" class="text-sm text-red-500 mb-2">
               {{ playerError }}
             </div>
@@ -984,12 +1011,11 @@ onUnmounted(() => {
             <div class="bg-mint p-4 rounded-xl">
               <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
                 <template v-if="activeListenTab === 'history'">
-                  <PlaylistHistoryTimeline
-                    v-if="playlistHistoryEntries.length > 0"
-                    :entries="playlistHistoryEntries"
+                  <AlbumHistoryTimeline
+                    :playlist-entries="playlistHistoryEntries"
+                    :library-entries="libraryHistoryEntries"
                     :playlist-names="playlistNamesMap"
                   />
-                  <p v-else class="text-base">No listening history for this album.</p>
                 </template>
                 <template v-else-if="activeListenTab === 'friends'">
                   <p v-if="friendsTabLoading" class="text-base">Loading…</p>
