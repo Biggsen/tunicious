@@ -311,9 +311,9 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
 
     if (!response.ok) {
       logger.error("Spotify API call failed", {status: response.status, endpoint, error: responseData});
-      const errorBody = responseData && Object.keys(responseData).length
-        ? responseData
-        : {error: "Spotify API call failed"};
+      const errorBody = responseData && Object.keys(responseData).length ?
+        responseData :
+        {error: "Spotify API call failed"};
       res.status(response.status).json(errorBody);
       return;
     }
