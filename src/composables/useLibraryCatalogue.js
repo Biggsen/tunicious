@@ -4,7 +4,7 @@ import { db } from '@/firebase';
 import { useAlbumMappings } from './useAlbumMappings';
 import { logAlbum } from '@utils/logger';
 import { clearCache } from '@utils/cache';
-import { toLibraryDate, withLibraryRemoval, withLibrarySave } from '@utils/libraryHistory';
+import { isRecentLibraryIndex, toLibraryDate, withLibraryRemoval, withLibrarySave } from '@utils/libraryHistory';
 
 function clearAlbumUserCache(uid, albumIds) {
   const seen = new Set();
@@ -53,13 +53,14 @@ export function useLibraryCatalogue() {
     const indexRef = doc(db, 'users', uid, 'libraryIndex', spotifyAlbumId);
     const savedDate = toLibraryDate(savedAt);
 
-    await runTransaction(db, async (transaction) => {
+    const historyChanged = await runTransaction(db, async (transaction) => {
       const albumSnap = await transaction.get(albumRef);
       const indexSnap = await transaction.get(indexRef);
       const entry = albumSnap.exists() ? albumSnap.data().userEntries?.[uid] : null;
       const { history, changed } = withLibrarySave(entry?.libraryHistory, spotifyAlbumId, savedDate);
-      if (!changed && indexSnap.exists()) return;
+      if (!changed && indexSnap.exists()) return false;
 
+      let wroteHistory = false;
       if (!albumSnap.exists()) {
         transaction.set(albumRef, {
           ...catalogueFields(album),
@@ -68,27 +69,33 @@ export function useLibraryCatalogue() {
             [uid]: freshUserEntry(history)
           }
         });
+        wroteHistory = true;
       } else if (!entry) {
         transaction.update(albumRef, {
           [`userEntries.${uid}`]: freshUserEntry(history)
         });
+        wroteHistory = true;
       } else if (changed) {
         transaction.update(albumRef, {
           [`userEntries.${uid}.libraryHistory`]: history,
           [`userEntries.${uid}.updatedAt`]: serverTimestamp()
         });
+        wroteHistory = true;
       }
 
       if (!indexSnap.exists()) {
         const openPeriod = history.find((item) => item.spotifyAlbumId === spotifyAlbumId && !item.removedDetectedAt);
         transaction.set(indexRef, {
           primaryId,
-          savedAt: openPeriod?.savedAt || savedDate
+          savedAt: openPeriod?.savedAt || savedDate,
+          indexedAt: new Date()
         });
       }
+      return wroteHistory;
     });
 
-    clearAlbumUserCache(uid, [spotifyAlbumId, primaryId]);
+    if (historyChanged) clearAlbumUserCache(uid, [spotifyAlbumId, primaryId]);
+    return { changed: historyChanged };
   }
 
   async function recordLibraryRemoval(spotifyAlbumId) {
@@ -98,14 +105,14 @@ export function useLibraryCatalogue() {
     const fallbackPrimaryId = await resolveToPrimaryId(spotifyAlbumId);
     const indexRef = doc(db, 'users', uid, 'libraryIndex', spotifyAlbumId);
 
-    const primaryId = await runTransaction(db, async (transaction) => {
+    const { catalogueId, historyChanged } = await runTransaction(db, async (transaction) => {
       const indexSnap = await transaction.get(indexRef);
       const catalogueId = indexSnap.exists() ? indexSnap.data().primaryId : fallbackPrimaryId;
       const albumRef = doc(db, 'albums', catalogueId);
       const albumSnap = await transaction.get(albumRef);
       const entry = albumSnap.exists() ? albumSnap.data().userEntries?.[uid] : null;
       const { history, changed } = withLibraryRemoval(entry?.libraryHistory, spotifyAlbumId, new Date());
-      if (!changed && !indexSnap.exists()) return catalogueId;
+      if (!changed && !indexSnap.exists()) return { catalogueId, historyChanged: false };
 
       if (changed && entry) {
         transaction.update(albumRef, {
@@ -116,10 +123,11 @@ export function useLibraryCatalogue() {
       if (indexSnap.exists()) {
         transaction.delete(indexRef);
       }
-      return catalogueId;
+      return { catalogueId, historyChanged: Boolean(changed && entry) };
     });
 
-    clearAlbumUserCache(uid, [spotifyAlbumId, primaryId]);
+    if (historyChanged) clearAlbumUserCache(uid, [spotifyAlbumId, catalogueId]);
+    return { changed: historyChanged };
   }
 
   async function reconcileSavedAlbums(savedAlbums) {
@@ -132,12 +140,15 @@ export function useLibraryCatalogue() {
     }
   }
 
-  async function closeLibraryRemovals(savedIds, checkAlbumsInLibrary) {
+  async function closeLibraryRemovals(savedIds, checkAlbumsInLibrary, fetchStartedAt) {
     const uid = user.value?.uid;
     if (!uid) return;
 
     const indexSnap = await getDocs(collection(db, 'users', uid, 'libraryIndex'));
-    const missing = indexSnap.docs.map((indexDoc) => indexDoc.id).filter((id) => !savedIds.has(id));
+    const missing = indexSnap.docs
+      .filter((indexDoc) => !savedIds.has(indexDoc.id))
+      .filter((indexDoc) => !isRecentLibraryIndex(indexDoc.data(), fetchStartedAt))
+      .map((indexDoc) => indexDoc.id);
     for (let i = 0; i < missing.length; i += 40) {
       const batch = missing.slice(i, i + 40);
       let flags = [];

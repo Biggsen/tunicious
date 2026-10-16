@@ -119,6 +119,7 @@ export function useSavedAlbums() {
 
         let offset = resumeOffset;
         const startedAtZero = resumeOffset === 0;
+        const fetchStartedAt = startedAtZero ? Date.now() : null;
         const snapshotIds = new Set();
         let snapshotReceived = 0;
         let snapshotDuplicate = false;
@@ -153,7 +154,7 @@ export function useSavedAlbums() {
           if (done) {
             complete.value = true;
             if (startedAtZero && !snapshotDuplicate && snapshotReceived === total.value) {
-              closeLibraryRemovals(snapshotIds, checkAlbumsInLibrary).catch((err) => {
+              closeLibraryRemovals(snapshotIds, checkAlbumsInLibrary, fetchStartedAt).catch((err) => {
                 logAlbum('Library removal reconcile failed', err?.message || err);
               });
             } else if (startedAtZero) {

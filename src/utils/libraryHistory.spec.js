@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mergeLibraryHistories, withLibraryRemoval, withLibrarySave } from './libraryHistory';
+import {
+  isRecentLibraryIndex,
+  LIBRARY_INDEX_GRACE_MS,
+  mergeLibraryHistories,
+  withLibraryRemoval,
+  withLibrarySave
+} from './libraryHistory';
 
 describe('libraryHistory', () => {
   it('appends a period and leaves an open one unchanged', () => {
@@ -39,5 +45,13 @@ describe('libraryHistory', () => {
     expect(open).toHaveLength(1);
     expect(open[0].savedAt).toBe('2020-01-01T00:00:00.000Z');
     expect(closed).toHaveLength(1);
+  });
+
+  it('protects an index row written during or just before a fetch', () => {
+    const started = 1_000_000;
+    expect(isRecentLibraryIndex({ indexedAt: started + 1000 }, started)).toBe(true);
+    expect(isRecentLibraryIndex({ indexedAt: started - 1000 }, started)).toBe(true);
+    expect(isRecentLibraryIndex({ indexedAt: started - LIBRARY_INDEX_GRACE_MS - 1 }, started)).toBe(false);
+    expect(isRecentLibraryIndex({}, started)).toBe(false);
   });
 });

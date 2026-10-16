@@ -6,6 +6,28 @@ function timeMillis(value) {
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
+export const LIBRARY_INDEX_GRACE_MS = 2 * 60 * 1000;
+
+export function indexWriteMillis(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
+/**
+ * A row written after the fetch began, or inside the grace window before it,
+ * belongs to a newer save than this snapshot can prove.
+ */
+export function isRecentLibraryIndex(indexData, fetchStartedAt, graceMs = LIBRARY_INDEX_GRACE_MS) {
+  const writtenAt = indexWriteMillis(indexData?.indexedAt);
+  const started = indexWriteMillis(fetchStartedAt);
+  if (writtenAt == null || started == null) return false;
+  return writtenAt > started - graceMs;
+}
+
 export function toLibraryDate(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (value && typeof value.toDate === 'function') return value.toDate();
