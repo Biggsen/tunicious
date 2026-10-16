@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted } from 'vue';
 import { useUserData } from "@composables/useUserData";
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
+import { hasSavedAlbumScopes } from '@/constants';
 import { useLastFmApi } from '@composables/useLastFmApi';
 import { logLastFm } from '@utils/logger';
 import BaseButton from '@components/common/BaseButton.vue';
@@ -66,6 +67,20 @@ onUnmounted(() => {
               customClass="spotify-connect-button"
             >
               Connect Spotify Account
+            </BaseButton>
+          </div>
+          <div v-else class="space-y-2">
+            <p
+              v-if="!hasSavedAlbumScopes(userData.spotifyTokens?.scope)"
+              class="text-sm text-gray-600"
+            >
+              Saved albums need an extra Spotify permission. Reconnect to grant it.
+            </p>
+            <BaseButton
+              @click="initiateSpotifyLogin"
+              customClass="spotify-connect-button"
+            >
+              Reconnect Spotify
             </BaseButton>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useCurrentUser } from 'vuefire';
 import { useAlbumMappings } from './useAlbumMappings';
@@ -9,10 +9,10 @@ import { setCache, getCache, clearCache } from "@utils/cache";
 import { logAlbum } from '@utils/logger';
 
 /**
- * CRITICAL — albums.userEntries is multi-user (keyed by userId). When updating one user's
- * entry, use updateDoc with dot notation only: updateDoc(ref, { [`userEntries.${uid}`]: { ... } }).
- * Do NOT use setDoc with a full userEntries object; with merge: true, Firestore replaces the
- * entire userEntries map at the top level, which wipes other users' data on that document.
+ * CRITICAL — albums.userEntries is multi-user (keyed by userId).
+ * Create a document with only the caller's entry. On an existing document, update one field
+ * path inside a transaction (`userEntries.${uid}.playlistHistory`, `.libraryHistory`, `.notes`).
+ * Never write the whole userEntries map or replace the whole user object.
  */
 
 /**
@@ -73,18 +73,20 @@ export function useAlbumsData() {
       const userData = data.userEntries[user.value.uid];
       logAlbum(`User data for album ${albumId}:`, userData);
 
-      // Ensure playlistHistory is an array
-      if (!Array.isArray(userData.playlistHistory)) {
-        logAlbum(`Invalid playlistHistory for album ${albumId}`);
-        return null;
-      }
+      const playlistHistory = Array.isArray(userData.playlistHistory) ? userData.playlistHistory : [];
+      const libraryHistory = Array.isArray(userData.libraryHistory) ? userData.libraryHistory : [];
 
       const result = {
         ...userData,
-        playlistHistory: userData.playlistHistory.map(entry => ({
+        playlistHistory: playlistHistory.map(entry => ({
           ...entry,
           addedAt: entry.addedAt?.toDate?.() || entry.addedAt,
           removedAt: entry.removedAt?.toDate?.() || entry.removedAt
+        })),
+        libraryHistory: libraryHistory.map(entry => ({
+          ...entry,
+          savedAt: entry.savedAt?.toDate?.() || entry.savedAt,
+          removedDetectedAt: entry.removedDetectedAt?.toDate?.() || entry.removedDetectedAt || null
         }))
       };
       await setCache(cacheKey, result);
@@ -489,15 +491,8 @@ export function useAlbumsData() {
         _spotifyAddedAt = albumWithDate?.addedAt ? new Date(albumWithDate.addedAt) : new Date();
       }
 
-      // Use targetAlbumId for the document reference
       const albumRef = doc(db, 'albums', targetAlbumId);
-      // Get existing album data using target ID
-      const existingData = await fetchUserAlbumData(targetAlbumId);
-      
-      // Prepare the new playlist history entry using playlist data
-      // Use group field to populate type in history entry
       const entryType = _playlistData.group || 'unknown';
-      
       const newEntry = {
         playlistId: _playlistData.playlistId,
         pipelineRole: _playlistData.pipelineRole || 'transient',
@@ -505,30 +500,59 @@ export function useAlbumsData() {
         addedAt: _spotifyAddedAt,
         removedAt: null
       };
-      // Mark any current entry (removedAt null) as removed, preserve full history
-      const now = new Date();
-      const updatedHistory = existingData?.playlistHistory
-        ? existingData.playlistHistory.map(entry =>
-            !entry.removedAt ? { ...entry, removedAt: now } : entry
-          )
-        : [];
-      const userAlbumData = {
-        playlistHistory: [...updatedHistory, newEntry],
-        createdAt: existingData?.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      // Update the album document
-      await setDoc(albumRef, {
+      const rootFields = {
         albumTitle: album.name,
         artistName: album.artists[0].name,
         artistNameLower: album.artists[0].name.toLowerCase(),
         artistId: album.artists[0].id,
         albumCover: album.images?.length > 0 ? (album.images[1]?.url ?? album.images[0]?.url ?? '') : '',
-        releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
-        userEntries: {
-          [user.value.uid]: userAlbumData
+        releaseYear: album.release_date ? album.release_date.split('-')[0] : ''
+      };
+      const uid = user.value.uid;
+
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(albumRef);
+        const now = new Date();
+        if (!snap.exists()) {
+          transaction.set(albumRef, {
+            ...rootFields,
+            updatedAt: serverTimestamp(),
+            userEntries: {
+              [uid]: {
+                playlistHistory: [newEntry],
+                libraryHistory: [],
+                notes: '',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              }
+            }
+          });
+          return;
         }
-      }, { merge: true });
+
+        const entry = snap.data().userEntries?.[uid];
+        const updates = {
+          ...rootFields,
+          updatedAt: serverTimestamp()
+        };
+        if (!entry) {
+          updates[`userEntries.${uid}`] = {
+            playlistHistory: [newEntry],
+            libraryHistory: [],
+            notes: '',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+        } else {
+          const existingHistory = Array.isArray(entry.playlistHistory) ? entry.playlistHistory : [];
+          const closedHistory = existingHistory.map(historyEntry => (
+            !historyEntry.removedAt ? { ...historyEntry, removedAt: now } : historyEntry
+          ));
+          updates[`userEntries.${uid}.playlistHistory`] = [...closedHistory, newEntry];
+          updates[`userEntries.${uid}.updatedAt`] = serverTimestamp();
+        }
+        transaction.update(albumRef, updates);
+      });
 
       const cacheKeys = [`albumDbData_${targetAlbumId}_${user.value.uid}`];
       if (album.id !== targetAlbumId) {
@@ -704,18 +728,16 @@ export function useAlbumsData() {
     if (!user.value || !albumId) throw new Error('Missing user or album ID');
     const targetAlbumId = await resolveToPrimaryId(albumId);
     const albumRef = doc(db, 'albums', targetAlbumId);
-    const albumDoc = await getDoc(albumRef);
-    if (!albumDoc.exists()) throw new Error('Album not found');
-    const data = albumDoc.data();
-    const userEntry = data.userEntries?.[user.value.uid];
-    if (!userEntry) throw new Error('Album not in your collection');
-    // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
-    await updateDoc(albumRef, {
-      [`userEntries.${user.value.uid}`]: {
-        ...userEntry,
-        notes: notes ?? '',
-        updatedAt: serverTimestamp()
-      }
+    const uid = user.value.uid;
+    await runTransaction(db, async (transaction) => {
+      const albumDoc = await transaction.get(albumRef);
+      if (!albumDoc.exists()) throw new Error('Album not found');
+      const userEntry = albumDoc.data().userEntries?.[uid];
+      if (!userEntry) throw new Error('Album not in your collection');
+      transaction.update(albumRef, {
+        [`userEntries.${uid}.notes`]: notes ?? '',
+        [`userEntries.${uid}.updatedAt`]: serverTimestamp()
+      });
     });
     const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
     if (targetAlbumId !== albumId) cacheKeys.push(`albumDbData_${targetAlbumId}_${user.value.uid}`);
@@ -783,45 +805,40 @@ export function useAlbumsData() {
 
       const targetAlbumId = await resolveToPrimaryId(albumId);
       const albumRef = doc(db, 'albums', targetAlbumId);
-      const albumDoc = await getDoc(albumRef);
+      const uid = user.value.uid;
+      let removed = false;
 
-      if (!albumDoc.exists()) {
-        logAlbum(`Album ${albumId} not found`);
-        return false;
-      }
-
-      const data = albumDoc.data();
-      const userEntry = data.userEntries?.[user.value.uid];
-
-      if (!userEntry || !Array.isArray(userEntry.playlistHistory)) {
-        logAlbum(`No user entry or playlist history found for album ${albumId}`);
-        return false;
-      }
-
-      // Find the current entry for this playlist (where removedAt is null)
-      const currentEntryIndex = userEntry.playlistHistory.findIndex(
-        entry => entry.playlistId === playlistId && !entry.removedAt
-      );
-
-      if (currentEntryIndex === -1) {
-        logAlbum(`No current entry found for playlist ${playlistId} in album ${albumId}`);
-        return false;
-      }
-
-      // Create updated playlist history with the current entry marked as removed
-      const updatedPlaylistHistory = [...userEntry.playlistHistory];
-      updatedPlaylistHistory[currentEntryIndex] = {
-        ...updatedPlaylistHistory[currentEntryIndex],
-        removedAt: new Date()
-      };
-
-      // Use updateDoc with dot notation so we only update this user's entry; setDoc(merge:true) would replace the entire userEntries map and wipe other users.
-      await updateDoc(albumRef, {
-        [`userEntries.${user.value.uid}`]: {
-          ...userEntry,
-          playlistHistory: updatedPlaylistHistory,
-          updatedAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const albumDoc = await transaction.get(albumRef);
+        if (!albumDoc.exists()) {
+          logAlbum(`Album ${albumId} not found`);
+          return;
         }
+
+        const userEntry = albumDoc.data().userEntries?.[uid];
+        if (!userEntry || !Array.isArray(userEntry.playlistHistory)) {
+          logAlbum(`No user entry or playlist history found for album ${albumId}`);
+          return;
+        }
+
+        const currentEntryIndex = userEntry.playlistHistory.findIndex(
+          entry => entry.playlistId === playlistId && !entry.removedAt
+        );
+        if (currentEntryIndex === -1) {
+          logAlbum(`No current entry found for playlist ${playlistId} in album ${albumId}`);
+          return;
+        }
+
+        const updatedPlaylistHistory = [...userEntry.playlistHistory];
+        updatedPlaylistHistory[currentEntryIndex] = {
+          ...updatedPlaylistHistory[currentEntryIndex],
+          removedAt: new Date()
+        };
+        transaction.update(albumRef, {
+          [`userEntries.${uid}.playlistHistory`]: updatedPlaylistHistory,
+          [`userEntries.${uid}.updatedAt`]: serverTimestamp()
+        });
+        removed = true;
       });
 
       const cacheKeys = [`albumDbData_${albumId}_${user.value.uid}`];
@@ -830,8 +847,10 @@ export function useAlbumsData() {
       }
       cacheKeys.forEach(k => clearCache(k));
 
-      logAlbum(`Successfully removed album ${albumId} from playlist ${playlistId}`);
-      return true;
+      logAlbum(removed
+        ? `Successfully removed album ${albumId} from playlist ${playlistId}`
+        : `Album ${albumId} was not removed from playlist ${playlistId}`);
+      return removed;
 
     } catch (e) {
       logAlbum('Error removing album from playlist:', e);

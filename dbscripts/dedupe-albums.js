@@ -14,6 +14,7 @@
  */
 
 import admin from 'firebase-admin';
+import { mergeLibraryHistories } from '../src/utils/libraryHistory.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -107,6 +108,18 @@ function selectPrimary(albums) {
 }
 
 /**
+ * Point library index rows at the surviving album. The document id stays the Spotify release id.
+ */
+async function retargetLibraryIndex(oldPrimaryId, newPrimaryId) {
+  const snap = await db.collectionGroup('libraryIndex').where('primaryId', '==', oldPrimaryId).get();
+  if (snap.empty) return;
+  for (const indexDoc of snap.docs) {
+    await indexDoc.ref.update({ primaryId: newPrimaryId });
+  }
+  console.log(`   ✓ Retargeted ${snap.size} library index entr${snap.size === 1 ? 'y' : 'ies'} ${oldPrimaryId} → ${newPrimaryId}`);
+}
+
+/**
  * Merges userEntries from duplicate into primary
  */
 function mergeUserEntries(primaryEntries, duplicateEntries) {
@@ -125,6 +138,10 @@ function mergeUserEntries(primaryEntries, duplicateEntries) {
       merged[userId] = {
         ...merged[userId],
         playlistHistory: [...existingHistory, ...newHistory],
+        libraryHistory: mergeLibraryHistories(
+          merged[userId].libraryHistory,
+          userData.libraryHistory
+        ),
         // Keep the earlier createdAt
         createdAt: merged[userId].createdAt < userData.createdAt 
           ? merged[userId].createdAt 
@@ -380,6 +397,7 @@ async function cleanupAlbums() {
               });
               dedupeResults.mappingsCreated++;
               console.log(`   ✓ Mapping created: ${dup.id} → ${primary.id}`);
+              await retargetLibraryIndex(dup.id, primary.id);
             }
 
             // Delete duplicate documents

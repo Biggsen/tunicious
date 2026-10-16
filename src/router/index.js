@@ -24,6 +24,8 @@ import PlaylistManagementView from '@views/playlists/PlaylistManagementView.vue'
 import ArtistView from '@views/music/ArtistView.vue';
 import AlbumView from '@views/music/AlbumView.vue';
 import SearchView from '@views/music/SearchView.vue';
+import LibraryView from '@views/music/LibraryView.vue';
+import AddToLibraryView from '@views/music/AddToLibraryView.vue';
 import SpotifyCallbackView from '@views/auth/SpotifyCallbackView.vue';
 import LastFmCallbackView from '@views/auth/LastFmCallbackView.vue';
 import StyleguideView from '@views/StyleguideView.vue';
@@ -202,6 +204,24 @@ const routes = [
     meta: { 
       requiresAuth: true,
       requiresSpotify: true 
+    }
+  },
+  {
+    path: '/library/add',
+    name: 'addToLibrary',
+    component: AddToLibraryView,
+    meta: {
+      requiresAuth: true,
+      requiresSpotify: true
+    }
+  },
+  {
+    path: '/library',
+    name: 'library',
+    component: LibraryView,
+    meta: {
+      requiresAuth: true,
+      requiresSpotify: true
     }
   },
   {

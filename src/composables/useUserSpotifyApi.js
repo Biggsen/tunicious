@@ -113,11 +113,13 @@ export function useUserSpotifyApi() {
       const result = await refreshSpotifyToken(userData.spotifyTokens.refreshToken);
       
       // Update tokens in Firestore
+      const scope = result.scope || userData.spotifyTokens.scope;
       await setDoc(doc(db, 'users', user.value.uid), {
         spotifyTokens: {
           accessToken: result.accessToken,
           refreshToken: result.refreshToken || userData.spotifyTokens.refreshToken, // Keep old refresh token if not provided
-          expiresAt: Date.now() + (result.expiresIn * 1000)
+          expiresAt: Date.now() + (result.expiresIn * 1000),
+          ...(scope ? { scope } : {})
         },
         updatedAt: serverTimestamp()
       }, { merge: true });
@@ -816,6 +818,54 @@ export function useUserSpotifyApi() {
     return makeUserRequest(`https://api.spotify.com/v1/artists/${artistId}`);
   };
 
+  const albumLibraryUris = (albumIds) => {
+    const ids = (albumIds || []).filter(Boolean);
+    if (ids.length === 0) {
+      throw new Error('No album IDs provided');
+    }
+    if (ids.length > 40) {
+      throw new Error('Too many album IDs (max 40)');
+    }
+    return ids.map((id) => (id.startsWith('spotify:album:') ? id : `spotify:album:${id}`));
+  };
+
+  /**
+   * One page of the user's Spotify saved albums.
+   */
+  const getSavedAlbums = async (limit = 50, offset = 0) => {
+    const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 50);
+    const safeOffset = Math.max(Number(offset) || 0, 0);
+    return makeUserRequest(
+      `https://api.spotify.com/v1/me/albums?limit=${safeLimit}&offset=${safeOffset}`
+    );
+  };
+
+  /**
+   * Returns a boolean per album id, in the same order.
+   */
+  const checkAlbumsInLibrary = async (albumIds) => {
+    const uris = albumLibraryUris(albumIds);
+    return makeUserRequest(
+      `https://api.spotify.com/v1/me/library/contains?uris=${encodeURIComponent(uris.join(','))}`
+    );
+  };
+
+  const saveAlbumsToLibrary = async (albumIds) => {
+    const uris = albumLibraryUris(albumIds);
+    return makeUserRequest(
+      `https://api.spotify.com/v1/me/library?uris=${encodeURIComponent(uris.join(','))}`,
+      { method: 'PUT' }
+    );
+  };
+
+  const removeAlbumsFromLibrary = async (albumIds) => {
+    const uris = albumLibraryUris(albumIds);
+    return makeUserRequest(
+      `https://api.spotify.com/v1/me/library?uris=${encodeURIComponent(uris.join(','))}`,
+      { method: 'DELETE' }
+    );
+  };
+
   return {
     loading,
     error,
@@ -847,6 +897,10 @@ export function useUserSpotifyApi() {
     getAllAlbumTracks,
     getArtistAlbums,
     getAllArtistAlbums,
-    getArtist
+    getArtist,
+    getSavedAlbums,
+    checkAlbumsInLibrary,
+    saveAlbumsToLibrary,
+    removeAlbumsFromLibrary
   };
 }

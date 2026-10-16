@@ -208,6 +208,98 @@ describe('useUserSpotifyApi', () => {
     });
   });
 
+  describe('saved albums library', () => {
+    it('gets a page of saved albums', async () => {
+      mockSpotifyApiCall.mockResolvedValue({ items: [], total: 0, limit: 50, offset: 20 });
+
+      const { getSavedAlbums } = useUserSpotifyApi();
+      const result = await getSavedAlbums(50, 20);
+
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('/me/albums'),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('limit=50'),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('offset=20'),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(result.total).toBe(0);
+    });
+
+    it('checks saved status with album URIs', async () => {
+      mockSpotifyApiCall.mockResolvedValue([true, false]);
+
+      const { checkAlbumsInLibrary } = useUserSpotifyApi();
+      const result = await checkAlbumsInLibrary(['album1', 'spotify:album:album2']);
+
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('/me/library/contains'),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent('spotify:album:album1,spotify:album:album2')),
+        'GET',
+        undefined,
+        expect.any(String)
+      );
+      expect(result).toEqual([true, false]);
+    });
+
+    it('saves albums with PUT and no body', async () => {
+      const { saveAlbumsToLibrary } = useUserSpotifyApi();
+      await saveAlbumsToLibrary(['album1']);
+
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('/me/library?'),
+        'PUT',
+        undefined,
+        expect.any(String)
+      );
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent('spotify:album:album1')),
+        'PUT',
+        undefined,
+        expect.any(String)
+      );
+    });
+
+    it('removes albums with DELETE and no body', async () => {
+      const { removeAlbumsFromLibrary } = useUserSpotifyApi();
+      await removeAlbumsFromLibrary(['album1']);
+
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining('/me/library?'),
+        'DELETE',
+        undefined,
+        expect.any(String)
+      );
+      expect(mockSpotifyApiCall).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent('spotify:album:album1')),
+        'DELETE',
+        undefined,
+        expect.any(String)
+      );
+    });
+
+    it('rejects an empty album id list before calling Spotify', async () => {
+      const { saveAlbumsToLibrary } = useUserSpotifyApi();
+      await expect(saveAlbumsToLibrary([])).rejects.toThrow('No album IDs provided');
+      expect(mockSpotifyApiCall).not.toHaveBeenCalled();
+    });
+  });
+
   describe('searchAlbums', () => {
     it('calls mockSpotifyApiCall with search endpoint and limit capped at 10', async () => {
       mockSpotifyApiCall.mockResolvedValue(MOCK_SEARCH_RESPONSE);

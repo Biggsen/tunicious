@@ -115,6 +115,7 @@ exports.tokenExchange = onRequest({
       refreshToken: tokenData.refresh_token,
       expiresIn: tokenData.expires_in,
       tokenType: tokenData.token_type,
+      scope: tokenData.scope || "",
     });
   } catch (error) {
     handleError(res, error, "tokenExchange");
@@ -224,6 +225,7 @@ exports.refreshToken = onRequest({
       refreshToken: tokenData.refresh_token, // Spotify may optionally return a new refresh token
       expiresIn: tokenData.expires_in,
       tokenType: tokenData.token_type,
+      scope: tokenData.scope || "",
     });
   } catch (error) {
     handleError(res, error, "refreshToken");
@@ -290,11 +292,29 @@ exports.apiProxy = onRequest({cors: corsConfig}, async (req, res) => {
       body: data ? JSON.stringify(data) : undefined,
     });
 
-    const responseData = await response.json();
+    const responseText = await response.text();
+    let responseData = {};
+    if (responseText) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error("Spotify API returned a non-JSON body", {
+          status: response.status,
+          endpoint,
+        });
+        if (!response.ok) {
+          res.status(response.status).json({error: "Spotify API call failed"});
+          return;
+        }
+      }
+    }
 
     if (!response.ok) {
       logger.error("Spotify API call failed", {status: response.status, endpoint, error: responseData});
-      res.status(response.status).json(responseData);
+      const errorBody = responseData && Object.keys(responseData).length ?
+        responseData :
+        {error: "Spotify API call failed"};
+      res.status(response.status).json(errorBody);
       return;
     }
 

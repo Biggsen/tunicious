@@ -28,8 +28,18 @@ export const SpotifyAuth = {
     'playlist-read-private',
     'streaming',
     'user-read-playback-state',
-    'user-modify-playback-state'
+    'user-modify-playback-state',
+    'user-library-read',
+    'user-library-modify'
   ].join(' ')
 };
+
+export const SAVED_ALBUM_SCOPES = ['user-library-read', 'user-library-modify'];
+
+export function hasSavedAlbumScopes(scope) {
+  if (!scope || typeof scope !== 'string') return false;
+  const granted = new Set(scope.split(/\s+/).filter(Boolean));
+  return SAVED_ALBUM_SCOPES.every((required) => granted.has(required));
+}
 
 export const TUNICIOUS_TAG = '[Tunicious]';
