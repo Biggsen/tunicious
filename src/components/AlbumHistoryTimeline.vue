@@ -89,8 +89,12 @@ function formatDate(value) {
 
 const events = computed(() => {
   const list = [];
-  for (const entry of props.playlistEntries || []) {
+  const playlistEntries = [...(props.playlistEntries || [])].sort(
+    (a, b) => (eventDate(a.addedAt)?.getTime() || 0) - (eventDate(b.addedAt)?.getTime() || 0)
+  );
+  playlistEntries.forEach((entry, index) => {
     const name = props.playlistNames[entry.playlistId] || 'Unknown Playlist';
+    const movedOn = index < playlistEntries.length - 1;
     list.push({
       key: `playlist-add-${entry.playlistId}-${eventDate(entry.addedAt)?.getTime() || list.length}`,
       kind: 'playlist',
@@ -100,7 +104,7 @@ const events = computed(() => {
       playlistId: entry.playlistId,
       icon: ArrowRightIcon
     });
-    if (entry.removedAt) {
+    if (entry.removedAt && !movedOn) {
       list.push({
         key: `playlist-left-${entry.playlistId}-${eventDate(entry.removedAt)?.getTime() || list.length}`,
         kind: 'playlist',
@@ -111,7 +115,7 @@ const events = computed(() => {
         icon: ArchiveBoxArrowDownIcon
       });
     }
-  }
+  });
   for (const entry of props.libraryEntries || []) {
     list.push({
       key: `library-save-${entry.spotifyAlbumId}-${eventDate(entry.savedAt)?.getTime() || list.length}`,
