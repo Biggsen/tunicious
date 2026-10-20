@@ -659,6 +659,24 @@ const handleLastFmSyncError = (event) => {
   }
 };
 
+const handleTrackPlaycountUpdated = (event) => {
+  const { trackId, playcount } = event.detail || {};
+  if (!trackId || typeof playcount !== 'number') return;
+
+  const trackIndex = tracks.value.findIndex(t => t.id === trackId);
+  if (trackIndex === -1) return;
+
+  tracks.value = [
+    ...tracks.value.slice(0, trackIndex),
+    {
+      ...tracks.value[trackIndex],
+      playcount
+    },
+    ...tracks.value.slice(trackIndex + 1)
+  ];
+  logAlbum(`Updated playcount in UI for track ${trackId} to ${playcount}`);
+};
+
 // Listen for track loved/unloved from player
 const handleTrackLovedFromPlayer = async (event) => {
   const { track } = event.detail;
@@ -789,6 +807,7 @@ onMounted(async () => {
   window.addEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.addEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   window.addEventListener('lastfm-sync-error', handleLastFmSyncError);
+  window.addEventListener('track-playcount-updated', handleTrackPlaycountUpdated);
   
   try {
     loading.value = true;
@@ -934,6 +953,7 @@ onUnmounted(() => {
   window.removeEventListener('track-loved-from-player', handleTrackLovedFromPlayer);
   window.removeEventListener('track-unloved-from-player', handleTrackUnlovedFromPlayer);
   window.removeEventListener('lastfm-sync-error', handleLastFmSyncError);
+  window.removeEventListener('track-playcount-updated', handleTrackPlaycountUpdated);
 });
 </script>
 
