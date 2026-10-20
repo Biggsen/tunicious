@@ -154,6 +154,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { getCacheInfo, clearCache } from '@/utils/cache';
+import { clearSavedAlbumsCache } from '@/composables/useSavedAlbums';
 import BaseButton from '@/components/common/BaseButton.vue';
 import Card from '@/components/common/Card.vue';
 import { ArrowPathIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
@@ -271,6 +272,7 @@ const clearAllCache = async () => {
   loading.value = true;
   try {
     clearCache(); // Clear all cache
+    await clearSavedAlbumsCache();
     cacheInfo.value = getCacheInfo();
     showMessage('All cache cleared successfully', 'success');
   } catch (error) {

@@ -13,7 +13,7 @@
         v-if="!needsReconnect"
         type="button"
         class="px-4 py-2 border-2 border-delft-blue rounded text-delft-blue hover:bg-mindero disabled:opacity-50"
-        :disabled="loading || loadingMore"
+        :disabled="loading || loadingMore || refreshing"
         @click="refresh"
       >
         Refresh
@@ -47,7 +47,10 @@
         </select>
       </div>
 
-      <p v-if="loadingMore" class="text-sm text-delft-blue mb-4">
+      <p v-if="refreshing" class="text-sm text-delft-blue mb-4">
+        Refreshing saved albums.
+      </p>
+      <p v-else-if="loadingMore" class="text-sm text-delft-blue mb-4">
         Loading more albums. Search and sort cover the full collection once loading finishes.
       </p>
       <p v-else-if="error && albums.length" class="text-sm text-raspberry mb-4">
@@ -71,7 +74,7 @@
           <span v-if="loadingMore && total"> of {{ total }}</span>
         </p>
         <ul class="album-grid">
-          <AlbumItem
+          <LibraryAlbumCard
             v-for="album in visibleAlbums"
             :key="album.id"
             :album="album"
@@ -83,10 +86,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
-import AlbumItem from '@/components/AlbumItem.vue';
+import LibraryAlbumCard from '@/components/LibraryAlbumCard.vue';
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
 import { filterAndSortSavedAlbums, useSavedAlbums } from '@/composables/useSavedAlbums';
 
@@ -99,7 +102,7 @@ const {
   loadingMore,
   error,
   needsReconnect,
-  complete,
+  refreshing,
   total,
   loadSavedAlbums
 } = useSavedAlbums();
@@ -111,10 +114,17 @@ const visibleAlbums = computed(() => filterAndSortSavedAlbums(albums.value, {
 
 const refresh = () => loadSavedAlbums({ force: true });
 
+const recheckLibrary = () => {
+  if (document.visibilityState === 'visible') loadSavedAlbums();
+};
+
 onMounted(() => {
-  if (!complete.value) {
-    loadSavedAlbums();
-  }
+  loadSavedAlbums();
+  document.addEventListener('visibilitychange', recheckLibrary);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', recheckLibrary);
 });
 </script>
 
