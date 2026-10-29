@@ -501,8 +501,31 @@ body {
   color: rgb(255 255 255 / 0.5);
 }
 
-.dark .page-field.auth-input-error {
-  border-color: #d81e5b !important;
+.auth-field {
+  @apply block w-full rounded-md border-0 px-2 py-1.5 mt-2 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-base sm:leading-6;
+}
+
+.auth-field.auth-input-error {
+  @apply ring-red-500;
+}
+
+.dark .auth-field {
+  background-color: transparent;
+  color: #fff;
+  color-scheme: dark;
+  --tw-ring-color: rgb(255 255 255 / 0.45);
+}
+
+.dark .auth-field::placeholder {
+  color: rgb(255 255 255 / 0.5);
+}
+
+.dark .auth-field:focus {
+  --tw-ring-color: #fff;
+}
+
+.dark .auth-field.auth-input-error {
+  --tw-ring-color: #d81e5b !important;
 }
 
 .page-outline {

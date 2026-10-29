@@ -69,7 +69,7 @@ if (currentUser.value?.email) {
             type="email" 
             id="email" 
             v-model="form.email"
-            class="page-field block w-full mt-2 focus:outline-none focus:ring-2 focus:ring-mindero"
+            class="auth-field"
             :class="{ 'auth-input-error': fieldErrors?.email }"
             placeholder="Enter your email"
           />

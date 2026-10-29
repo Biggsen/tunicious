@@ -46,7 +46,7 @@ watch(currentUser, (user) => {
           type="email" 
           id="email" 
           v-model="form.email"
-          class="page-field block w-full mt-2 focus:outline-none focus:ring-2 focus:ring-mindero"
+          class="auth-field"
           :class="{ 'auth-input-error': formError?.email }"
         />
         <span v-if="formError?.email" class="error-text">{{ formError.email }}</span>
@@ -58,7 +58,7 @@ watch(currentUser, (user) => {
           type="password" 
           id="password" 
           v-model="form.password"
-          class="page-field block w-full mt-2 focus:outline-none focus:ring-2 focus:ring-mindero"
+          class="auth-field"
           :class="{ 'auth-input-error': formError?.password }"
         />
         <span v-if="formError?.password" class="error-text">{{ formError.password }}</span>
