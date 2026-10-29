@@ -4,18 +4,18 @@
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     @click.self="handleCancel"
   >
-    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+    <div class="bg-card text-on-card rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
       <h3 class="text-lg font-semibold mb-4">{{ title }}</h3>
       
       <!-- Progress Bar -->
       <div class="mb-4">
-        <div class="w-full bg-gray-200 rounded-full h-4 mb-2">
+        <div class="w-full bg-delft-blue/15 rounded-full h-4 mb-2">
           <div
             class="bg-mint h-4 rounded-full transition-all duration-300 ease-out"
             :style="{ width: `${percentage}%` }"
           ></div>
         </div>
-        <div class="flex justify-between text-sm text-gray-600">
+        <div class="flex justify-between text-sm text-on-card/80">
           <span>{{ current }} of {{ total }}</span>
           <span class="font-semibold text-delft-blue">{{ percentage }}%</span>
         </div>
@@ -23,12 +23,12 @@
 
       <!-- Current Item -->
       <div v-if="currentItem" class="mb-4">
-        <p class="text-sm text-gray-500 mb-1">Processing:</p>
+        <p class="text-sm text-on-card/70 mb-1">Processing:</p>
         <p class="text-sm font-medium text-delft-blue truncate">{{ currentItem }}</p>
       </div>
 
       <!-- Time Information -->
-      <div class="flex justify-between text-xs text-gray-500 mb-4">
+      <div class="flex justify-between text-xs text-on-card/70 mb-4">
         <span v-if="elapsedTime > 0">
           Elapsed: {{ formatTime(elapsedTime) }}
         </span>

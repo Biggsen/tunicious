@@ -73,9 +73,8 @@ const activeClasses = computed(() => {
     case 'delft-blue':
       return 'bg-delft-blue';
     case 'primary-on-celadon':
-      return 'bg-delft-blue';
     case 'primary-on-mindero':
-      return 'bg-delft-blue';
+      return 'bg-delft-blue dark:bg-[#23395b]';
     default:
       return 'bg-mint';
   }
@@ -83,9 +82,9 @@ const activeClasses = computed(() => {
 
 const inactiveClasses = computed(() => {
   if (props.variant === 'primary-on-celadon' || props.variant === 'primary-on-mindero') {
-    return 'bg-white';
+    return 'bg-white dark:bg-[#23395b]';
   }
-  return 'bg-gray-300';
+  return 'bg-gray-300 dark:bg-delft-blue/40 dark:ring-1 dark:ring-white/40';
 });
 
 const thumbColorClasses = computed(() => {

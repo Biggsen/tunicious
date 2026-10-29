@@ -17,13 +17,13 @@
 
     <div v-else class="space-y-8">
       <!-- User's Playlists Section -->
-       <div class="bg-white shadow rounded-lg p-6">
+       <div class="add-playlist-panel bg-card text-on-card shadow rounded-lg p-6">
          <div class="flex justify-between items-center mb-4">
            <h2 class="text-lg font-semibold">Your Playlists</h2>
            <BaseButton 
              @click="loadUserPlaylists"
              :disabled="spotifyLoading"
-             customClass="btn-secondary"
+             variant="secondary"
            >
              {{ spotifyLoading ? 'Loading...' : 'Refresh' }}
            </BaseButton>
@@ -39,7 +39,7 @@
            <div 
              v-for="playlist in userPlaylists" 
              :key="playlist.id"
-             class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+             class="playlist-manage-row border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
            >
              <div class="flex justify-between items-start">
                <div class="flex-1">
@@ -56,14 +56,16 @@
                       <BaseButton 
                         @click="handleRenamePlaylist"
                         :disabled="spotifyLoading || !newPlaylistName.trim()"
-                        customClass="btn-primary btn-sm"
+                        variant="secondary"
+                        customClass="btn-sm"
                       >
                         {{ spotifyLoading ? 'Saving...' : 'Save' }}
                       </BaseButton>
                       <BaseButton 
                         @click="cancelRenamePlaylist"
                         :disabled="spotifyLoading"
-                        customClass="btn-secondary btn-sm"
+                        variant="secondary"
+                        customClass="btn-sm"
                       >
                         Cancel
                       </BaseButton>
@@ -86,7 +88,7 @@
                    <p class="text-xs text-gray-400">
                      {{ playlist.public ? 'Public' : 'Private' }} • ID: {{ playlist.id }}
                    </p>
-                   <span v-if="isTuniciousPlaylist(playlist)" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                   <span v-if="isTuniciousPlaylist(playlist)" class="tunicious-badge text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                      Tunicious
                    </span>
                  </div>
@@ -94,20 +96,23 @@
                                <div class="flex gap-2">
                   <BaseButton 
                     @click="viewPlaylist(playlist.id)"
-                    customClass="btn-secondary btn-sm"
+                    variant="secondary"
+                    customClass="btn-sm"
                   >
                     View
                   </BaseButton>
                   <BaseButton 
                     @click="startRenamePlaylist(playlist)"
-                    customClass="btn-secondary btn-sm"
+                    variant="secondary"
+                    customClass="btn-sm"
                   >
                     Rename
                   </BaseButton>
                   <a 
                     :href="playlist.external_urls.spotify" 
                     target="_blank"
-                    class="btn-secondary btn-sm"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center justify-center rounded-lg font-medium px-2 py-1 text-sm bg-action text-delft-blue hover:bg-delft-blue hover:text-white dark:hover:bg-celadon dark:hover:text-delft-blue"
                   >
                     Open in Spotify
                   </a>
@@ -122,7 +127,7 @@
                    <div 
                      v-for="album in playlistAlbums.get(playlist.id)" 
                      :key="album.id"
-                     class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                     class="playlist-manage-album flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
                    >
                      <img 
                        v-if="album.cover" 
@@ -344,19 +349,11 @@ label {
 }
 
 .form-input {
-  @apply block w-full rounded-md border-0 px-3 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6;
-}
-
-.btn-primary {
-  @apply px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-secondary {
-  @apply px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply block w-full rounded-md border-0 px-3 py-2 text-gray-900 bg-white shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-mint sm:text-sm sm:leading-6;
 }
 
 .btn-danger {
-  @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply px-4 py-2 bg-raspberry text-white rounded-lg hover:bg-raspberry/80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-sm {

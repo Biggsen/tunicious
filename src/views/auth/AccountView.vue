@@ -4,7 +4,7 @@ import { RouterView } from 'vue-router';
 </script>
 
 <template>
-  <main class="account-layout">
+  <main class="account-layout account-page">
     <div class="account-container">
       <!-- Sidebar Navigation -->
       <aside class="account-sidebar-container">

@@ -93,7 +93,7 @@
             <BaseButton 
               @click="testUserProfile"
               :disabled="tests.userProfile.loading || !userData?.lastFmUserName"
-              size="sm"
+              variant="secondary"
             >
               Test
             </BaseButton>
@@ -117,7 +117,7 @@
             <BaseButton 
               @click="testTrackLoving"
               :disabled="tests.trackLoving.loading || !userData?.lastFmAuthenticated"
-              size="sm"
+              variant="secondary"
             >
               Test
             </BaseButton>
@@ -141,7 +141,7 @@
             <BaseButton 
               @click="testLovedTracks"
               :disabled="tests.lovedTracks.loading || !userData?.lastFmUserName"
-              size="sm"
+              variant="secondary"
             >
               Test
             </BaseButton>
@@ -165,7 +165,7 @@
             <BaseButton 
               @click="testSessionValidation"
               :disabled="tests.sessionValidation.loading || !userData?.lastFmSessionKey"
-              size="sm"
+              variant="secondary"
             >
               Test
             </BaseButton>
@@ -209,6 +209,7 @@
       <BaseButton 
         @click="runAllTests"
         :disabled="isRunningTests"
+        variant="secondary"
         :class="{ 'opacity-50 cursor-not-allowed': isRunningTests }"
       >
         <div v-if="isRunningTests" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>

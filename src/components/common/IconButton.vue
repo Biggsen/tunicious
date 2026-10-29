@@ -52,11 +52,11 @@ const variantPadding = computed(() => {
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'primary':
-      return 'bg-delft-blue text-mindero hover:bg-raspberry';
+      return 'bg-delft-blue text-mindero hover:bg-raspberry dark:ring-2 dark:ring-mint';
     case 'secondary':
-      return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white focus:bg-mint focus:text-delft-blue';
+      return 'bg-action text-delft-blue hover:bg-delft-blue hover:text-white dark:hover:bg-celadon dark:hover:text-delft-blue focus:bg-mint focus:text-delft-blue';
     case 'tertiary':
-      return 'bg-white text-delft-blue border-2 border-delft-blue hover:bg-mint hover:text-delft-blue focus:bg-white focus:text-delft-blue';
+      return 'bg-card text-on-card border-2 border-delft-blue hover:bg-mint hover:text-delft-blue focus:bg-card focus:text-on-card';
     case 'default':
     default:
       return 'bg-blue-500 text-white hover:bg-blue-600';

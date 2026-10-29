@@ -8,7 +8,7 @@ import BaseLayout from '@components/common/BaseLayout.vue';
   <BaseLayout>
     <div class="mb-8">
       <h1 class="h2 mb-2">Activity</h1>
-      <p class="text-delft-blue/70">
+      <p class="text-on-page/70">
         Latest movements and recently played
       </p>
     </div>

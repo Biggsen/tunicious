@@ -1,5 +1,5 @@
 <template>
-  <Card variant="white" class="hover:shadow-lg transition-shadow">
+  <Card variant="white" class="friend-card hover:shadow-lg transition-shadow">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="flex items-center gap-4 flex-1 min-w-0">
         <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">

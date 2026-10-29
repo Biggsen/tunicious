@@ -2902,21 +2902,21 @@ const handleUpdateYear = async (mismatch) => {
     <div v-if="albumData.length > 0" class="mb-4 flex flex-row max-[500px]:flex-col max-[500px]:gap-3 gap-4 max-[500px]:items-start items-center">
       <div class="flex items-center gap-3">
         <ToggleSwitch v-model="showTracklists" variant="primary-on-celadon" />
-        <span class="text-delft-blue font-medium">
+        <span class="text-on-page font-medium">
           Tracklist
         </span>
         <BaseButton
           v-if="showTracklists && playerReady && sortedAlbumsList?.length > 0"
           variant="primary"
           :disabled="tracksLoading || playPlaylistLoading"
-          custom-class="px-3 py-1.5 ml-6"
+          custom-class="px-3 py-1.5 ml-6 !bg-emphasis !text-delft-blue hover:!bg-mint dark:!ring-0"
           :title="tracksLoading ? 'Loading tracklist...' : (isPlaylistCurrentlyPlaying ? 'Pause' : 'Play playlist from least played track')"
           @click="handlePlayPlaylist"
         >
           <template #icon-left>
             <span
               v-if="playPlaylistLoading"
-              class="animate-spin h-5 w-5 border-2 border-t-transparent rounded-full border-white"
+              class="animate-spin h-5 w-5 border-2 border-t-transparent rounded-full border-delft-blue"
             />
             <PauseIcon v-else-if="isPlaylistCurrentlyPlaying" class="w-5 h-5" />
             <PlayIcon v-else class="w-5 h-5" />
@@ -2925,12 +2925,12 @@ const handleUpdateYear = async (mismatch) => {
         </BaseButton>
       </div>
       <div class="flex max-[500px]:flex-col max-[500px]:items-start items-center gap-2 max-[500px]:ml-0 ml-auto">
-        <span class="text-delft-blue font-medium uppercase text-xs tracking-wide max-[500px]:mb-1">Sort by:</span>
+        <span class="text-on-page font-medium uppercase text-xs tracking-wide max-[500px]:mb-1">Sort by:</span>
         <div class="flex items-center gap-2">
           <div class="relative" ref="sortDropdownRef">
             <button
               @click="sortDropdownOpen = !sortDropdownOpen"
-              class="inline-flex items-center justify-between px-3 py-1.5 min-w-[140px] rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+              class="page-outline justify-between px-3 py-1.5 min-w-[140px] rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-mint"
               :aria-expanded="sortDropdownOpen"
             >
               <span>{{ currentSortLabel }}</span>
@@ -2947,7 +2947,7 @@ const handleUpdateYear = async (mismatch) => {
             >
               <div
                 v-if="sortDropdownOpen"
-                class="absolute left-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                class="absolute left-0 mt-2 w-48 rounded-lg shadow-lg bg-card text-on-card ring-1 ring-delft-blue/20 z-50"
                 role="menu"
                 @click.stop
               >
@@ -3009,7 +3009,7 @@ const handleUpdateYear = async (mismatch) => {
           </div>
           <button
             @click="toggleSortDirection"
-            class="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors duration-200 bg-white border border-gray-300 text-delft-blue hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-delft-blue focus:ring-offset-2"
+            class="page-outline justify-center px-3 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-mint"
             :title="sortDirection === 'asc' ? 'Ascending' : 'Descending'"
           >
             <ArrowUpIcon v-if="sortDirection === 'asc'" class="h-5 w-5" />
@@ -3269,7 +3269,7 @@ const handleUpdateYear = async (mismatch) => {
     <LoadingMessage v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
     <template v-else-if="albumData.length">
-      <ul class="album-grid" :class="{ 'album-grid--start': paginatedAlbums.length === 1 }">
+      <ul class="album-grid playlist-album-grid" :class="{ 'album-grid--start': paginatedAlbums.length === 1 }">
         <AlbumItem 
           v-for="album in paginatedAlbums" 
           :key="album.id" 

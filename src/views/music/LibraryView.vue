@@ -3,26 +3,22 @@
       <div class="flex items-center justify-between gap-4 pb-4">
       <h1 class="h2">Library</h1>
       <div class="flex items-center gap-2">
-        <RouterLink
-          to="/library/add"
-          class="px-4 py-2 border-2 border-delft-blue rounded text-delft-blue hover:bg-mindero"
-        >
+        <BaseButton variant="secondary" @click="goToAddAlbum">
           Add album
-        </RouterLink>
-      <button
-        v-if="!needsReconnect"
-        type="button"
-        class="px-4 py-2 border-2 border-delft-blue rounded text-delft-blue hover:bg-mindero disabled:opacity-50"
-        :disabled="loading || loadingMore || refreshing"
-        @click="refresh"
-      >
-        Refresh
-      </button>
+        </BaseButton>
+        <BaseButton
+          v-if="!needsReconnect"
+          variant="secondary"
+          :disabled="loading || loadingMore || refreshing"
+          @click="refresh"
+        >
+          Refresh
+        </BaseButton>
       </div>
     </div>
 
     <div v-if="needsReconnect" class="text-center py-8 space-y-4">
-      <p class="text-delft-blue">Spotify needs permission to read your saved albums.</p>
+      <p class="text-on-page">Spotify needs permission to read your saved albums.</p>
       <BaseButton variant="primary" @click="initiateSpotifyLogin">
         Reconnect Spotify
       </BaseButton>
@@ -34,12 +30,12 @@
           v-model="searchTerm"
           type="text"
           placeholder="Filter by album or artist"
-          class="flex-1 px-4 py-2 border-2 border-delft-blue rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
+          class="page-field flex-1 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
         />
         <select
           v-model="sortKey"
           aria-label="Sort saved albums"
-          class="px-4 py-2 border-2 border-delft-blue rounded bg-white text-delft-blue"
+          class="page-field px-4 py-2 rounded"
         >
           <option value="recent">Recently saved</option>
           <option value="title">Album title</option>
@@ -47,10 +43,10 @@
         </select>
       </div>
 
-      <p v-if="refreshing" class="text-sm text-delft-blue mb-4">
+      <p v-if="refreshing" class="text-sm text-on-page mb-4">
         Refreshing saved albums.
       </p>
-      <p v-else-if="loadingMore" class="text-sm text-delft-blue mb-4">
+      <p v-else-if="loadingMore" class="text-sm text-on-page mb-4">
         Loading more albums. Search and sort cover the full collection once loading finishes.
       </p>
       <p v-else-if="error && albums.length" class="text-sm text-raspberry mb-4">
@@ -58,18 +54,18 @@
         <button type="button" class="underline ml-2" @click="refresh">Retry</button>
       </p>
 
-      <div v-if="loading && albums.length === 0" class="text-center text-delft-blue py-8">
+      <div v-if="loading && albums.length === 0" class="text-center text-on-page py-8">
         Loading saved albums...
       </div>
       <div v-else-if="error && albums.length === 0" class="text-center text-raspberry py-8 space-y-3">
         <p>{{ error }}</p>
         <button type="button" class="underline" @click="refresh">Retry</button>
       </div>
-      <div v-else-if="visibleAlbums.length === 0" class="text-center text-gray-500 py-8">
+      <div v-else-if="visibleAlbums.length === 0" class="text-center text-on-page/70 py-8">
         {{ searchTerm ? 'No saved albums match that filter.' : 'No saved albums yet.' }}
       </div>
       <template v-else>
-        <p class="text-sm text-delft-blue mb-4">
+        <p class="text-sm text-on-page mb-4">
           {{ visibleAlbums.length }} {{ visibleAlbums.length === 1 ? 'album' : 'albums' }}
           <span v-if="loadingMore && total"> of {{ total }}</span>
         </p>
@@ -87,12 +83,14 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import BaseLayout from '@components/common/BaseLayout.vue';
 import BaseButton from '@components/common/BaseButton.vue';
 import LibraryAlbumCard from '@/components/LibraryAlbumCard.vue';
 import { useSpotifyAuth } from '@composables/useSpotifyAuth';
 import { filterAndSortSavedAlbums, useSavedAlbums } from '@/composables/useSavedAlbums';
 
+const router = useRouter();
 const searchTerm = ref('');
 const sortKey = ref('recent');
 const { initiateSpotifyLogin } = useSpotifyAuth();
@@ -113,6 +111,7 @@ const visibleAlbums = computed(() => filterAndSortSavedAlbums(albums.value, {
 }));
 
 const refresh = () => loadSavedAlbums({ force: true });
+const goToAddAlbum = () => router.push('/library/add');
 
 const recheckLibrary = () => {
   if (document.visibilityState === 'visible') loadSavedAlbums();

@@ -24,7 +24,7 @@
 
     <div v-else class="space-y-8">
       <!-- Create New Playlist Section -->
-      <div class="bg-white shadow rounded-lg p-6">
+      <div class="add-playlist-panel bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Create New Playlist</h2>
         
         <form @submit.prevent="handleCreatePlaylist" class="space-y-4">
@@ -68,7 +68,7 @@
             <BaseButton 
               type="submit" 
               :disabled="spotifyLoading"
-              customClass="btn-primary"
+              variant="secondary"
             >
               {{ spotifyLoading ? 'Creating...' : 'Create Playlist' }}
             </BaseButton>
@@ -79,7 +79,7 @@
       </div>
 
       <!-- Select Existing Playlist Section -->
-      <div class="bg-white shadow rounded-lg p-6">
+      <div class="add-playlist-panel bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Select from Existing</h2>
         
         <div v-if="loadingPlaylists" class="text-center py-8">
@@ -95,17 +95,17 @@
              <BaseButton 
                @click="loadAvailablePlaylists"
                :disabled="loadingPlaylists"
-               customClass="btn-secondary"
+               variant="secondary"
              >
                {{ loadingPlaylists ? 'Loading...' : 'Refresh Playlists' }}
              </BaseButton>
            </div>
            
            <details class="mt-4 text-left">
-             <summary class="cursor-pointer text-sm text-indigo-600 hover:text-indigo-800">
+             <summary class="add-playlist-debug cursor-pointer text-sm text-indigo-600 hover:text-indigo-800">
                Debug: Show all playlists ({{ allPlaylists.length }})
              </summary>
-             <div class="mt-2 p-4 bg-gray-100 rounded text-xs">
+             <div class="add-playlist-debug-body mt-2 p-4 bg-gray-100 rounded text-xs">
                <div v-for="playlist in allPlaylists.slice(0, 10)" :key="playlist.id" class="mb-2">
                  <strong>{{ playlist.name }}</strong><br>
                  <span class="text-gray-600">Description: "{{ playlist.description || 'No description' }}"</span><br>
@@ -123,9 +123,9 @@
             v-for="playlist in availablePlaylists" 
             :key="playlist.id"
             :class="[
-              'p-4 border-2 rounded-lg cursor-pointer transition-all duration-200',
+              'playlist-pick p-4 border-2 rounded-lg cursor-pointer transition-all duration-200',
               selectedPlaylist?.id === playlist.id 
-                ? 'border-indigo-500 bg-indigo-50' 
+                ? 'is-selected border-indigo-500 bg-indigo-50' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             ]"
             @click="selectPlaylist(playlist)"
@@ -151,14 +151,14 @@
       </div>
 
              <!-- Playlist Configuration Section -->
-       <div v-if="selectedPlaylist" class="bg-gray-50 shadow rounded-lg p-6">
+       <div v-if="selectedPlaylist" class="add-playlist-panel bg-gray-50 shadow rounded-lg p-6">
          <h2 class="text-lg font-semibold mb-4">Playlist Configuration</h2>
          
          <form @submit.prevent="handleSubmit(onSubmit, enhancedValidateForm)" class="playlist-form">
            <p v-if="formErrors.playlistId" class="error-text mb-4">{{ formErrors.playlistId }}</p>
            
            <!-- Pipeline Configuration -->
-           <div class="bg-white shadow rounded-lg p-6 mb-6">
+           <div class="add-playlist-inset bg-card text-on-card shadow rounded-lg p-6 mb-6">
              <h3 class="text-md font-semibold mb-4">Pipeline Configuration</h3>
              
              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,7 +193,7 @@
            </div>
 
                        <!-- Pipeline Connections -->
-            <div v-if="pipelineRoleFields && pipelineRoleFields.length > 0" class="bg-white shadow rounded-lg p-6 mb-6">
+            <div v-if="pipelineRoleFields && pipelineRoleFields.length > 0" class="add-playlist-inset bg-card text-on-card shadow rounded-lg p-6 mb-6">
               <h3 class="text-md font-semibold mb-4">Pipeline Connections</h3>
               <p class="text-sm text-gray-500 mb-4">
                 Pipeline connections can be configured after the playlist is created in the Edit Playlist page.
@@ -261,14 +261,16 @@
              <BaseButton 
                type="submit" 
                :disabled="isSubmitting || userLoading"
-               customClass="submit-button"
+               variant="secondary"
+               customClass="flex-1"
              >
                {{ isSubmitting ? 'Adding...' : 'Add Playlist' }}
              </BaseButton>
              <BaseButton 
                type="button" 
                @click="$router.push('/playlists')" 
-               customClass="cancel-button"
+               variant="secondary"
+               customClass="flex-1"
              >
                Cancel
              </BaseButton>
@@ -699,15 +701,11 @@ label {
 }
 
 .form-input {
-  @apply block w-full rounded-md border-0 px-3 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6;
+  @apply block w-full rounded-md border-0 px-3 py-2 text-gray-900 bg-white shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-mint sm:text-sm sm:leading-6;
 
   &.error {
     @apply ring-red-500;
   }
-}
-
-.btn-primary {
-  @apply px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .error-text {
@@ -716,21 +714,5 @@ label {
 
 .form-actions {
   @apply flex gap-4 mt-6;
-}
-
-.submit-button {
-  @apply flex-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.cancel-button {
-  @apply flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50;
-}
-
-.success-message {
-  @apply mt-4 p-4 bg-green-50 text-green-700 rounded-md;
-}
-
-.btn-secondary {
-  @apply px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 </style> 

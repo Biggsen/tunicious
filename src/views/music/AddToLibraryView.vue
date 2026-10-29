@@ -4,7 +4,7 @@
       <BackButton text="Library" to="/library" />
     </div>
     <h1 class="h2 pb-4">Add to Library</h1>
-    <p class="text-delft-blue mb-6">Search Spotify, then save the album into your library.</p>
+    <p class="text-on-page mb-6">Search Spotify, then save the album into your library.</p>
     <AlbumSearch v-model="selectedAlbum" />
     <div class="mt-6 flex items-center gap-4">
       <BaseButton
@@ -15,7 +15,7 @@
       >
         Save to library
       </BaseButton>
-      <p v-if="message" class="text-sm text-delft-blue">{{ message }}</p>
+      <p v-if="message" class="text-sm text-on-page">{{ message }}</p>
       <p v-if="errorMessage" class="text-sm text-raspberry">{{ errorMessage }}</p>
     </div>
   </BaseLayout>

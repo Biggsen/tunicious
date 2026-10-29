@@ -173,7 +173,7 @@ onMounted(() => {
                 alt="Profile picture"
                 class="w-full h-full object-cover"
               />
-              <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-2xl font-semibold">
+              <div v-else class="w-full h-full bg-delft-blue dark:bg-[#23395b] flex items-center justify-center text-mindero text-2xl font-semibold">
                 {{ userData.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?' }}
               </div>
             </div>
@@ -209,7 +209,7 @@ onMounted(() => {
             class="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50 font-chivo"
             @click.self="showImageSelector = false"
           >
-          <Card class="max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto font-chivo">
+          <Card class="account-modal max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto font-chivo">
             <div class="space-y-4">
               <div class="flex items-center justify-between">
                 <h3 class="text-xl font-semibold text-delft-blue">Select Profile Picture</h3>

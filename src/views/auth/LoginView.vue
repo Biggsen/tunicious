@@ -36,7 +36,7 @@ watch(currentUser, (user) => {
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout class="light-canvas">
   <div v-if="!currentUser?.email">
     <h1 class="h2 pb-4">Login</h1>
     <form @submit.prevent="handleSubmit(onSubmit)" class="login-form">

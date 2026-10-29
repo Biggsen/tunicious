@@ -25,7 +25,7 @@ const goBack = () => {
   <RouterLink 
     v-if="to" 
     :to="to" 
-    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-mint text-delft-blue hover:bg-delft-blue hover:text-white"
+    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-action text-delft-blue hover:bg-delft-blue hover:text-white dark:hover:bg-celadon dark:hover:text-delft-blue"
   >
     <ArrowLeftIcon class="h-5 w-5" />
     {{ text }}
@@ -33,7 +33,7 @@ const goBack = () => {
   <button 
     v-else
     @click.prevent="goBack" 
-    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-mint text-delft-blue hover:bg-delft-blue hover:text-white"
+    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium min-h-[2.5rem] bg-action text-delft-blue hover:bg-delft-blue hover:text-white dark:hover:bg-celadon dark:hover:text-delft-blue"
   >
     <ArrowLeftIcon class="h-5 w-5" />
     {{ text }}

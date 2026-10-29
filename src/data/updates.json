@@ -1,5 +1,29 @@
 [
   {
+    "id": 23,
+    "title": "Release 0.5.0: Dark Mode",
+    "date": "2026-10-29",
+    "types": ["FEATURE", "UX"],
+    "hidden": false,
+    "description": "Tunicious now supports dark mode, offering a more comfortable browsing experience in low-light environments."
+  },
+  {
+    "id": 22,
+    "title": "Release 0.4.0",
+    "date": "2026-10-20",
+    "types": ["FEATURE", "UX"],
+    "hidden": false,
+    "description": "Release 0.4.0 adds a Library for your Spotify saved albums. You can browse, filter, and save albums from Tunicious, and album history now records when something was saved or later removed.",
+    "changes": [
+      "Library page — your Spotify saved albums, with a filter for album or artist and sort by recently saved, album title, or artist",
+      "Add album — search Spotify and save the album into your library",
+      "Save and Remove on the album page",
+      "Album history — saves and removals appear on the timeline, and the History tab can show Library, Playlists, or both",
+      "Library in the main navigation",
+      "Faster return visits — Library keeps a local copy and only checks Spotify for what changed. Refresh still pulls a fresh copy"
+    ]
+  },
+  {
     "id": 21,
     "title": "Release 0.3.0",
     "date": "2026-03-09",

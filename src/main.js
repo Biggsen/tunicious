@@ -1,5 +1,16 @@
 import { createApp } from "vue";
+import { applyTheme } from "./composables/useTheme";
 import "./style.scss";
+
+applyTheme(
+  (() => {
+    try {
+      return localStorage.getItem("tunicious-theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  })()
+);
 import { VueFire, VueFireAuth } from "vuefire";
 import { firebaseApp } from "./firebase";
 import App from "./App.vue";

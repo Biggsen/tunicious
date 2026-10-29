@@ -300,13 +300,13 @@ onMounted(async () => {
         />
         <div>
           <h1 class="h2">{{ artistData.name }}</h1>
-          <p class="text-gray-600">{{ totalAlbums }} albums</p>
+          <p class="text-gray-600 dark:text-on-page/80">{{ totalAlbums }} albums</p>
         </div>
       </div>
     </div>
 
     <div class="mb-4">
-      <BaseButton @click.prevent="handleClearCache">
+      <BaseButton variant="secondary" @click.prevent="handleClearCache">
         <template #icon-left><ArrowPathIcon class="h-5 w-5" /></template>
         Reload
       </BaseButton>
@@ -331,7 +331,10 @@ onMounted(async () => {
           :ratingData="album.ratingData"
           :pipeline-position="positionDataMap[album.id]?.pipelinePosition ?? null"
           :total-positions="positionDataMap[album.id]?.totalPositions ?? null"
-          :class="{ 'not-in-playlist': !playlistStatus[album.id] }"
+          :class="{
+            'in-playlist': !!playlistStatus[album.id],
+            'not-in-playlist': !playlistStatus[album.id]
+          }"
         />
       </ul>
 
@@ -381,6 +384,10 @@ onMounted(async () => {
 
 .pagination-info {
   @apply text-gray-700 text-sm;
+}
+
+.dark .pagination-info {
+  color: #fff;
 }
 
 /* Artist-specific album styling */

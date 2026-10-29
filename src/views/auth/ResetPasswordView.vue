@@ -89,7 +89,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="p-4 pt-8">
+  <div class="light-canvas p-4 pt-8">
     <h1 class="h2 pb-4">Reset Password</h1>
     
     <div class="reset-password-content">

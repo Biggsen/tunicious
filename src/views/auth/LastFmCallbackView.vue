@@ -117,7 +117,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-4 pt-8">
+  <div class="light-canvas p-4 pt-8">
     <div v-if="loading" class="text-center">
       <p class="text-delft-blue text-lg">Connecting to Last.fm...</p>
       <div class="mt-4">

@@ -117,7 +117,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-4 pt-8">
+  <div class="light-canvas p-4 pt-8">
     <div v-if="loading" class="text-center">
       <h2 class="text-xl font-bold mb-4">Connecting to Spotify...</h2>
       <p>Please wait while we complete your Spotify authorization.</p>

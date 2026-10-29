@@ -2,8 +2,517 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --c-delft: 35 57 91;
+  --c-mint: 89 201 165;
+  --c-page: 185 227 198;
+  --c-on-page: 35 57 91;
+  --c-card: 255 255 255;
+  --c-on-card: 35 57 91;
+  --c-action: 89 201 165;
+  --c-emphasis: 255 253 152;
+  color-scheme: light;
+}
+
+.dark {
+  --c-delft: 24 39 62;
+  --c-mint: 63 91 135;
+  --c-page: 24 39 62;
+  --c-on-page: 255 255 255;
+  --c-card: 185 227 198;
+  --c-on-card: 24 39 62;
+  --c-action: 63 91 135;
+  --c-emphasis: 255 253 152;
+  color-scheme: dark;
+}
+
+.dark .light-canvas {
+  --c-delft: 35 57 91;
+  --c-mint: 89 201 165;
+  --c-page: 185 227 198;
+  --c-on-page: 35 57 91;
+  --c-card: 255 255 255;
+  --c-on-card: 35 57 91;
+  --c-action: 89 201 165;
+  --c-emphasis: 255 253 152;
+  color-scheme: light;
+  background-color: #b9e3c6;
+  color: #23395b;
+  min-height: 70vh;
+}
+
+@layer utilities {
+  .bg-page { background-color: rgb(var(--c-page)); }
+  .text-on-page { color: rgb(var(--c-on-page)); }
+  .text-on-page\/70 { color: rgb(var(--c-on-page) / 0.7); }
+  .text-on-page\/80 { color: rgb(var(--c-on-page) / 0.8); }
+  .text-on-page\/90 { color: rgb(var(--c-on-page) / 0.9); }
+  [class~="hover:text-on-page"]:hover { color: rgb(var(--c-on-page)); }
+  .bg-card { background-color: rgb(var(--c-card)); }
+  .text-on-card { color: rgb(var(--c-on-card)); }
+  .text-on-card\/70 { color: rgb(var(--c-on-card) / 0.7); }
+  .text-on-card\/80 { color: rgb(var(--c-on-card) / 0.8); }
+  .bg-action { background-color: rgb(var(--c-action)); }
+  .bg-emphasis { background-color: rgb(var(--c-emphasis)); }
+  [class~="!bg-emphasis"] { background-color: rgb(var(--c-emphasis)) !important; }
+}
+
+.dark {
+  [class~="dark:bg-page"] { background-color: rgb(var(--c-page)); }
+  [class~="dark:text-on-page"] { color: rgb(var(--c-on-page)); }
+  [class~="dark:text-on-page/80"] { color: rgb(var(--c-on-page) / 0.8); }
+  [class~="dark:bg-card"] { background-color: rgb(var(--c-card)); }
+}
+
+/* Faience is dark-mode Mint. Type that sits on it is white, and a nested
+   light surface puts the ink back. */
+.dark .bg-mint,
+.dark .bg-action,
+.dark [class~="dark:bg-mint"],
+.dark [class~="hover:bg-mint"]:hover,
+.dark [class~="dark:hover:bg-mint"]:hover,
+.dark [class~="focus:bg-mint"]:focus {
+  --on-fill: 255 255 255;
+  color: #fff;
+}
+
+.dark .bg-mindero,
+.dark .bg-card,
+.dark .bg-white,
+.dark .bg-celadon,
+.dark .bg-delft-blue,
+.dark .album-item,
+.dark .library-album,
+.dark [class~="hover:bg-celadon"]:hover,
+.dark [class~="dark:hover:bg-celadon"]:hover {
+  --on-fill: var(--c-on-card);
+}
+
+.dark .light-canvas .bg-mint,
+.dark .light-canvas .bg-action,
+.dark .light-canvas [class~="hover:bg-mint"]:hover,
+.dark .light-canvas [class~="dark:hover:bg-mint"]:hover,
+.dark .light-canvas [class~="focus:bg-mint"]:focus {
+  --on-fill: var(--c-delft);
+  color: rgb(var(--c-delft));
+}
+
+.dark :is(.bg-mint, .bg-action, [class~="dark:bg-mint"]) :is(
+  .text-delft-blue,
+  .text-on-card,
+  .text-gray-500,
+  .text-gray-600,
+  .text-stone-500
+),
+.dark :is(.bg-mint, .bg-action, [class~="dark:bg-mint"]):is(
+  .text-delft-blue,
+  .text-on-card,
+  .text-gray-500,
+  .text-gray-600
+) {
+  color: rgb(var(--on-fill, 255 255 255));
+}
+
+.dark :is(.bg-mint, .bg-action) :is(
+  .text-delft-blue\/50,
+  .text-delft-blue\/70,
+  .text-delft-blue\/80,
+  .text-delft-blue\/90,
+  .text-on-card\/70,
+  .text-on-card\/80
+) {
+  color: rgb(var(--on-fill, 255 255 255) / 0.75);
+}
+
+.dark .bg-mint .bg-mindero :is(
+  .text-delft-blue,
+  .text-gray-500,
+  .text-gray-600,
+  .text-stone-500
+),
+.dark .bg-mint .bg-mindero :is(
+  .text-delft-blue\/50,
+  .text-delft-blue\/70,
+  .text-delft-blue\/80,
+  .text-delft-blue\/90
+) {
+  color: #23395b;
+}
+
+.dark .bg-mindero.border-delft-blue {
+  border-color: #23395b;
+}
+
+.dark .activity-inner .movement-item {
+  background-color: #23395b !important;
+  border-color: #23395b !important;
+  color: #fff !important;
+}
+
+.dark .activity-inner .movement-item :is(
+  .text-delft-blue,
+  .text-gray-500,
+  .text-gray-600,
+  button,
+  span,
+  p,
+  svg
+),
+.dark .activity-inner .movement-item :is(
+  .text-delft-blue\/50,
+  .text-delft-blue\/70
+) {
+  color: #fff !important;
+}
+
+.dark .activity-inner .border-delft-blue\/20 {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark .activity-inner .rounded-full.border {
+  background-color: rgb(255 255 255 / 0.12) !important;
+  border-color: rgb(255 255 255 / 0.35) !important;
+}
+
+.dark .friends-panel .friend-card {
+  background-color: #23395b !important;
+  border-color: #23395b !important;
+  color: #fff !important;
+}
+
+.dark .friends-panel .friend-card :is(h3, p, .text-gray-500, .text-gray-600),
+.dark .friends-panel .friend-card .text-delft-blue\/80,
+.dark .friends-panel .friend-card .friend-initial {
+  color: #fff !important;
+}
+
+.dark .friends-panel .border-delft-blue\/20 {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark .friends-panel .page-field {
+  color: #fff !important;
+}
+
+.dark .update-entry {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark .update-chip {
+  background-color: rgb(255 255 255 / 0.12) !important;
+  color: #fff !important;
+  border-color: rgb(255 255 255 / 0.35) !important;
+}
+
+.dark .add-playlist-panel {
+  background-color: #23395b !important;
+  color: #fff !important;
+}
+
+.dark .add-playlist-inset {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark .add-playlist-panel :is(
+  label,
+  h2,
+  h3,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700,
+  .text-gray-900
+) {
+  color: #fff !important;
+}
+
+.dark .add-playlist-panel .form-input {
+  background-color: transparent !important;
+  color: #fff !important;
+  border-color: rgb(255 255 255 / 0.6) !important;
+  --tw-ring-color: rgb(255 255 255 / 0.6) !important;
+}
+
+.dark .add-playlist-panel .form-input::placeholder {
+  color: rgb(255 255 255 / 0.5) !important;
+}
+
+.dark .add-playlist-panel .playlist-pick {
+  border-color: rgb(255 255 255 / 0.25) !important;
+  background-color: transparent !important;
+}
+
+.dark .add-playlist-panel .playlist-pick.is-selected {
+  border-color: #fff !important;
+  background-color: rgb(255 255 255 / 0.08) !important;
+}
+
+.dark .add-playlist-debug {
+  color: #fff !important;
+}
+
+.dark .add-playlist-debug:hover {
+  color: #d81e5b !important;
+}
+
+.dark .add-playlist-debug-body {
+  background-color: rgb(0 0 0 / 0.25) !important;
+  color: #fff !important;
+}
+
+.dark .add-playlist-panel .border-gray-200 {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark .add-playlist-panel .playlist-manage-row:hover {
+  background-color: rgb(255 255 255 / 0.06) !important;
+}
+
+.dark .add-playlist-panel .playlist-manage-album {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark .tunicious-badge {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark :is(.account-page, .account-modal) {
+  color: #fff;
+}
+
+.dark :is(.account-page, .account-modal) :is(
+  .text-delft-blue,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700,
+  .text-gray-900,
+  .text-on-card
+) {
+  color: #fff !important;
+}
+
+.dark :is(.account-page, .account-modal) :is(.bg-card, .bg-white):not(button),
+.dark .account-modal:is(.bg-card, .bg-white) {
+  background-color: #23395b !important;
+  color: #fff !important;
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark :is(.account-page, .account-modal) :is(.bg-gray-50, .bg-gray-100) {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark :is(.account-page, .account-modal) :is(.border-gray-200, .border-gray-100, .border-gray-300) {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.dark .account-page .nav-link,
+.dark .account-page .nav-link-mobile {
+  color: #fff !important;
+}
+
+.dark .account-page .nav-link:not(.nav-link-active):hover,
+.dark .account-page .nav-link-mobile:not(.nav-link-mobile-active):hover {
+  background-color: rgb(255 255 255 / 0.08) !important;
+}
+
+.dark .account-page .nav-link-mobile:not(.nav-link-mobile-active) {
+  background-color: transparent !important;
+  border-color: rgb(255 255 255 / 0.35) !important;
+}
+
+.dark .account-page .nav-link-active,
+.dark .account-page .nav-link-active:hover,
+.dark .account-page .nav-link-mobile-active,
+.dark .account-page .nav-link-mobile-active:hover {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark .account-page button.bg-card {
+  background-color: transparent !important;
+  color: #fff !important;
+  border-color: rgb(255 255 255 / 0.45) !important;
+}
+
+.dark .account-page button.bg-delft-blue {
+  background-color: #3f5b87 !important;
+  color: #fff !important;
+}
+
+.dark .account-page a.text-delft-blue:hover {
+  color: #d81e5b !important;
+}
+
+.dark .add-to-collection-btn {
+  color: #fff;
+}
+
+.dark .add-to-collection-btn:hover {
+  color: rgb(var(--c-delft));
+}
+
 body {
-  @apply bg-celadon;
+  background-color: rgb(var(--c-page));
+  color: rgb(var(--c-on-page));
+}
+
+.dark .bg-card {
+  color-scheme: light;
+}
+
+.dark .album-item,
+.dark .library-album {
+  background-color: rgb(var(--c-card)) !important;
+}
+
+.dark .library-album {
+  background-color: #23395b !important;
+  border: none !important;
+}
+
+.dark .library-album :is(.library-album-year, .library-album-name, .library-album-artist) {
+  color: #fff !important;
+}
+
+.dark .playlist-album-grid .album-item,
+.dark .search-album-grid .album-item,
+.dark .album-item.in-playlist {
+  background-color: #23395b !important;
+  border-color: #23395b !important;
+}
+
+.dark .playlist-album-grid .album-item,
+.dark .search-album-grid .album-item,
+.dark .album-item.in-playlist {
+  border: none !important;
+}
+
+.dark .playlist-album-grid .album-item .album-link,
+.dark .search-album-grid .album-item .album-link,
+.dark .album-item.in-playlist .album-link {
+  background-color: #3f5b87 !important;
+}
+
+.dark .playlist-album-grid .album-item .album-link .lastfm-link,
+.dark .playlist-album-grid .album-item .album-link .rym-link,
+.dark .search-album-grid .album-item .album-link .lastfm-link,
+.dark .search-album-grid .album-item .album-link .rym-link,
+.dark .album-item.in-playlist .album-link .lastfm-link,
+.dark .album-item.in-playlist .album-link .rym-link {
+  color: #fff !important;
+}
+
+.dark .playlist-album-grid .album-item .album-year,
+.dark .playlist-album-grid .album-item .album-name,
+.dark .playlist-album-grid .album-item .album-artist,
+.dark .search-album-grid .album-item .album-year,
+.dark .search-album-grid .album-item .album-name,
+.dark .search-album-grid .album-item .album-artist,
+.dark .album-item.in-playlist .album-year,
+.dark .album-item.in-playlist .album-name,
+.dark .album-item.in-playlist .album-artist {
+  color: #fff !important;
+}
+
+.dark .search-album-grid .album-item svg.text-delft-blue {
+  color: #fff !important;
+}
+
+.dark .playlist-album-grid .album-item .album-details :is(h2, li, li span) {
+  color: #fff !important;
+}
+
+.dark .playlist-album-grid .album-item .album-details h2 {
+  border-color: #fff !important;
+}
+
+.dark .album-tracks-panel {
+  background-color: #23395b !important;
+  border-color: #23395b !important;
+}
+
+.dark .album-tracks-panel :is(h2, li, span) {
+  color: #fff !important;
+}
+
+.dark .album-tracks-panel h2 {
+  border-color: #fff !important;
+}
+
+.dark .album-listen-panel {
+  background-color: #23395b !important;
+  border-color: #23395b !important;
+  color: #fff !important;
+}
+
+.dark .album-listen-panel :is(.text-delft-blue, .text-stone-500, .text-on-card):not(button) {
+  color: #fff !important;
+}
+
+.dark .album-listen-panel a:hover {
+  color: #d81e5b !important;
+}
+
+.dark .album-listen-panel textarea::placeholder {
+  color: rgb(255 255 255 / 0.6);
+}
+
+.dark .album-item.not-in-playlist {
+  background-color: #000 !important;
+  border: none !important;
+}
+
+.dark .album-item.not-in-playlist .album-link {
+  background-color: #1a1a1a !important;
+}
+
+.dark .album-item.not-in-playlist .album-link .lastfm-link,
+.dark .album-item.not-in-playlist .album-link .rym-link {
+  color: #fff !important;
+}
+
+.dark .album-item.not-in-playlist .album-info {
+  background-color: transparent !important;
+}
+
+.dark .album-item.not-in-playlist .album-year,
+.dark .album-item.not-in-playlist .album-name,
+.dark .album-item.not-in-playlist .album-artist {
+  color: #fff !important;
+}
+
+.page-field {
+  @apply bg-white text-delft-blue border-2 border-delft-blue placeholder:text-delft-blue/40;
+}
+
+.dark .page-field {
+  background-color: transparent;
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.6);
+}
+
+.dark .page-field::placeholder {
+  color: rgb(255 255 255 / 0.5);
+}
+
+.page-outline {
+  @apply inline-flex items-center bg-white text-delft-blue border border-gray-300 hover:bg-gray-50;
+}
+
+.dark .page-outline {
+  background-color: transparent;
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.6);
+}
+
+.dark .page-outline:hover {
+  background-color: rgb(255 255 255 / 0.1);
 }
 
 #app {

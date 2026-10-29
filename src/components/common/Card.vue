@@ -16,16 +16,16 @@ const props = defineProps({
 });
 
 const cardClasses = computed(() => {
-  const baseClasses = 'border-2 border-delft-blue rounded-xl p-6';
+  const baseClasses = 'border-2 border-delft-blue rounded-xl p-6 text-on-card';
   
   switch (props.variant) {
     case 'celadon':
-      return `bg-celadon ${baseClasses}`;
+      return `bg-celadon dark:bg-card ${baseClasses}`;
     case 'mint':
       return `bg-mint ${baseClasses}`;
     case 'white':
     default:
-      return `bg-white ${baseClasses}`;
+      return `bg-card ${baseClasses}`;
   }
 });
 </script>

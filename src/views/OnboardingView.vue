@@ -1,5 +1,5 @@
 <template>
-  <div class="onboarding-view">
+  <div class="onboarding-view light-canvas">
     <div v-if="loading" class="loading-container">
       <p>Loading onboarding...</p>
     </div>

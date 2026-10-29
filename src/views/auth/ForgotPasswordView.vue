@@ -53,7 +53,7 @@ if (currentUser.value?.email) {
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout class="light-canvas">
   <div v-if="!currentUser?.email">
     <h1 class="h2 pb-4">Forgot Password</h1>
     

@@ -120,13 +120,13 @@ onUnmounted(() => {
 <template>
   <div class="last-played">
     <div class="flex items-center gap-2 mb-4">
-      <MusicalNoteIcon class="h-5 w-5 text-delft-blue" />
-      <h2 class="text-xl font-bold text-delft-blue">Last Played</h2>
+      <MusicalNoteIcon class="h-5 w-5 text-on-page" />
+      <h2 class="text-xl font-bold text-on-page">Last Played</h2>
     </div>
 
     <LoadingMessage v-if="loading" />
     
-    <div v-else-if="!lastPlayed" class="text-center py-8 text-gray-500">
+    <div v-else-if="!lastPlayed" class="text-center py-8 text-on-page/70">
       No playback history yet
     </div>
 
