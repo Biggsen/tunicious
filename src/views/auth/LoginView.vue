@@ -46,7 +46,8 @@ watch(currentUser, (user) => {
           type="email" 
           id="email" 
           v-model="form.email"
-          :class="{ 'error': formError?.email }"
+          class="auth-field"
+          :class="{ 'auth-input-error': formError?.email }"
         />
         <span v-if="formError?.email" class="error-text">{{ formError.email }}</span>
       </div>
@@ -57,7 +58,8 @@ watch(currentUser, (user) => {
           type="password" 
           id="password" 
           v-model="form.password"
-          :class="{ 'error': formError?.password }"
+          class="auth-field"
+          :class="{ 'auth-input-error': formError?.password }"
         />
         <span v-if="formError?.password" class="error-text">{{ formError.password }}</span>
       </div>
@@ -67,6 +69,7 @@ watch(currentUser, (user) => {
           type="submit" 
           :disabled="isSubmitting || authLoading"
           variant="primary"
+          custom-class="dark:!bg-[#3f5b87] dark:!text-white dark:!ring-0"
         >
           {{ isSubmitting || authLoading ? 'Logging in...' : 'Login' }}
         </BaseButton>
@@ -79,18 +82,18 @@ watch(currentUser, (user) => {
       </div>
 
       <div class="auth-links">
-        <p class="text-sm text-gray-600 mb-2">
-          <router-link to="/forgot-password" class="text-delft-blue hover:underline">Forgot password?</router-link>
+        <p class="text-sm text-on-page/80 mb-2">
+          <router-link to="/forgot-password" class="text-on-page hover:text-raspberry hover:underline">Forgot password?</router-link>
         </p>
-        <p class="text-sm text-gray-600 hidden">
+        <p class="text-sm text-on-page/80 hidden">
           Don't have an account? 
-          <router-link to="/signup" class="text-delft-blue hover:underline">Sign up</router-link>
+          <router-link to="/signup" class="text-on-page hover:text-raspberry hover:underline">Sign up</router-link>
         </p>
       </div>
     </form>
   </div>
   <div v-else>
-    <p>You are already logged in.</p>
+    <p class="text-on-page">You are already logged in.</p>
   </div>
   </BaseLayout>
 </template>
@@ -105,15 +108,7 @@ watch(currentUser, (user) => {
 }
 
 label {
-  @apply block text-base font-medium leading-6 text-gray-900;
-}
-
-input {
-  @apply block w-full rounded-md border-0 px-2 py-1.5 mt-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-base sm:leading-6;
-
-  &.error {
-    @apply ring-red-500;
-  }
+  @apply block text-base font-medium leading-6 text-on-page;
 }
 
 .error-text {

@@ -58,7 +58,7 @@ if (currentUser.value?.email) {
     <h1 class="h2 pb-4">Forgot Password</h1>
     
     <div class="forgot-password-content">
-      <p class="mb-4 text-gray-600">
+      <p class="mb-4 text-on-page/80">
         Enter your email address and we'll send you a link to reset your password.
       </p>
 
@@ -69,7 +69,8 @@ if (currentUser.value?.email) {
             type="email" 
             id="email" 
             v-model="form.email"
-            :class="{ 'error': fieldErrors?.email }"
+            class="auth-field"
+            :class="{ 'auth-input-error': fieldErrors?.email }"
             placeholder="Enter your email"
           />
           <span v-if="fieldErrors?.email" class="error-text">{{ fieldErrors.email }}</span>
@@ -80,6 +81,7 @@ if (currentUser.value?.email) {
             type="submit" 
             :disabled="isSubmitting || authLoading"
             variant="primary"
+            custom-class="dark:!bg-[#3f5b87] dark:!text-white dark:!ring-0"
           >
             {{ isSubmitting || authLoading ? 'Sending...' : 'Send Reset Link' }}
           </BaseButton>
@@ -97,18 +99,18 @@ if (currentUser.value?.email) {
       </form>
 
       <div class="auth-links">
-        <p class="text-sm text-gray-600 mb-2">
-          <router-link to="/login" class="text-delft-blue hover:underline">Back to Login</router-link>
+        <p class="text-sm text-on-page/80 mb-2">
+          <router-link to="/login" class="text-on-page hover:text-raspberry hover:underline">Back to Login</router-link>
         </p>
-        <p class="text-sm text-gray-600 hidden">
+        <p class="text-sm text-on-page/80 hidden">
           Don't have an account? 
-          <router-link to="/signup" class="text-delft-blue hover:underline">Sign up</router-link>
+          <router-link to="/signup" class="text-on-page hover:text-raspberry hover:underline">Sign up</router-link>
         </p>
       </div>
     </div>
   </div>
   <div v-else>
-    <p>You are already logged in.</p>
+    <p class="text-on-page">You are already logged in.</p>
   </div>
   </BaseLayout>
 </template>
@@ -127,15 +129,7 @@ if (currentUser.value?.email) {
 }
 
 label {
-  @apply block text-base font-medium leading-6 text-gray-900;
-}
-
-input {
-  @apply block w-full rounded-md border-0 px-2 py-1.5 mt-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-base sm:leading-6;
-
-  &.error {
-    @apply ring-red-500;
-  }
+  @apply block text-base font-medium leading-6 text-on-page;
 }
 
 .error-text {

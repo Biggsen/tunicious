@@ -420,7 +420,7 @@ watch(() => route.params.id, async (newId, oldId) => {
     
     <div v-else-if="playlist" class="space-y-8">
       <!-- Pipeline Configuration -->
-      <div class="bg-white shadow rounded-lg p-6">
+      <div class="bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Pipeline Configuration</h2>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -462,7 +462,7 @@ watch(() => route.params.id, async (newId, oldId) => {
       </div>
       
       <!-- Pipeline Connections -->
-      <div v-if="pipelineRoleFields.length > 0" class="bg-white shadow rounded-lg p-6">
+      <div v-if="pipelineRoleFields.length > 0" class="bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Pipeline Connections</h2>
         
         <div class="space-y-4">
@@ -574,7 +574,7 @@ watch(() => route.params.id, async (newId, oldId) => {
       </div>
       
       <!-- Exclude from Movements -->
-      <div class="bg-white shadow rounded-lg p-6">
+      <div class="bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Visibility Settings</h2>
         
         <div class="flex items-center">
@@ -618,7 +618,7 @@ watch(() => route.params.id, async (newId, oldId) => {
 
 <style scoped>
 .form-input {
-  @apply block w-full rounded-md border px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-delft-blue sm:text-sm sm:leading-6;
+  @apply block w-full rounded-md border px-3 py-2 text-gray-900 bg-white shadow-sm placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-delft-blue sm:text-sm sm:leading-6;
 }
 
 .btn-primary {

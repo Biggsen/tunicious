@@ -17,7 +17,11 @@ const props = defineProps({
   }
 });
 
-const bgClass = computed(() => (props.pipelineRole === 'sink' || props.pipelineRole === 'terminal') ? 'bg-raspberry' : 'bg-mint');
+const bgClass = computed(() => {
+  if (props.pipelineRole === 'sink' || props.pipelineRole === 'terminal') return 'bg-raspberry';
+  if (props.pipelineRole === 'transient') return 'bg-mint dark:bg-verdigris rating-bar--transient';
+  return 'bg-mint';
+});
 
 // Calculate width based on position and total positions
 const width = computed(() => {
@@ -74,3 +78,9 @@ const rating = computed(() => {
     </div>
   </div>
 </template>
+
+<style lang="scss">
+.dark .rating-bar--transient.bg-mint .text-delft-blue {
+  color: #23395b;
+}
+</style>

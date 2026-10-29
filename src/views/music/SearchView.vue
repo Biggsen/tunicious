@@ -10,18 +10,18 @@
             @input="onSearch"
             type="text"
             placeholder="Search for albums, artists, or year"
-            class="flex-1 px-4 py-2 border-2 border-delft-blue rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
+            class="page-field flex-1 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-mindero text-lg"
           />
           <button
             v-if="searchTerm || filters.albums || filters.artists || filters.years"
             @click="resetSearch"
-            class="p-2 text-delft-blue hover:text-raspberry transition-colors"
+            class="p-2 text-on-page hover:text-raspberry transition-colors"
             aria-label="Reset search"
           >
             <XMarkIcon class="w-6 h-6" />
           </button>
         </div>
-        <p class="text-sm text-stone-500">Tip: Use commas to search multiple terms. Use a hyphen for year ranges (e.g. 1990-1995).</p>
+        <p class="text-sm text-on-page/70">Tip: Use commas to search multiple terms. Use a hyphen for year ranges (e.g. 1990-1995).</p>
       </div>
       <div v-if="searchTerm" class="flex gap-2">
         <button
@@ -38,14 +38,14 @@
         >Year</button>
       </div>
     </div>
-    <div v-if="loading" class="text-center text-delft-blue py-8">Loading...</div>
+    <div v-if="loading" class="text-center text-on-page py-8">Loading...</div>
     <div v-else-if="error" class="text-center text-raspberry py-8">{{ error }}</div>
     <div v-else>
-      <p v-if="filteredResults.length > 0" class="text-sm text-delft-blue mb-4">
+      <p v-if="filteredResults.length > 0" class="text-sm text-on-page mb-4">
         {{ filteredResults.length }} {{ filteredResults.length === 1 ? 'result' : 'results' }}
       </p>
-      <div v-if="filteredResults.length === 0" class="text-center text-gray-500 py-8">No results found.</div>
-      <ul v-else class="album-grid">
+      <div v-if="filteredResults.length === 0" class="text-center text-on-page/70 py-8">No results found.</div>
+      <ul v-else class="album-grid search-album-grid">
         <AlbumItem
           v-for="album in filteredResults"
           :key="album.id"
@@ -82,9 +82,9 @@ const loading = ref(false);
 const error = ref(null);
 
 const activeFilterClass =
-  'px-4 py-2 rounded-full bg-delft-blue text-mindero font-medium hover:bg-raspberry transition-colors duration-200';
+  'px-4 py-2 rounded-full bg-delft-blue text-mindero font-medium hover:bg-raspberry dark:ring-2 dark:ring-mint transition-colors duration-200';
 const inactiveFilterClass =
-  'px-[14px] py-[6px] rounded-full bg-white text-delft-blue border-2 border-delft-blue font-medium hover:bg-mint transition-colors duration-200';
+  'px-[14px] py-[6px] rounded-full bg-white text-delft-blue border-2 border-delft-blue font-medium hover:bg-mint dark:bg-transparent dark:text-white dark:border-white/60 transition-colors duration-200';
 
 const { searchAlbumsByTitlePrefix, searchAlbumsByArtistPrefix, searchAlbumsByYear, searchAlbumsByYearRange, getAlbumRatingData, fetchAlbumsData, getAlbumDetails } = useAlbumsData();
 const { playlists: userPlaylists, fetchUserPlaylists } = usePlaylistData();

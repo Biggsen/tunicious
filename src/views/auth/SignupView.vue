@@ -94,7 +94,7 @@ watch(currentUser, (user) => {
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout class="light-canvas">
   <div v-if="!currentUser?.email">
     <h1 class="h2 pb-4">Sign Up</h1>
     <form @submit.prevent="handleSubmit(onSubmit)" class="signup-form">

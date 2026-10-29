@@ -1,7 +1,6 @@
 <script setup>
 import { RouterLink, useRoute } from 'vue-router';
 import { computed } from 'vue';
-import { useAdmin } from '@composables/useAdmin';
 import {
   UserIcon,
   PuzzlePieceIcon,
@@ -12,7 +11,6 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const route = useRoute();
-const { isAdmin } = useAdmin();
 
 const baseNavItems = [
   {
@@ -54,13 +52,7 @@ const adminNavItem = {
   order: 6
 };
 
-const navItems = computed(() => {
-  const items = [...baseNavItems];
-  if (isAdmin.value) {
-    items.push(adminNavItem);
-  }
-  return items;
-});
+const navItems = computed(() => [...baseNavItems, adminNavItem]);
 
 const isActive = (path) => {
   return route.path === path || route.path.startsWith(path + '/');

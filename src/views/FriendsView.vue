@@ -2,7 +2,7 @@
   <BaseLayout>
     <div class="mb-8">
       <h1 class="h2 mb-2">Friends</h1>
-      <p class="text-delft-blue/70">
+      <p class="text-on-page/70">
         Connect with other Tunicious users and discover music together
       </p>
     </div>
@@ -18,7 +18,7 @@
             'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
             activeTab === tab.id
               ? 'text-delft-blue bg-mint'
-              : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+              : 'text-gray-600 dark:text-white/70 hover:text-delft-blue hover:bg-mint'
           ]"
         >
           {{ tab.label }}
@@ -30,7 +30,7 @@
     </div>
 
     <!-- Tab Content -->
-    <div class="bg-mint p-6 rounded-xl">
+    <div class="friends-panel bg-mint p-6 rounded-xl">
       <!-- Requests Tab -->
       <div v-if="activeTab === 'requests'">
         <LoadingMessage v-if="requestsLoading" />
@@ -101,9 +101,9 @@
               @input="handleSearchInput"
               type="text"
               placeholder="Search by display name or email..."
-              class="w-full px-4 py-3 pl-10 rounded-lg border-2 border-delft-blue focus:outline-none focus:ring-2 focus:ring-delft-blue"
+              class="page-field w-full px-4 py-3 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-mindero"
             />
-            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-white/70" />
           </div>
           <LoadingMessage v-if="searchLoading" />
           <ErrorMessage v-else-if="searchError" :message="searchError" />
@@ -136,7 +136,7 @@
           <div
             v-for="rec in recommendations"
             :key="rec.id"
-            class="bg-mindero rounded-lg border-2 border-delft-blue p-4 flex flex-wrap items-start gap-3"
+            class="friend-card bg-mindero rounded-lg border-2 border-delft-blue p-4 flex flex-wrap items-start gap-3"
           >
             <div class="flex flex-col items-center gap-1 flex-shrink-0 w-14 self-center mr-4">
               <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-delft-blue/30 flex-shrink-0 bg-delft-blue/10">
@@ -146,7 +146,7 @@
                   alt=""
                   class="w-full h-full object-cover"
                 />
-                <div v-else class="w-full h-full flex items-center justify-center text-delft-blue text-sm font-semibold">
+                <div v-else class="friend-initial w-full h-full flex items-center justify-center text-delft-blue text-sm font-semibold">
                   {{ (rec.fromDisplayName || '?').charAt(0).toUpperCase() }}
                 </div>
               </div>

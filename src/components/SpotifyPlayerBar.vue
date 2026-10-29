@@ -651,7 +651,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   <div>
   <div 
     v-if="showPlayer"
-    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-[60] player-bar-shadow"
+    class="fixed bottom-0 left-0 right-0 bg-delft-blue text-white z-[60] player-bar-shadow dark:border-t-4 dark:border-mint"
   >
     <div class="container mx-auto px-4 py-3 player-container">
       <div class="flex items-center gap-4 player-content">
@@ -891,7 +891,7 @@ watch(() => currentTrack.value?.id, (trackId, oldTrackId) => {
   right: 0;
   width: 20rem;
   height: calc(100vh - 5.5rem);
-  background: #23395b;
+  background: rgb(var(--c-delft));
   border-left: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: -2px 0 6px rgba(0, 0, 0, 0.2);
   z-index: 50;

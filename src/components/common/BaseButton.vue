@@ -67,11 +67,13 @@ const mobileWidth = computed(() => {
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'primary':
-      return 'bg-delft-blue text-mindero hover:bg-raspberry';
+      return 'bg-delft-blue text-mindero hover:bg-raspberry dark:ring-2 dark:ring-mint';
     case 'secondary':
-      return 'bg-mint text-delft-blue hover:bg-delft-blue hover:text-white';
+      return 'bg-action text-delft-blue hover:bg-delft-blue hover:text-white dark:hover:bg-celadon dark:hover:text-delft-blue';
     case 'tertiary':
-      return 'bg-white text-delft-blue border-2 border-delft-blue hover:bg-mint hover:text-delft-blue';
+      return 'bg-card text-on-card border-2 border-delft-blue hover:bg-mint hover:text-delft-blue dark:hover:bg-mint';
+    case 'danger':
+      return 'bg-raspberry text-white hover:bg-raspberry/80';
     case 'default':
     default:
       return 'bg-blue-500 text-white hover:bg-blue-600';

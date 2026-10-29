@@ -14,6 +14,7 @@ import {
   Bars3Icon,
   XMarkIcon
 } from '@heroicons/vue/24/outline';
+import ThemeToggle from '@components/common/ThemeToggle.vue';
 
 const { user, userData } = useUserData();
 const { showUpdatesDot } = useUpdatesBadge();
@@ -30,21 +31,22 @@ const closeMobileMenu = () => {
 </script>
 
 <template>
-  <header class="bg-mint border-b-4 border-delft-blue relative z-50">
+  <header class="bg-mint dark:bg-page border-b-4 border-delft-blue dark:border-mint relative z-50">
     <div class="container mx-auto max-w-7xl px-4">
       <!-- Mobile: single row with logo and hamburger -->
       <div class="flex md:hidden h-[64px] items-center justify-between">
         <RouterLink to="/" class="no-underline hover:no-underline flex items-center gap-1" @click="closeMobileMenu">
-          <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5" />
+          <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5 dark:hidden" />
+          <img src="/tunicious-logo-dark.png" alt="Tunicious" class="-mt-0.5 hidden dark:inline" />
           <span
-            class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black text-delft-blue cursor-pointer hover:text-raspberry transition-colors"
+            class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black brand-wordmark text-delft-blue dark:text-on-page cursor-pointer hover:text-raspberry transition-colors"
           >
             Tunicious
           </span>
         </RouterLink>
         <button
           @click="toggleMobileMenu"
-          class="p-2 text-delft-blue hover:text-raspberry transition-colors"
+          class="p-2 text-delft-blue dark:text-on-page hover:text-raspberry transition-colors"
           aria-label="Toggle mobile menu"
         >
           <Bars3Icon v-if="!isMobileMenuOpen" class="w-6 h-6" />
@@ -56,19 +58,20 @@ const closeMobileMenu = () => {
       <div class="hidden md:block py-3">
         <div class="flex items-center justify-between">
           <RouterLink to="/" class="no-underline hover:no-underline flex items-center gap-1" @click="closeMobileMenu">
-            <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5" />
+            <img src="/tunicious-logo.png" alt="Tunicious" class="-mt-0.5 dark:hidden" />
+            <img src="/tunicious-logo-dark.png" alt="Tunicious" class="-mt-0.5 hidden dark:inline" />
             <span
-              class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black text-delft-blue cursor-pointer hover:text-raspberry transition-colors"
+              class="text-[32px] leading-[32px] -tracking-[0.04em] italic font-black brand-wordmark text-delft-blue dark:text-on-page cursor-pointer hover:text-raspberry transition-colors"
             >
               Tunicious
             </span>
           </RouterLink>
 
-          <div class="flex items-center gap-3">
+          <div class="flex items-center">
             <div v-if="!user">
-              <RouterLink to="/login">Login</RouterLink>
+              <RouterLink to="/login" class="font-bold text-delft-blue dark:text-on-page hover:text-raspberry">Login</RouterLink>
             </div>
-            <RouterLink v-else to="/account/profile" class="flex items-center gap-2 text-delft-blue hover:text-raspberry">
+            <RouterLink v-else to="/account/profile" class="flex items-center gap-2 text-delft-blue dark:text-on-page hover:text-raspberry">
               <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
                 <img 
                   v-if="userData?.profileImageUrl" 
@@ -77,7 +80,7 @@ const closeMobileMenu = () => {
                   alt="Profile picture"
                   class="w-full h-full object-cover"
                 />
-                <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-lg font-semibold">
+                <div v-else class="w-full h-full bg-delft-blue dark:bg-[#23395b] flex items-center justify-center text-mindero text-lg font-semibold">
                   {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
                 </div>
               </div>
@@ -87,7 +90,7 @@ const closeMobileMenu = () => {
         </div>
 
         <!-- Desktop Nav Links (below logo) -->
-        <nav class="flex items-center pt-2">
+        <nav class="flex items-center justify-between pt-2">
           <ul class="flex gap-8">
             <li>
               <RouterLink to="/playlists" class="flex items-center gap-1">
@@ -132,6 +135,7 @@ const closeMobileMenu = () => {
               </RouterLink>
             </li>
           </ul>
+          <ThemeToggle />
         </nav>
       </div>
     </div>
@@ -163,15 +167,15 @@ const closeMobileMenu = () => {
     >
       <nav
         v-if="isMobileMenuOpen"
-        class="fixed top-0 right-0 h-full w-80 bg-mint border-l-4 border-delft-blue z-50 md:hidden shadow-2xl overflow-y-auto"
+        class="fixed top-0 right-0 h-full w-80 bg-mint dark:bg-page border-l-4 border-delft-blue dark:border-mint z-50 md:hidden shadow-2xl overflow-y-auto"
       >
         <div class="flex flex-col h-full">
           <!-- Mobile Menu Header -->
-          <div class="flex items-center justify-between px-4 h-16 flex-shrink-0 border-b-4 border-delft-blue" style="height: 64px;">
-            <h2 class="text-xl font-black text-delft-blue">Menu</h2>
+          <div class="flex items-center justify-between px-4 h-16 flex-shrink-0 border-b-4 border-delft-blue dark:border-mint" style="height: 64px;">
+            <h2 class="text-xl font-black text-delft-blue dark:text-on-page">Menu</h2>
             <button
               @click="closeMobileMenu"
-              class="p-2 text-delft-blue hover:text-raspberry transition-colors"
+              class="p-2 text-delft-blue dark:text-on-page hover:text-raspberry transition-colors"
               aria-label="Close menu"
             >
               <XMarkIcon class="w-6 h-6" />
@@ -184,7 +188,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/playlists"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <MusicalNoteIcon class="w-6 h-6" />
@@ -194,7 +198,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/library"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <RectangleStackIcon class="w-6 h-6" />
@@ -204,7 +208,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/activity"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <BoltIcon class="w-6 h-6" />
@@ -214,7 +218,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/search"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <MagnifyingGlassIcon class="w-6 h-6" />
@@ -224,7 +228,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/friends"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <UserGroupIcon class="w-6 h-6" />
@@ -237,7 +241,7 @@ const closeMobileMenu = () => {
               <li>
                 <RouterLink
                   to="/updates"
-                  class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-celadon transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                   @click="closeMobileMenu"
                 >
                   <RocketLaunchIcon class="w-6 h-6" />
@@ -255,7 +259,7 @@ const closeMobileMenu = () => {
             <div v-if="!user">
               <RouterLink
                 to="/login"
-                class="flex items-center justify-center w-full px-4 py-2 rounded-lg bg-delft-blue text-mindero hover:bg-raspberry transition-colors duration-200 font-medium min-h-[2.5rem]"
+                class="flex items-center justify-center w-full px-4 py-2 rounded-lg bg-delft-blue text-mindero hover:bg-raspberry dark:ring-2 dark:ring-mint transition-colors duration-200 font-medium min-h-[2.5rem]"
                 @click="closeMobileMenu"
               >
                 Login
@@ -264,7 +268,7 @@ const closeMobileMenu = () => {
             <div v-else>
               <RouterLink
                 to="/account/profile"
-                class="flex items-center gap-3 p-4 rounded-lg hover:bg-celadon transition-colors"
+                class="flex items-center gap-3 p-4 rounded-lg text-delft-blue dark:text-on-page hover:bg-celadon dark:hover:bg-mint dark:hover:text-delft-blue transition-colors"
                 @click="closeMobileMenu"
               >
                 <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
@@ -275,16 +279,22 @@ const closeMobileMenu = () => {
                     alt="Profile picture"
                     class="w-full h-full object-cover"
                   />
-                  <div v-else class="w-full h-full bg-delft-blue flex items-center justify-center text-mindero text-lg font-semibold">
+                  <div v-else class="w-full h-full bg-delft-blue dark:bg-[#23395b] flex items-center justify-center text-mindero text-lg font-semibold">
                     {{ userData?.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?' }}
                   </div>
                 </div>
                 <div class="flex flex-col">
-                  <span class="font-bold text-delft-blue">{{ userData?.displayName || user.email }}</span>
-                  <span class="text-sm text-delft-blue opacity-75">View Profile</span>
+                  <span class="font-bold text-delft-blue dark:text-on-page">{{ userData?.displayName || user.email }}</span>
+                  <span class="text-sm text-delft-blue dark:text-on-page opacity-75">View Profile</span>
                 </div>
               </RouterLink>
             </div>
+          </div>
+
+          <div class="px-4 pb-4">
+            <ThemeToggle class="w-full justify-start px-4 py-3 rounded-lg font-medium text-delft-blue dark:text-on-page">
+              Dark mode
+            </ThemeToggle>
           </div>
         </div>
       </nav>
@@ -305,8 +315,31 @@ span.router-link-exact-active {
   @apply text-raspberry;
 }
 
-/* Mobile menu active state */
 nav[class*="fixed"] ul a.router-link-active {
   @apply bg-celadon text-raspberry;
+}
+</style>
+
+<style lang="scss">
+.dark header.bg-mint .brand-wordmark {
+  color: #fff;
+}
+
+.dark header.bg-mint .brand-wordmark:hover {
+  color: #d81e5b;
+}
+
+.dark header nav a {
+  color: #fff;
+}
+
+.dark header nav a:hover,
+.dark header nav a.router-link-active {
+  color: #d81e5b;
+}
+
+.dark header nav[class*="fixed"] a.router-link-active {
+  background-color: rgb(var(--c-mint));
+  color: #fff;
 }
 </style>

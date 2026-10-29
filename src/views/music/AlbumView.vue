@@ -972,7 +972,7 @@ onUnmounted(() => {
     </div>
 
     <div v-if="loading" class="text-center">
-      <p class="text-delft-blue text-lg">Loading album details...</p>
+      <p class="text-on-page text-lg">Loading album details...</p>
     </div>
     
     <div v-else-if="error" class="text-center">
@@ -985,10 +985,10 @@ onUnmounted(() => {
         <div class="album-right-column">
         <!-- head: album title, artist (year, play, links) -->
         <div class="album-head md:mb-8">
-            <p class="text-xl text-delft-blue font-bold mb-0">{{ album.release_date.substring(0, 4) }}</p>
+            <p class="text-xl text-on-page font-bold mb-0">{{ album.release_date.substring(0, 4) }}</p>
             <h1 class="h2 mb-0.5">{{ album.name }}</h1>
             <p
-              class="text-xl md:text-2xl text-delft-blue cursor-pointer hover:text-blue-500 hover:underline transition-colors duration-200 mb-6"
+              class="text-xl md:text-2xl text-on-page cursor-pointer hover:text-mint hover:underline transition-colors duration-200 mb-6"
               @click="router.push({ name: 'artist', params: { id: album.artists[0].id } })"
             >
               {{ album.artists[0].name }}
@@ -997,6 +997,7 @@ onUnmounted(() => {
               <BaseButton
                 v-if="playerReady"
                 variant="primary"
+                custom-class="!bg-emphasis !text-delft-blue hover:!bg-mint dark:!ring-0"
                 title="Play album"
                 @click="playAlbumFromStart"
               >
@@ -1021,7 +1022,7 @@ onUnmounted(() => {
                 @click="handleListenTabClick(tab)"
                 :class="[
                   'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
-                  activeListenTab === tab.id ? 'text-delft-blue bg-mint' : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                  activeListenTab === tab.id ? 'text-delft-blue bg-mint' : 'text-gray-600 dark:text-white/70 hover:text-delft-blue hover:bg-mint'
                 ]"
                 :aria-current="activeListenTab === tab.id ? 'page' : undefined"
               >
@@ -1029,7 +1030,7 @@ onUnmounted(() => {
               </button>
             </nav>
             <div class="bg-mint p-4 rounded-xl">
-              <div class="bg-white border-2 border-delft-blue rounded-lg p-4">
+              <div class="album-listen-panel bg-card text-on-card border-2 border-delft-blue rounded-lg p-4">
                 <template v-if="activeListenTab === 'history'">
                   <AlbumHistoryTimeline
                     :playlist-entries="playlistHistoryEntries"
@@ -1149,7 +1150,7 @@ onUnmounted(() => {
 
         <!-- tracks: tracklist + update/mapping -->
         <div class="album-tracks flex flex-col gap-4">
-          <div class="bg-white border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
+          <div class="album-tracks-panel bg-card text-on-card border-2 border-delft-blue pt-4 pb-4 pr-4 pl-2 rounded-lg">
             <TrackList
               :tracks="tracks"
               :albumArtist="album.artists[0]?.name || ''"
@@ -1197,21 +1198,21 @@ onUnmounted(() => {
               v-if="userData?.lastFmUserName"
               :href="lastFmLink"
               target="_blank"
-              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+              class="text-sm lg:text-base text-on-page hover:text-mint hover:underline transition-colors duration-200"
             >
               Last.fm
             </a>
             <a
               :href="rymLink"
               target="_blank"
-              class="text-sm lg:text-base text-delft-blue hover:text-blue-500 hover:underline transition-colors duration-200"
+              class="text-sm lg:text-base text-on-page hover:text-mint hover:underline transition-colors duration-200"
             >
               RYM
             </a>
             <button
               v-if="albumExists"
               @click="handleEditRymLink"
-              class="text-xs text-gray-500 hover:text-gray-700 underline"
+              class="text-xs text-on-page/70 hover:text-on-page underline"
               title="Edit RYM link"
             >
               Edit RYM Link

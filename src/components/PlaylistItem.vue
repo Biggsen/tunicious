@@ -69,7 +69,7 @@ const isCurrentlyPlaying = computed(() => {
   <li v-if="playlist" class="flex justify-end">
     <div
       :class="[
-        'p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry pr-6 relative group w-full',
+        'p-2 rounded-xl flex items-center cursor-pointer hover:bg-raspberry dark:hover:bg-[#23395B] pr-6 relative group w-full',
         isTerminalPlaylist ? 'bg-delft-blue text-sm' : 
         isSinkPlaylist ? 'bg-red-700 text-sm ml-8' : 
         'bg-delft-blue'
@@ -85,9 +85,9 @@ const isCurrentlyPlaying = computed(() => {
         />
         <div 
           v-else 
-          class="rounded-lg w-16 h-16 sm:w-20 sm:h-20 bg-gray-300 flex items-center justify-center"
+          class="rounded-lg w-16 h-16 sm:w-20 sm:h-20 bg-gray-300 dark:bg-black flex items-center justify-center"
         >
-          <span class="text-gray-500 text-xs">No Image</span>
+          <span class="text-[#6b7280] dark:text-white text-xs">No Image</span>
         </div>
         <div 
           v-if="isCurrentlyPlaying"

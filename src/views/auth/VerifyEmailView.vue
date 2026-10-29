@@ -56,7 +56,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="currentUser && !currentUser.emailVerified" class="p-4 pt-8">
+  <div v-if="currentUser && !currentUser.emailVerified" class="light-canvas p-4 pt-8">
     <h1 class="h2 pb-4">Verify Your Email</h1>
     
     <div class="verification-content">

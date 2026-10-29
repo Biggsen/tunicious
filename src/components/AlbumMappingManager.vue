@@ -35,7 +35,7 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close', 'update-y
 <template>
   <div>
     <!-- Album Mapping UI -->
-    <div v-if="!isMappedAlbum && !primaryAlbumId" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
+    <div v-if="!isMappedAlbum && !primaryAlbumId" class="mt-6 bg-card text-on-card border-2 border-delft-blue rounded-xl p-4">
       <h3 class="text-xl font-bold text-delft-blue mb-4">Album Mapping</h3>
       
       <p class="text-delft-blue mb-4">
@@ -51,7 +51,7 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close', 'update-y
     </div>
 
     <!-- Already Mapped Message -->
-    <div v-if="isMappedAlbum && primaryAlbumId" class="mt-6 bg-white border-2 border-delft-blue rounded-xl p-4">
+    <div v-if="isMappedAlbum && primaryAlbumId" class="mt-6 bg-card text-on-card border-2 border-delft-blue rounded-xl p-4">
       <h3 class="text-xl font-bold text-delft-blue mb-4">Album Mapping</h3>
       <p class="text-delft-blue">
         This album is already mapped to another album in your collection.
@@ -60,7 +60,7 @@ const emit = defineEmits(['check-existing', 'create-mapping', 'close', 'update-y
 
     <!-- Search Results Dialog -->
     <div v-if="searchResults.length > 0" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999]">
-      <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+      <div class="bg-card text-on-card rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl">
         <h3 class="text-xl font-bold text-delft-blue mb-4">Found Matching Albums</h3>
         <p class="text-delft-blue mb-4">
           The following albums match the title and artist. Select one to create a mapping:

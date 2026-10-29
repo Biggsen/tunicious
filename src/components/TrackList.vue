@@ -383,7 +383,7 @@ const handleTrackClick = async (track) => {
           >
             <PlayIcon class="w-3 h-3" />
           </span>
-          <span v-if="showTrackNumbers && track.track_number" class="-ml-1 mr-2 text-delft-blue flex-shrink-0 self-center w-6 text-right">
+          <span v-if="showTrackNumbers && track.track_number" class="-ml-1 mr-2 text-delft-blue flex-shrink-0 self-start w-6 text-right">
             {{ track.track_number }}.
           </span>
           <span class="flex-1 min-w-0">{{ track.name }}</span>
@@ -396,13 +396,13 @@ const handleTrackClick = async (track) => {
         </span>
         <HeartIcon 
           v-if="isTrackLoved(track)" 
-          :class="['text-red-500 flex-shrink-0 cursor-pointer hover:text-red-600 transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
+          :class="['text-raspberry flex-shrink-0 cursor-pointer hover:text-raspberry/80 transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
           :title="allowLoving ? 'Click to unlike' : 'Loved on Last.fm'"
           @click="handleHeartClick(track, $event)"
         />
         <HeartIconOutline 
           v-else-if="allowLoving && sessionKey" 
-          :class="['text-gray-400 flex-shrink-0 cursor-pointer hover:text-red-500 transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
+          :class="['text-gray-400 dark:text-white flex-shrink-0 cursor-pointer hover:text-raspberry transition-colors ml-2', largeElements ? 'w-5 h-5' : 'w-4 h-4']" 
           title="Click to love"
           @click="handleHeartClick(track, $event)"
         />

@@ -10,7 +10,7 @@ const { visibleUpdates, formatDate } = useUpdates();
     <h1 class="h2 pb-4">Updates</h1>
 
     <div v-if="visibleUpdates.length === 0" class="py-12">
-      <p class="text-delft-blue/70">No updates available at this time.</p>
+      <p class="text-on-page/70">No updates available at this time.</p>
     </div>
 
     <div v-else class="space-y-8 max-w-[70ch]">
@@ -28,20 +28,20 @@ const { visibleUpdates, formatDate } = useUpdates();
           </time>
         </div>
 
-        <h3 class="text-2xl font-bold text-delft-blue mb-3">
+        <h3 class="text-2xl font-bold text-on-page mb-3">
           {{ update.title }}
         </h3>
 
         <p
           v-if="update.description"
-          class="text-delft-blue/90 mb-4 leading-relaxed"
+          class="text-on-page/90 mb-4 leading-relaxed"
         >
           {{ update.description }}
         </p>
 
         <ul
           v-if="update.changes && update.changes.length > 0"
-          class="list-disc list-outside mb-4 space-y-1 text-delft-blue/80 ml-6"
+          class="list-disc list-outside mb-4 space-y-1 text-on-page/80 ml-6"
         >
           <li v-for="(change, index) in update.changes" :key="index">
             {{ change }}
@@ -55,7 +55,7 @@ const { visibleUpdates, formatDate } = useUpdates();
           <span
             v-for="(type, index) in update.types"
             :key="index"
-            class="px-3 py-1 rounded-full text-xs font-semibold bg-delft-blue/10 text-delft-blue border border-delft-blue/20"
+            class="update-chip px-3 py-1 rounded-full text-xs font-semibold bg-delft-blue/10 text-delft-blue border border-delft-blue/20"
           >
             {{ type }}
           </span>

@@ -184,12 +184,12 @@ const filteredMovements = computed(() => {
   <div class="latest-movements">
     <div v-if="showHeader" class="mb-4">
       <div class="flex items-center gap-2 mb-3">
-        <ClockIcon class="h-5 w-5 text-delft-blue" />
-        <h2 class="text-xl font-bold text-delft-blue">Latest Movements</h2>
+        <ClockIcon class="h-5 w-5 text-on-page" />
+        <h2 class="text-xl font-bold text-on-page">Latest Movements</h2>
       </div>
       <div class="flex items-center gap-3 ml-[28px]">
         <ToggleSwitch v-model="excludeQueued" variant="primary-on-celadon" />
-        <span class="text-delft-blue">Exclude queued</span>
+        <span class="text-on-page">Exclude queued</span>
       </div>
     </div>
 
@@ -202,7 +202,7 @@ const filteredMovements = computed(() => {
             'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
             activeTab === 'mine'
               ? 'text-delft-blue bg-mint'
-              : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+              : 'text-gray-600 dark:text-white/70 hover:text-delft-blue hover:bg-mint'
           ]"
         >
           Mine
@@ -213,7 +213,7 @@ const filteredMovements = computed(() => {
             'py-3 px-4 font-semibold text-base rounded-t-lg transition-all duration-200',
             activeTab === 'friends'
               ? 'text-delft-blue bg-mint'
-              : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+              : 'text-gray-600 dark:text-white/70 hover:text-delft-blue hover:bg-mint'
           ]"
         >
           Friends
@@ -223,6 +223,7 @@ const filteredMovements = computed(() => {
 
     <!-- Tab Content -->
     <div class="bg-mint p-4 rounded-xl">
+      <div class="activity-inner">
       <LoadingMessage v-if="loading" />
       <ErrorMessage v-else-if="error" :message="error" />
       
@@ -392,6 +393,7 @@ const filteredMovements = computed(() => {
           </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </div>

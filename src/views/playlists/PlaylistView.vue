@@ -28,7 +28,17 @@ const loading = ref(true);
 const error = ref(null);
 const loadingPipeline = ref(null);
 const reloadingGroup = ref(null);
-const showEndPlaylists = ref(sessionStorage.getItem('showEndPlaylists') === 'true');
+function readHideRatingPlaylists() {
+  try {
+    const stored = localStorage.getItem('showEndPlaylists');
+    if (stored === 'true' || stored === 'false') return stored === 'true';
+    return sessionStorage.getItem('showEndPlaylists') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+const showEndPlaylists = ref(readHideRatingPlaylists());
 
 // Dynamic active tab - will be set to first available group
 const activeTab = ref(sessionStorage.getItem('activeTab') || '');
@@ -101,9 +111,12 @@ const isGroupPlaying = (group) => {
   return groupPlaylists.some(playlist => playlist.id === playingFrom.value.id);
 };
 
-// Watch for changes to showEndPlaylists and update session storage
 watch(showEndPlaylists, (newValue) => {
-  sessionStorage.setItem('showEndPlaylists', newValue);
+  try {
+    localStorage.setItem('showEndPlaylists', String(newValue));
+  } catch {
+    // The toggle still applies for this visit.
+  }
 });
 
 // Watch for changes to activeTab and update session storage
@@ -375,7 +388,7 @@ onUnmounted(() => {
     </div>
     <div class="flex items-center gap-3 mb-6">
       <ToggleSwitch v-model="showEndPlaylists" variant="primary-on-celadon" />
-      <span class="text-delft-blue">Hide rating playlists</span>
+      <span class="text-on-page">Hide rating playlists</span>
     </div>
 
     <p v-if="loading">Loading playlists...</p>
@@ -392,7 +405,7 @@ onUnmounted(() => {
               'py-3 px-4 font-semibold text-base capitalize rounded-t-lg transition-all duration-200 flex items-center gap-2',
               activeTab === group
                 ? 'text-delft-blue bg-mint'
-                : 'text-gray-600 hover:text-delft-blue hover:bg-mint'
+                : 'text-gray-600 dark:text-white/70 hover:text-delft-blue hover:bg-mint'
             ]"
           >
             <span>{{ group }} ({{ getTabCount(group) }})</span>
@@ -471,7 +484,7 @@ onUnmounted(() => {
         </RouterLink>
       </div>
     </div>
-    <p v-else-if="availableGroups.length === 0" class="text-gray-500 text-center py-8">
+    <p v-else-if="availableGroups.length === 0" class="text-on-page/70 text-center py-8">
       No playlists available.
     </p>
   </BaseLayout>

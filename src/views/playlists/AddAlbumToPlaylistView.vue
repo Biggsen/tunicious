@@ -17,7 +17,7 @@
 
     <div v-else class="space-y-8">
       <!-- Add Album to Playlist Form -->
-      <div class="bg-white shadow rounded-lg p-6">
+      <div class="add-playlist-panel bg-card text-on-card shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-4">Add Album to Playlist</h2>
         
         <form @submit.prevent="handleAddAlbum" class="space-y-4">
@@ -45,7 +45,7 @@
             <BaseButton 
               type="submit" 
               :disabled="addingAlbum || !selectedAlbum || !albumForm.playlistId"
-              customClass="btn-primary"
+              variant="secondary"
             >
               {{ addingAlbum ? 'Adding...' : 'Add Album to Playlist' }}
             </BaseButton>
@@ -54,7 +54,7 @@
       </div>
 
       <!-- No Playlists Message -->
-      <div v-if="userPlaylists.length === 0 && !loadingPlaylists" class="bg-white shadow rounded-lg p-6">
+      <div v-if="userPlaylists.length === 0 && !loadingPlaylists" class="add-playlist-panel bg-card text-on-card shadow rounded-lg p-6">
         <p class="text-gray-500 text-center">
           No Tunicious playlists found. Create a playlist first!
         </p>

@@ -150,7 +150,7 @@ const dummyTracks = [
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout class="light-canvas">
     <div class="mb-8">
       <h1 class="text-4xl font-bold text-delft-blue mb-2">Style Guide</h1>
       <p class="text-delft-blue/70">
@@ -160,41 +160,106 @@ const dummyTracks = [
 
     <!-- Colors Section -->
     <section class="mb-12">
-      <h2 class="text-2xl font-bold text-delft-blue mb-6">Colors</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div class="bg-mindero border-2 border-delft-blue rounded-lg p-6">
-          <div class="mb-2">
-            <div class="w-full h-24 bg-mindero border-2 border-delft-blue rounded mb-2"></div>
-            <h3 class="font-semibold text-delft-blue">Mindero</h3>
-            <p class="text-sm text-delft-blue/70">#FFFD98</p>
+      <h2 class="text-2xl font-bold text-delft-blue mb-2">Colors</h2>
+      <p class="text-delft-blue/70 mb-6">
+        Grouped by family, light to dark. Neighbours are reference only.
+      </p>
+      <div class="space-y-5">
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-delft-blue/70 mb-2">Mindero</h3>
+          <div class="flex flex-wrap gap-3">
+            <div class="w-36 bg-primrose border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Primrose</p>
+              <p class="text-xs text-delft-blue/70">#FEFDE1</p>
+            </div>
+            <div class="w-36 bg-mindero border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Mindero</p>
+              <p class="text-xs text-delft-blue/70">#FFFD98</p>
+            </div>
+            <div class="w-36 bg-gorse border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Gorse</p>
+              <p class="text-xs text-delft-blue/70">#F6F350</p>
+            </div>
           </div>
         </div>
-        <div class="bg-delft-blue border-2 border-delft-blue rounded-lg p-6">
-          <div class="mb-2">
-            <div class="w-full h-24 bg-delft-blue border-2 border-delft-blue rounded mb-2"></div>
-            <h3 class="font-semibold text-white">Delft Blue</h3>
-            <p class="text-sm text-white/70">#23395B</p>
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-delft-blue/70 mb-2">Delft</h3>
+          <div class="flex flex-wrap gap-3">
+            <div class="w-36 bg-wedgwood border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Wedgwood</p>
+              <p class="text-xs text-delft-blue/70">#8EA3C4</p>
+            </div>
+            <div class="w-36 bg-faience border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Faience</p>
+              <p class="text-xs text-white/70">#3F5B87</p>
+            </div>
+            <div class="w-36 bg-delft-blue border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Delft Blue</p>
+              <p class="text-xs text-white/70">#23395B</p>
+            </div>
+            <div class="w-36 bg-inkwell border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Inkwell</p>
+              <p class="text-xs text-white/70">#18273E</p>
+            </div>
           </div>
         </div>
-        <div class="bg-celadon border-2 border-delft-blue rounded-lg p-6">
-          <div class="mb-2">
-            <div class="w-full h-24 bg-celadon border-2 border-delft-blue rounded mb-2"></div>
-            <h3 class="font-semibold text-delft-blue">Celadon</h3>
-            <p class="text-sm text-delft-blue/70">#B9E3C6</p>
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-delft-blue/70 mb-2">Celadon</h3>
+          <div class="flex flex-wrap gap-3">
+            <div class="w-36 bg-ash border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Ash</p>
+              <p class="text-xs text-delft-blue/70">#EDF6F0</p>
+            </div>
+            <div class="w-36 bg-celadon border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Celadon</p>
+              <p class="text-xs text-delft-blue/70">#B9E3C6</p>
+            </div>
+            <div class="w-36 bg-verdigris border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Verdigris</p>
+              <p class="text-xs text-delft-blue/70">#79D194</p>
+            </div>
+            <div class="w-36 bg-malachite border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Malachite</p>
+              <p class="text-xs text-white/70">#2B8C49</p>
+            </div>
           </div>
         </div>
-        <div class="bg-mint border-2 border-delft-blue rounded-lg p-6">
-          <div class="mb-2">
-            <div class="w-full h-24 bg-mint border-2 border-delft-blue rounded mb-2"></div>
-            <h3 class="font-semibold text-delft-blue">Mint</h3>
-            <p class="text-sm text-delft-blue/70">#59C9A5</p>
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-delft-blue/70 mb-2">Mint</h3>
+          <div class="flex flex-wrap gap-3">
+            <div class="w-36 bg-spearmint border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Spearmint</p>
+              <p class="text-xs text-delft-blue/70">#95D5C0</p>
+            </div>
+            <div class="w-36 bg-mint border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Mint</p>
+              <p class="text-xs text-delft-blue/70">#59C9A5</p>
+            </div>
+            <div class="w-36 bg-jade border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-delft-blue">Jade</p>
+              <p class="text-xs text-delft-blue/70">#2DA37D</p>
+            </div>
+            <div class="w-36 bg-pine border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Pine</p>
+              <p class="text-xs text-white/70">#1E5C48</p>
+            </div>
           </div>
         </div>
-        <div class="bg-raspberry border-2 border-delft-blue rounded-lg p-6">
-          <div class="mb-2">
-            <div class="w-full h-24 bg-raspberry border-2 border-delft-blue rounded mb-2"></div>
-            <h3 class="font-semibold text-white">Raspberry</h3>
-            <p class="text-sm text-white/70">#D81E5B</p>
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-delft-blue/70 mb-2">Raspberry</h3>
+          <div class="flex flex-wrap gap-3">
+            <div class="w-36 bg-sorbet border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Sorbet</p>
+              <p class="text-xs text-white/70">#E05E88</p>
+            </div>
+            <div class="w-36 bg-raspberry border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Raspberry</p>
+              <p class="text-xs text-white/70">#D81E5B</p>
+            </div>
+            <div class="w-36 bg-claret border border-delft-blue rounded-lg px-3 py-2">
+              <p class="text-sm font-semibold text-white">Claret</p>
+              <p class="text-xs text-white/70">#950F3B</p>
+            </div>
           </div>
         </div>
       </div>

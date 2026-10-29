@@ -20,7 +20,7 @@
     >
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+        class="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-card text-on-card ring-1 ring-delft-blue/20 z-50"
         role="menu"
         aria-orientation="vertical"
         @click.stop
