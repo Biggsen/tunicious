@@ -117,7 +117,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="light-canvas p-4 pt-8">
+  <div class="p-4 pt-8 text-on-page">
     <div v-if="loading" class="text-center">
       <h2 class="text-xl font-bold mb-4">Connecting to Spotify...</h2>
       <p>Please wait while we complete your Spotify authorization.</p>
@@ -126,10 +126,11 @@ onMounted(async () => {
     <div v-else-if="success" class="text-center">
       <div class="success-icon mb-4">✓</div>
       <h2 class="text-xl font-bold mb-4 text-green-600">Spotify Connected Successfully!</h2>
-      <p class="text-gray-700 mb-6">You can now play music and manage playlists.</p>
+      <p class="text-on-page/80 mb-6">You can now play music and manage playlists.</p>
       <BaseButton
         @click="handleContinue"
         variant="primary"
+        custom-class="dark:!bg-[#3f5b87] dark:!text-white dark:!ring-0"
         class="continue-button"
       >
         Continue
@@ -149,9 +150,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.btn-primary {
-  @apply px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200;
-}
-</style>

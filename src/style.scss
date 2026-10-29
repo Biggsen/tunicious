@@ -501,6 +501,10 @@ body {
   color: rgb(255 255 255 / 0.5);
 }
 
+.dark .page-field.auth-input-error {
+  border-color: #d81e5b !important;
+}
+
 .page-outline {
   @apply inline-flex items-center bg-white text-delft-blue border border-gray-300 hover:bg-gray-50;
 }

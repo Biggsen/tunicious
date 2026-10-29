@@ -117,21 +117,22 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="light-canvas p-4 pt-8">
+  <div class="p-4 pt-8 text-on-page">
     <div v-if="loading" class="text-center">
-      <p class="text-delft-blue text-lg">Connecting to Last.fm...</p>
+      <p class="text-on-page text-lg">Connecting to Last.fm...</p>
       <div class="mt-4">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-delft-blue mx-auto"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-delft-blue dark:border-white mx-auto"></div>
       </div>
     </div>
     
     <div v-else-if="success" class="text-center">
       <div class="success-icon mb-4">✓</div>
       <h2 class="text-xl font-bold mb-4 text-green-600">Last.fm Connected Successfully!</h2>
-      <p class="text-gray-700 mb-6">You can now love tracks while listening to music.</p>
+      <p class="text-on-page/80 mb-6">You can now love tracks while listening to music.</p>
       <BaseButton
         @click="handleContinue"
         variant="primary"
+        custom-class="dark:!bg-[#3f5b87] dark:!text-white dark:!ring-0"
         class="continue-button"
       >
         Continue
